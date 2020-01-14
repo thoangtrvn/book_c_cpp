@@ -1,0 +1,477 @@
+\chapter{Command-line arguments}
+\label{chap:command-line-argument}
+
+\section{History}
+
+Unix tradition encourages the use of command-line switches to control programs, so that options can be specified from scripts.
+We can pass the input via the command-line arguments
+\begin{verbatim}
+python <source.py>  arg1 arg2
+\end{verbatim}
+\url{http://www.faqs.org/docs/artu/ch10s05.html}
+
+A program can accepts commands (tcp, serial), and keyword arguments
+\begin{verbatim}
+my_prog tcp <host> <port>  [--timeout=<second>]
+my_prog serial <port> [--baud=9600] [--timeout=<second>]
+my_prog (-h | --help | --version)
+\end{verbatim}
+A command can accepts as a series of positional arguments (\verb!<host>, <host>!) 
+and/or keyword arguments (\verb!--timeout=<second>!).
+
+
+There are 3 types of command-line arguments:
+\begin{itemize}
+  \item positional argument
+  \item optional argument
+  \item keyword argument (named argument)
+  \item flags
+\end{itemize}
+
+\begin{mdframed}
+
+David Goodger pointed out that the term \verb!keyword argument! - on Unix
+platforms - traditionally called \verb!options!;  what he calls \verb!values!
+are traditionally called \verb!option arguments!; and what he calls
+\verb!positional arguments!, the Open Group calls \verb!operands!.
+\begin{itemize}
+  \item First of all, the term option tends to be Unix-specific; on Windows the term parameter is more frequently used
+  \item Second, the investigation began with command-line parsers, and in the context of a discussion of parsers and parsing, keyword argument seems a more traditional and appropriate term than option. 
+  \item Third, the usual definition of option is not very useful.
+  \item And finally, the term option implies optionality.  Whether an argument is optional or required is a semantic issue rather than a syntactical issue. 
+\end{itemize}
+
+\end{mdframed}
+
+\url{https://pythonconquerstheuniverse.wordpress.com/2010/07/25/command-line-syntax-some-basic-concepts/}
+
+
+\subsection{-- positional argument}
+\label{sec:positional-argument}
+
+{\bf positional arguments}: a bare value and its position in a list of
+  arguments identifies it.
+\begin{verbatim}
+rename file_a.txt  file_b.txt
+\end{verbatim}  
+The order is important in positional arguments.
+
+\subsection{-- optional argument}
+\label{sec:optional-argument}
+
+({\bf optional argument}) or the term \verb!keyword argument! is used to
+  cover both {\bf named arguments} and {\bf flags}.
+  
+A \verb!keyword argument! requires a sigil (a special character of string of
+characters that indicates the beginning of a key).
+
+\begin{itemize}
+  \item In Windows, a sigil is a forward slash (/)
+  \item In Unix-like O/S, a sigil is a dash (-) for single-character name, and
+  two dash (\verb!--!) for longer name
+
+Some applications, especially on Unix, make a distinction between
+single-character keys and multi-character keys ("long options"), with a
+single-dash sigil "-" indicating the beginning of a single-character key, and a
+double dash "\verb!--!" sigil indicating the beginning of a multi-character key.
+
+  \item Some applications use multiple sigils.  With the plus sign '+' as a
+  sigil, for instance, it is possible to use flags to turn options on and off.
+    
+   \item EXCEPTION: some programs do not use sigil in front of the optional
+   argument
+
+\begin{verbatim}
+tar xvf <filename.tar>
+\end{verbatim}
+This is not recommended.
+   
+   \item  Some programs allow several single-letter options to be preceded by a
+   single dash e.g. "ps -elf" instead of "ps -e -l -f". 
+   
+   This is also not recommended.
+   \url{http://courses.cms.caltech.edu/cs11/material/c/mike/misc/cmdline_args.html}
+\end{itemize}
+
+\subsection{-- named argument}
+\label{sec:named-argument}
+{\bf named arguments}: a (keyword, value) pair, where the key
+  identifiers the value
+  
+  It is  identified by placing a dash (-) before the optional argument's name
+\begin{verbatim}
+my_prog -a value
+my_prog -a=value
+
+my_prog --afullname value
+my_prog --afullname=value
+\end{verbatim}  
+% 
+
+A \verb!named argument! needs a mechanism to separate keys from argument values
+\begin{itemize}
+  \item use whitespace 
+\begin{verbatim}
+rename  -o file_a.txt  -n file_b.txt
+\end{verbatim}  
+
+  \item use equal sign (=) in Unix, and colon (:) in Windows
+\begin{verbatim}
+ # Unix
+rename  -o=file_a.txt  -n=file_b.txt
+ # Windows
+rename  /o:file_a.txt  /n:file_b.txt
+\end{verbatim}
+
+  \item use the known-length (1-character)
+  
+\begin{verbatim}
+rename  -ofile_a.txt  -nfile_b.txt
+\end{verbatim}
+\end{itemize}
+
+Several fixed-length \verb!flags! can be concatenated
+\begin{verbatim}
+tar -x -v -f  some_filename.tar
+
+tar -xvf some_filename.tar
+\end{verbatim}
+NOTE: "--xvf" (note the double dash) indicates a single multi-character flag: "xvf".
+
+\subsection{-- flags}
+\label{sec:flags-in-argument}
+
+{\bf flags}: a stand-alone keyword, whose presence or absence provides
+  information to the application
+\begin{verbatim}
+my_prog -a -b
+
+my_prog --afullanme --bfullname
+\end{verbatim}  
+
+Although it is possible to think of flags as degenerate named arguments (named
+arguments that have a key but no value), it is easier to think of flags as a
+distinct type of argument, different from named arguments.
+
+
+\section{Parsing command-line arguments}
+
+We need to loop through the number of argument \verb!argc!, including the name
+of the excutable file as the 0-th argument. 
+
+\subsection{Simple}
+
+
+{\small 
+\begin{verbatim}
+// When passing char arrays as parameters they must be pointers
+int main(int argc, char* argv[]) {
+    if (argc < 5) { // Check the value of argc. If not enough parameters have been passed, inform user and exit.
+        //print help
+        std::cerr << "Usage is -in <infile> -out <outdir>\n"; 
+        std::cin.get();
+        exit(0);
+    } else { // if we got enough parameters...
+        char* myFile, myPath, myOutPath;
+        std::cout << argv[0];
+        for (int i = 1; i < argc; i++) { /* We will iterate over argv[] to get the parameters stored inside.
+                                          * Note that we're starting on 1 because we don't need to know the 
+                                          * path of the program, which is stored in argv[0] */
+            if (i + 1 != argc) // Check that we haven't finished parsing already
+                if (argv[i] == "-f") {
+                    // We know the next argument *should* be the filename:
+                    myFile = argv[i + 1];
+                } else if (argv[i] == "-p") {
+                    myPath = argv[i + 1];
+                } else if (argv[i] == "-o") {
+                    myOutPath = argv[i + 1];
+                } else {
+                    std::cout << "Not enough or invalid arguments, please try again.\n";
+                    Sleep(2000); 
+                    exit(0);
+            }
+            std::cout << argv[i] << " ";
+        }
+        //... some more code
+        std::cin.get();
+        return 0;
+    }
+}
+\end{verbatim}
+}
+
+\subsection{Using std::string::find()}
+
+\begin{lstlisting}
+#include <algorithm>
+
+char* getCmdOption(char ** begin, char ** end, const std::string & option)
+{
+    char ** itr = std::find(begin, end, option);
+    if (itr != end && ++itr != end)
+    {
+        return *itr;
+    }
+    return 0;
+}
+
+bool cmdOptionExists(char** begin, char** end, const std::string& option)
+{
+    return std::find(begin, end, option) != end;
+}
+
+int main(int argc, char * argv[])
+{
+    if(cmdOptionExists(argv, argv+argc, "-h"))
+    {
+        // Do stuff
+    }
+
+    char * filename = getCmdOption(argv, argv + argc, "-f");
+
+    if (filename)
+    {
+        // Do interesting things
+        // ...
+    }
+
+    return 0;
+}
+\end{lstlisting}
+\url{http://stackoverflow.com/questions/865668/parse-command-line-arguments}
+
+\subsection{Using GetOpt class - C++}
+
+You can use GNU GetOpt (LGPL) or one of the various C++ ports, such as getoptpp
+(GPL).
+
+\url{http://www.chemie.fu-berlin.de/chemnet/use/info/libgpp/libgpp_39.html}
+
+\subsection{Using getopt() - C language}
+\label{sec:getopt()}
+
+Here, we use \verb!getopt()! and \verb!optarg! variable. IMPORTANT: We need to
+end the list of argument with semicolon (:)
+\begin{verbatim}
+#include <getopt.h>
+
+std::string val1;
+int val2;
+
+//ERROR:you will get std::logic_error
+//while ((c = getopt(argc,argv,"i:v:e:f")) != -1)
+
+//CORRECT
+while ((c = getopt(argc,argv,"i:v:e:f:")) != -1)
+{
+  switch(c) {
+  case 'i':
+  	val1 = optarg;
+	break;
+  case 'v':
+    val2 = atoi(optarg);
+    break;
+  case 'e':
+  	break;
+  case 'f':
+    break;
+    
+   default: /* '?' */
+            fprintf(stderr, "Usage: %s [-t nsecs] [-n] name\n",
+                    argv[0]);
+            exit(EXIT_FAILURE);
+ }
+}
+\end{verbatim}
+
+\subsection{OptionParser}
+
+\url{http://stackoverflow.com/questions/865668/parse-command-line-arguments}
+
+\url{http://sourceforge.net/projects/optionparser/}
+
+\subsection{CLPP: C++ Command-line parser (use Boost)}
+
+\url{http://sourceforge.net/projects/clp-parser/}
+
+\subsection{Using Boost.Program\_Options}
+
+{\small \begin{verbatim}
+#include <boost/program_options.hpp>
+namespace po = boost::program_options;
+
+int main(int argc, char** argv){
+  try{
+    int opt;
+    po::options_description desc(``Allowed options'');
+    desc.add_options() // list all options
+       (``help,h'', ``produce help message''),
+
+       //the second part after ',' is short, i.e. --file or -f
+       (``file,f'', po::value<std::string>(), ``the file to read in''),
+       (``task'', po::value<std::vector<int> >(), ``accept multiple values'')
+
+       //we can set default value here (10) and the address (&opt) to store the
+       //value
+       // so if user don't pass the argument, it use 10 
+       ("optimization", po::value<int>(&opt)->default_value(10), 
+          "optimization level")
+
+       //so if user pass the argument with no value, it use 10
+       //, e.g. ./a.out --width   #use 10
+       //       ./a.out --witdh=80 # use 80
+       //NOTE: for short option, the value must be immediately after the option
+       //./a.out -w80   # implicit_value not used
+       //./a.out -w 80  # wrong: 80 parsed as extra arg if implicit_value is
+       //               defined 
+      ("witdh,w", po::value<int>(&opt)->implicit_value(10), 
+          "width")
+
+       //it can accept multiple values
+       //or use the option several times
+       //either way, the result will be a vector
+       ("include-path,I", po::value< vector<string> >(), 
+             "include path")
+       ("input-file", po::value< vector<string> >(), "input file")
+       
+       // you don't want a vector but a single value and that 
+       // a single value can span multiple tokens
+       // e.g. --email beadle@mars beadle2@mars
+       ("email", value<string>()->multitoken(), "email to send to")
+       
+       // we can add semantic
+       // which need to use boost::program_options::value_semantic class
+       ("email", value< vector<string> >()
+        ->composing()->notifier(&your_function), "email")          
+    ;	
+    
+    po::variables_map vm; //store values of options (of arbitrary types)
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);
+  
+    if (argc == 1 || vm.cout(``help'')){
+       std::cout << desc << ``\n'';
+       return 0;
+    }
+
+//IMPORTANT: Once you use address (e.g. &opt)
+// you don't have to use if for getting option's value    
+    if (vm.cout(``file'')) //check the using of one argument option
+    {
+       myfile = std::string(vm[``part''].as<std::string>());
+    }
+    if (vm.cout(``type'')) //integer
+    {
+       mytype = vm[``type''].as<int>();
+    }
+    if (vm.cout(``task'')) //multiple values
+    {
+      std::vector<int> list_task = vm[``task''].as< std::vector<int> >();
+      //loop
+      for (std::vector<int>::iterator iter=list_task.begin(); iter <
+          list_task.end(); iter++) {
+          //do something
+      } 
+    }
+  }catch (std::exception &e){
+    std::cerr << ``error: `` << e.what() << ``\n'';
+    return 1;
+  }catch (...){
+    std::cerr << ``Exception unknown type \n'';
+  }
+}
+\end{verbatim}}
+
+There are case that we want the option-name to be hidden, e.g.
+\begin{verbatim}
+compiler a.cpp
+compiler --input-file=a.cpp
+\end{verbatim}
+then we need to tell \verb!input-file! is the ``positional options''
+\begin{verbatim}
+po::positional_options_description p;
+p.add("input-file", -1); // (name, how-many-positional-options)
+   // value=1 : exactly one, first, positional option is assigned to input-file
+   // value=2 : the first two positional option is assigned to input-file
+   // value=-1: any others 
+  // all positional options should be translated into 
+  // values for 'input-file' option
+
+po::variables_map vm;
+  //and we use different function
+  // command_line_parser(...)
+po::store(po::command_line_parser(ac, av).
+          options(desc).positional(p).run(), vm);
+po::notify(vm);
+\end{verbatim}
+
+Now you want to have options organized into different groups: some are read from
+the config file, so that frequently used options can be passed easily, or we
+split options into different groups (some can only be used  in the config file,
+some should be hidden from user, etc.), we then use more complicated approach
+like the following. NOTE: 
+The value passed to the command line should override the value from the config file.
+\begin{verbatim}
+// Declare a group of options that will be 
+// allowed only on command line
+po::options_description generic("Generic options");
+generic.add_options()
+    ("version,v", "print version string")
+    ("help", "produce help message")    
+    ;
+    
+// Declare a group of options that will be 
+// allowed both on command line and in
+// config file
+po::options_description config("Configuration");
+config.add_options()
+    ("optimization", po::value<int>(&opt)->default_value(10), 
+          "optimization level")
+    ("include-path,I", 
+         po::value< vector<string> >()->composing(), 
+         "include path")
+    ;
+
+// Hidden options, will be allowed both on command line and
+// in config file, but will not be shown to the user.
+po::options_description hidden("Hidden options");
+hidden.add_options()
+    ("input-file", po::value< vector<string> >(), "input file")
+    ;     
+\end{verbatim}
+
+then we put them into groups we want
+\begin{verbatim}
+po::options_description cmdline_options;
+cmdline_options.add(generic).add(config).add(hidden);
+
+po::options_description config_file_options;
+config_file_options.add(config).add(hidden);
+
+po::options_description visible("Allowed options");
+visible.add(generic).add(config);
+\end{verbatim}
+
+
+\url{http://www.boost.org/doc/libs/1_54_0/doc/html/program_options/overview.html}
+
+% \section{File locking}
+% \label{sec:file-locking}
+
+\subsection{Using popt library}
+\label{sec:popt_lib}
+
+The popt library exists essentially for parsing command line options. Some
+specific advantages of popt are no global variables (allowing multiple passes in
+parsing argv), parsing an arbitrary array of argv-style elements (allowing
+parsing of command-line-strings from any source), a standard method of option
+aliasing, ability to exec external option filters, and automatic generation of
+help and usage messages.    
+
+\url{http://directory.fsf.org/wiki/Popt}
+
+\subsection{TCLAP}
+\label{sec:TCLAP}
+
+\url{http://tclap.sourceforge.net/}
+

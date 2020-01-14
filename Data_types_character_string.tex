@@ -1,0 +1,4172 @@
+\chapter{Data types for character and string}
+\label{chap:string}
+
+\section{Character}
+\label{sec:character}
+
+An encoding scheme (Sect.\ref{sec:encoding-scheme}) define how to map a symbol
+(that represents printed characters (e.g. letters or digits)) to a code point
+which is a binary number either stored in RAM or in the permanent storage.
+Depending where it is stored, we call it {\it internal representation} (if
+stored in RAM memory) and {\it external representation} (if stored in persistent
+disk as file) - Sect.\ref{sec:internal-representation}).
+
+
+% The internal representation refers to the representation that
+% store in the RAM (memory) to represent the character/string.
+% The external representation is how a given integer value from RAM is
+% interpreted as a a value in decimal or hexadecimal when saving to file/writing
+% to permanent storage (terminal or hard disk).
+
+
+
+\subsection{MSE}
+\label{sec:MSE}
+
+ISO C90 has no support (i.e. utility functions) for multi-byte characters.
+Multibyte support extension (MSE) was the first amendment added to ISO C
+standard, i.e. ISO C Amendment 1 (C Integrity) which later formed C94/C95
+(Sect.\ref{sec:C95}).
+
+The MSE consists of a set of library functions that provide a relatively
+complete and consistent set of functions for application programming using
+multibyte and wide-characters (Sect.\ref{sec:character_wide}). In MSE model,
+extended characters can be represented using different internal representations
+
+\begin{enumerate}
+  \item multibyte character encodings: Extended Unix Code (EUC) based on
+  ISO-2022 standard that can encode character sets using sequences of 7-bit
+  codes of maximum 94 or 8836 ($94^2$) characters, or 830584 ($94^3$)
+  characters, UTF-8 (support all the glyphs of the EUC codes and more)
+  
+  Three multibyte encoding schemes
+  \begin{enumerate}
+    \item restartable multibyte encodings: the multibyte data stream can be
+    encoded faithfully, i.e. giving the exact result regardless of where you
+    start from the data stream. In summary: each byte should stand for one
+    character only, e.g. UTF-8
+    
+    \item stateful multibyte encodings: the concept of {\it shift sequences} can
+    effectively change the data stream to a different state, i.e., changing the
+    meaning of the byte sequences according to the current shift state.
+    
+    \item generalized multibyte encodings: we can detect the locale associated
+    with the given file, from that we can determine which routines to process
+    the file. 
+  \end{enumerate}
+  
+  \item wide-character encodings: \verb!wchar_t! (Sect.\ref{sec:character_wide})
+
+  \item generalized multibyte encodings
+\end{enumerate}
+
+
+\subsection{locale}
+\label{sec:locale}
+
+Read Chap.\ref{chap:locale}.
+
+
+\subsection{C character}
+\label{sec:C_character}
+\label{sec:char}
+
+\begin{enumerate}
+  \item narrow-character (\verb!char! type):
+
+From the beginning, \verb!char! a narrow-character type is indeed an integral
+type of 1-byte (Sect.\ref{sec:character-narrow}).   
+  
+  \item wide-character 
+  \begin{itemize}
+  \item \verb!wchar_t! type: Sect.\ref{sec:wchar_t}
+
+  ISO C90 (stddef.h) introduced \verb!wchar_t! wide-character type with a bigger
+  size, yet its size is operating system dependent (which can be 1-byte, 2-byte
+  or 4-byte).
+
+  \item \verb!wint_t! type: \verb!wint_t! is capable of storing any
+  value of \verb!wchar_t!.
+  \end{itemize}
+The reason to use \verb!wint_t! instead of \verb!wchar_t! is that it can store
+the result of evaluating the \verb!WEOF! macro. So \verb!wint_t! is to
+\verb!wchar_t! just like \verb!int! to \verb!char!. Many functions dealing with
+\verb!wchar_t! return a value of type \verb!wint_t!.
+  
+\end{enumerate}
+Amendment 1 (or C94/C95) added more header files with utilities to handle
+wide-character strings.
+
+
+\subsection{* narrow-character}
+\label{sec:character-narrow}
+
+C language first developed to support representing ANSI characters, which
+requires 7-bit (narrow-character set) - Sect.\ref{sec:ANSI}. To provide internal
+representation for ANSI characters, C provided one-byte data type called
+\verb!char!, with the highest bit set to 0. Thus, if the highest bit in an 8-bit
+byte is set to 1, then it is an ASCII extension character. There is always a 1:1
+mapping between a byte value and an ANSI character.
+
+\verb!char! is the basic data type to represent a single character in C
+\begin{verbatim}
+char 			// 8-bit signed (-128..127)
+unsigned char   // 8-bit unsigned  (0..225)
+\end{verbatim}
+
+{\bf HEADER FILE}: \verb!char! type is defined  in one of the header files
+\verb!stdio.h, time.h! \verb!stdlib.h, string.h! (in C). To use a pointer to the
+character, we can use \verb!char*!; which also means a pointer to the character
+string (Sect.\ref{sec:string}).
+
+\begin{Verbatim}
+#include <string.h>
+
+int main()
+{
+  char capital = 'A';
+
+  printf ("The letter is %c.\n",capital);
+  printf ("The string is %s.\n",&capital);
+  return 0;
+
+  int c;
+
+  while (EOF != (c = getc(stdin)))
+  putc(c, stdout);
+
+}
+\end{Verbatim}
+
+We will focus on how to read string data from file in UTF-8 encoding scheme. As
+the character can be multiple byte, we cannot use \verb!char!. Thus, the using
+of \verb!char! should be avoided for a single UTF-8 character, and use
+\verb!wchar_t! (Sect.\ref{sec:wchar_t}).
+However, at the string level, we can either use \verb!wchar_t []! or
+\verb!char*! to represent an UTF-8 string (Sect.\ref{sec:C_string}).
+
+
+\subsection{* wide characters (wchar\_t, wint\_t)}
+\label{sec:character_wide}
+
+\textcolor{red}{Using wide-character set is NOT recommended as it's not
+portable, i.e. not fixed size}. 
+
+\subsection{-- wchar\_t}
+\label{sec:wchar_t}
+
+{\bf HEADER FILE}: 
+The type
+\verb!wchar_t! is defined in different header files: \verb!<stddef.h>! (ISO
+C90), \verb!<stdlib.h>!, \verb!wchar.h! (in C95); or \verb!<cstring>! and
+\verb!<cwchar>! (in C++).
+
+NOTE: In ISO C90, however the existing character/string-oriented functions in
+C90 have not been designed to handle this data, until C94/C95 with the Amendment
+1 (multibyte support extension) (Sect.\ref{sec:MSE}).
+
+
+IMPORTANT: The size of \verb!wchar_t! is not well defined
+\footnote{\url{http://www.gnu.org/software/libc/manual/html_node/Extended-Char-Intro.html}}
+\begin{itemize}
+  \item ISO C90 standard didn't specify the size of \verb!wchar_t!.
+
+  \item  In embedded system with C, \verb!wchar_t! is the same as \verb!char!
+  (1-byte).
+  
+  \item GNU C library: \verb!wchar_t! is always 32 bits wide and, therefore,
+  capable of representing all UCS-4 values, covering all  ISO 10646 encoding
+  schemes
+  
+  \item Some UNIXs define \verb!wchar_t! as 16-bit, which follows
+  reading string in UTF-16.
+
+  \item On Windows, \verb!wchar_t! is 16-bit.
+  
+\end{itemize}
+The only requirement was that it is capable of storing all elements of the basic
+character set based on the locale setting (Sect.\ref{sec:locale}). 
+
+% the encoding used for \verb!wchar_t! is unspecified.
+% Sect.\ref{sec:FILE_with-lock-wide-character} discusses how to display/save a
+% character/string encoded in wide-character set to console or to file.
+
+
+In most implementations of C compilers, \verb!wchar_t! is a typedef of an integral
+type which makes it impossible to be used in template, function overload. 
+This is not a problem when using C++ header file where \verb!wchar_t! is a
+distinct fundamental (built-in) type.
+
+\begin{mdframed}
+\verb!wchar_t! was designed for internationalization, i.e. it can represent
+codes for any locale's char encoding and use fixed char length. The original
+goal of using \verb!wchar_t! is to make sure the string's code-unit
+(Sect.\ref{sec:string}) has the one-to-one mapping with the text's character,
+i.e. all the characters have the same size. However, Unicode breaks that
+assumption with variable char-length \verb!char*!. Thus, it is recommended to
+use \verb!char*! for UTF-8. 
+
+\end{mdframed}
+
+\subsection{--- wint\_t}
+\label{sec:wint_t}
+
+{\bf HEADER FILE}: \verb!wint_t! type was introduced since Amendement 1
+to ISO C90 (defined in \verb!wchar.h!).
+\begin{itemize}
+   \item \verb!wint_t! is equal or bigger in size than \verb!wchar_t!
+   
+   To get a \verb!wchar_t! value from \verb!wint_t! value, we don't want to (as
+the value can be cut-off). To get a \verb!wint_t! value from \verb!wchar_t! value, a
+simple assignment is enough (just like from \verb!char! to \verb!int!).
+\begin{verbatim}
+wchar_t x1;
+wint_t  x2;
+
+x2 = x1 ; //safe
+\end{verbatim}
+
+  \item it is mainly used for data holding parameter of returned value of a
+  function representing a single wide character
+
+\begin{verbatim}
+wint_t c;
+
+while ((c = wgetc (fp)) != WEOF)
+\end{verbatim}
+\end{itemize}
+% is less used; as it is only used to keep
+% the returned value of functions operating on \verb!wchar_t!, which can exceed the ranges of available values in \verb!wchar_t!, e.g. WEOF
+% (wide-end-of-file). 
+
+Some macros defined for the range is found in \verb!<stdint.h>! and
+\verb!__STDC_LIMIT_MACROS!
+\begin{verbatim}
+introduced since Amendment 1 to ISO C90.
+                   
+   TYPE          macro
+wint_t          WCHAR_MIN
+                WINT_MIN         (signed: -32767
+                                  unsigned: 0                     
+                WCHAR_MAX    
+                WINT_MAX         (signed:32767
+                                  unsigned: 65535)
+          
+                WEOF             (represent a value different from any member of
+                                 the extended character set) 
+\end{verbatim}
+
+Example:
+\begin{Verbatim}
+#include <stdio.h>
+#include <wchar.h>
+
+
+    wint_t c;
+    while((c=getwc(stdin))!=WEOF)
+      {
+    printf("%lc",c);
+    
+   while (WEOF != (c = getwc(stdin)))
+   putwc(c, stdout);
+    
+\end{Verbatim}
+
+
+\subsection{literal character}
+\label{sec:literal-character}
+
+To represent a literal string encoded in wide-character set, we use \verb!L! in
+the front, example
+
+\begin{verbatim}
+''   : empty char
+L''  : epty wchar_t
+
+'hello'  : char-string
+L'hello' : wchar_t-string
+\end{verbatim}
+I/O operations with a character/string in wide-character set is given in
+Sect.\ref{sec:FILE_with-lock-wide-character} and
+Sect.\ref{sec:C-char_utilities}. 
+
+
+\subsection{C++ character}
+\label{sec:C++_character}
+
+\subsection{* C-backward compatible}
+
+For C backward compatiblility, C++ also  support  
+\begin{itemize}
+  \item \verb!char! in the header file \verb!<cchar>! or \verb!<cstring>!, and 
+
+  \item \verb!wchar_t! in the header file \verb!<cwchar>!.
+\end{itemize}
+
+\subsection{ C++03: char}
+\label{sec:char-C++03}
+
+The definition of the type char has been modified to explicitly express that
+it's at least the size needed to store an eight-bit coding of UTF-8, and large
+enough to contain any member of the compiler's basic execution character set. It
+was formerly defined as only the latter in the C++ standard itself, then relying
+on the C standard to guarantee at least 8 bits.
+
+\subsection{* C++0x, C++11: char16\_t and char32\_t}
+\label{sec:char16_t}
+\label{sec:char32_t}
+% Sect.\ref{sec:character_sets} describes the number of bytes for each characters
+% at different Unicode schemes, e.g. UTF-8, UTF-16, and UTF-32.
+
+To allow using wide-character, C++11 has added a number of new data types:
+\verb!char16_t! is for 16-bit encoding scheme and \verb!char32_t!
+is for 32-bit encoding scheme.
+
+Even though \verb!char8_t! is not defined, we can add
+\begin{verbatim}
+typedef unsigned char char8_t; 
+typedef std::basic_string<unsigned char> u8string; 
+\end{verbatim}
+The reason that \verb!char8_t! is not defined as it is not possible to treat
+UTF-8 and narrow-encoded string interchangably in portable code. So, \verb!char!
+is still used for 8-bit character.
+
+The problem with \verb!char16_t! and \verb!char32_t! is that they are not fully
+supported, not even in the standard C++ library
+(Sect.\ref{sec:standard-C++-library}): for example, there are no streams
+supporting these types directly and it more work than just instantiating the
+stream for these types.
+
+
+\subsection{Escape character}
+\label{sec:escape_char}
+
+Characters consisting of a backslash (\verb!\!) followed by a letter or by
+combination of digits are called {\it escape characters}. The list of reference is here:
+\url{http://msdn.microsoft.com/en-us/library/h21280bw(v=vs.80).aspx}
+
+\subsection{Utilities}
+\label{sec:C-char_utilities}
+
+\subsection{-- char}
+Utilities for \verb!char, char*! reside in : stdio.h, stdlib.h, string.h and
+time.h. Example: with c of type \verb!integer! whose value either EOF or
+representable as an \verb!unsigned char!. 
+\begin{enumerate}
+  \item \verb!tolower(c)!: to lowercase
+  \item \verb!toupper(c)!: to uppercase
+
+  \item \verb!isalnum(c)!: check \ldots is a alphanumeric ?
+  \item \verb!isalpha(c)!: is alphabetic ?
+  
+  \item \verb!iscntrl(c)!: check \ldots a control character (which is NOT
+  printable). They are 0x7f (DEL), and those between 0x00 (NUL) to 0x1f (US).
+  
+  \item \verb!isspace(c)!: check \ldots. white-space (i.e. blank, tab, newline,
+  vertical tab, line-feed, carriage return)
+  
+  \item \verb!isgraph(c)!: check \ldots has a graphical representation, i.e.
+  isprintable except white space \verb!' '!.
+  \item \verb!isprint(c)!: check if a character is printable (i.e. graphical
+  presentation and white-space \verb!' '!)
+  
+  \item \verb!ispunct(c)!: check \ldots is a punctuation characters, i.e.
+  graphic characters.
+  \item \verb!islower(c)!: is lowercase letter ?
+  \item \verb!isupper(c)!: is uppercase letter ?
+  \item \verb!isdigit(c)!: is a decimal digit ?
+  \item \verb!isxdigit(c)!: is  hexadecimal digit ?
+  
+  \item \verb!isblank(c)! (C++11) : is blank ?
+\end{enumerate}
+
+Example:
+\begin{lstlisting}
+auto loc = std::locale("");
+
+char s[] = "hello";
+for (char &c : s) {
+  c = toupper(c, loc);
+}
+\end{lstlisting}
+
+
+\subsection{-- wchar\_t, wint\_t}
+
+Utilities for \verb!wchar_t, wchar_t*, wint_t! reside in: \verb!wchar.h!,
+\verb!cctype.h!. Using header file \verb!<ctype.h>! (in C) or \verb!<cctype>!
+(in C++).  To convert between multibyte characters to wide-characters and vice versa, we
+use \verb!wchar.h! and \verb!stdlib.h!
+
+The utilities have \verb!w! as the prefix, e.g. printf(char) becomes
+\verb!wprintf(wchar_t)!.
+
+Example:
+\begin{lstlisting}
+auto loc = std::locale("");
+
+wchar_t s[] = L"hello";
+for (wchar_t &c : s) {
+  c = toupper(c, loc);
+}
+\end{lstlisting}
+
+Unfortunately this doesn't really work all the time, e.g. 
+in German letter $\beta$ where the uppercase version is actually the two
+characters SS instead of a single character.
+So internationalized text handling is intrinsically harder than ASCII and cannot
+really be simplified in the way the designers of \verb!wchar_t! intended.
+
+\url{http://www.cplusplus.com/reference/cctype/}
+
+\subsection{in Windows: CHAR, TCHAR, \_TCHAR, \_TSCHAR, \_TUCHAR, \_TXCHAR}
+
+In Windows, \verb!char! is ``multibyte'' (each glyph is composed of one or more
+\verb!char!s, while \verb!wchar_t! is considered ``widechar'' (each glyph is
+composed of one or two \verb!wchar_t!). However, we typically don't use these
+name directly. Instead, Windows define new names for them. 
+
+
+\begin{verbatim}
+CHAR      8-bit signed character type
+
+TCHAR     8-bit or 16-bit signed ... (depending on whether 
+          _UNICODE macro is defined or not)
+          
+_TCHAR
+_TSCHAR
+_TUCHAR
+_TXCHAR
+_T()     macro
+
+\end{verbatim}
+The data type in Windows C language is in upper case.
+
+\verb!_TCHAR! is based on \verb!_UNICODE! defined macro, and is
+used by C-runtime applications; while \verb!TCHAR! is based on \verb!UNICODE!
+defined macro. As both \verb!UNICODE! and \verb!_UNICODE! are often used/omitted
+together, \verb!_TCHAR! and \verb!TCHAR! are interchangable, except. 
+\begin{itemize}
+  \item  TCHAR is defined in
+header file \verb!<winnt.h>! (or defined in \verb!<tchar.h>! when compile the
+code with \verb!/Ze! option) to use in Unicode-aware application. You get winnt.h when you
+include \verb!<windows.h>!
+ 
+% It is defined as
+% \verb!wchar_t! during Unicode build (i.e. \verb!UNICODE! macro defined).
+
+  \item \verb!_TCHAR! is defined conditionally in header file \verb!<tchar.h>!
+  only.
+\begin{verbatim}
+#ifdef _UNICODE
+  #define _TCHAR wchar_t
+#else
+  #define _TCHAR char
+#endif
+\end{verbatim}
+
+NOTE: The string utilities APIs starting with \verb!_tcs! operate on
+\verb!_TCHAR! units (not bytes).
+\end{itemize}
+
+\verb!<tchar.h>! defines
+\begin{verbatim}
+_TCHAR
+_TSCHAR    //signed TCHAR
+_TUCHAR    //unsigned TCHAR
+\end{verbatim}
+If you programs in Windows, you are working with WinAPI
+(Sect.\ref{sec:WinAPI}). 
+
+\subsection{in .NET: Char}
+
+In Managed C++ or C++/CLI, we can use data from .NET
+\begin{verbatim}
+#using <mscorlib.dll>
+using namespace System;
+
+Char     structure, represent a character as UTF-16 code unit 
+         (since .NET 1.1)          
+\end{verbatim}
+\url{https://msdn.microsoft.com/en-us/library/system.char(v=vs.71).aspx}
+
+
+
+\section{String in C}
+\label{sec:string}
+\label{sec:C_string}
+
+The term {\it string} refers to an ordered sequence of characters whose type
+is one of the given type described in Sect.\ref{sec:C_character} and
+Sect.\ref{sec:C++_character}. As the atomic element in a string is a character
+(Sect.\ref{sec:character}). So, a good understanding how the computer store a
+character symbol in the memory (internal representation) or in the disk
+(external representation) is important - Sect.\ref{sec:internal-representation}.
+
+Depending on the number of bytes to store one character, we have
+narrow-character string (Sect.\ref{sec:narrow-character-string}) and
+wide-character string (Sect.\ref{sec:wide-character-string}).
+
+For operations related to
+input/output from console, read Sect.\ref{sec:IO_console}.
+
+\subsection{ narrow-character string (char *)}
+\label{sec:narrow-character-string}
+
+In C language standard, a string is actually an array of narrow character, i.e.
+\verb!char*! or \verb!char[buf_len]!, that ends with a NULL character (or a 0
+value).
+In C, to add utilities for string support, we use the header file
+\verb!<string.h>! which comes with many utility functions
+
+Example: Date and time strings: Chap.\ref{chap:date-time}
+\begin{verbatim}
+  static const char wday_name[][4] = {
+    "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+  };
+  static const char mon_name[][4] = {
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+  };
+\end{verbatim}
+
+Using \verb!char*! is recommended for an object in memory to contain string data
+(as most existing C string library will work with UTF-8 data and they assume a
+string is NULL-terminated). 
+\textcolor{red}{NOTE}: We can have \verb!const char*!, a pointer to a string
+data whose content cannot be modified, e.g. literal string
+(Sect.\ref{sec:literal-string}).
+
+
+\begin{verbatim}
+#include <string.h>
+
+int strlen = 10;
+char[strlen] mystring;  // fixed-sized array (not fixed-length string)
+
+char* yourstring;
+malloc(yourstring(sizeof(char)*(strlen+1));
+
+const char* str3 = "The content here"; /* the content of str3 is fixed */
+\end{verbatim}
+
+
+%Notable exceptions are \verb!strchar()!.
+
+
+{\bf IMPORTANT}: \verb!char* id;! here \verb!id! can be used as a pointer
+pointing to the byte containing the single character, or a pointer pointing to the
+character string.
+\begin{verbatim}
+char x;
+char[10] str;
+char*  ptr;
+malloc(ptr, sizeof(char)* (10+1));
+
+char* y;
+
+y = &x; // okay
+y = &str; // okay
+y = ptr; // okay
+\end{verbatim}
+
+{\bf IMPORTANT}: The array size is not the same as the string length returned by
+\verb!strlen()! function which returns number of characters before the NULL
+character. Regardless of the size of the array, the NULL character must be right
+after the last meaningful character in the array. Thus, the length of the string
+is the total number of meaningful characters, counting from the beginning, upto
+and not including the NULL character.
+
+
+{\bf IMPORTANT}: To be resuable at different places in your code,
+\textcolor{red}{it is recommended to define new type for a string that can tell the information
+about the string-length}
+\begin{verbatim}
+typedef char String80[81];
+typedef char String20[21];
+\end{verbatim}
+NOTE: The two numbers differ by 1 for the NULL character to be stored, yet is
+not considered as part of the string.
+
+
+\subsection{-- char* vs. char[]}
+
+\begin{verbatim}
+char *s = "Hello world";
+\end{verbatim}
+places Hello world in the read-only parts of the memory and making s a pointer
+to that. So
+\begin{verbatim}
+s[0] = 'J'  ; //illegal
+\end{verbatim}
+
+\begin{verbatim}
+char s[] = "Hello world";
+
+char s[256] = "Hello world";
+\end{verbatim}
+places Hello world in the read-only parts of the memory and then copy that
+content to a newly allocated memory on the stack and making s a pointer to
+that memory on stack. So
+\begin{verbatim}
+s[0] = 'J'  ; //legal
+\end{verbatim}
+
+
+\subsection{-- char const* vs. char* const vs. const char*}
+\label{sec:const_char}
+
+NOTE: \verb!const! take affect on the keyword on the left-side, if present,
+otherwise it takes the effect on the keyword on the right-side. So
+\verb!char const *! and \verb!const char*! are the same. 
+\begin{verbatim}
+char *const p1="John";
+char const* p2="Mary";
+const char* p3="Tom";
+
+char* const* p4 ="Part";
+const char* const p5 = "Tim"; 
+\end{verbatim}
+
+\begin{enumerate}
+  \item p1 is a constant pointer, i.e. p1 is not allowed to point to a different memory
+address. However, the content at the memory location where p1 is pointing to is
+allowed to change. At the  moment, the value is 'John'
+\footnote{\url{http://www.cplusplus.com/forum/beginner/10602/}}.
+\begin{verbatim}
+*p1 = 'C'; // allowed
+p1 = "Margarth"; // not allowed 
+\end{verbatim}
+
+  \item p2 is a mutable pointer to a memory region containg a constant string
+  'Mary'.
+  It means that p2 is allowed to change the address it points to. However, we're anot allowed to change the value
+that p2 is initially pointing to which is the memory region having 'Mary' as
+the content.
+\begin{verbatim}
+*p2 = 'C'; // not allowed.
+
+p2 = "Margareth";  // allowed
+*p2 = 'C'; // now it is allowed.
+\end{verbatim}
+
+  \item p3 is a mutable pointer to a memory region containing a constant string
+  (like p2 above)
+
+  \item p4 is a mutable pointer to pointing to \verb!char*const! memory, i.e. 
+  the memory whose content is the fixed address to another memory region
+  containg a narrow-character string.
+  
+It means that p4 can be changed, but (*p4) cannot be
+changed, but (**p4) is allowed to change the value.
+
+ \item p5 is a constant pointer pointing to a memory region containing a
+ constant string.
+
+\end{enumerate}
+
+Example:
+``{\it const int* vs. int* const: 
+
+The beginner will simply not use const.
+
+The intermediate will write const int* and, giving themselves a false sense of
+security, may accidentally overwrite the pointer (for instance, the common
+mistake of = instead of ==) 
+
+The expert will know that const int* is a mutable pointer to a constant value;
+int* const is a constant pointer to a mutable int (to get a constant pointer to
+a constant value, use const int* const!)}''  
+
+
+
+\subsection{ wide-character string}
+\label{sec:wide-character-string}
+\label{sec:wchar*}
+
+Similar to narrow-character string (Sect.\ref{sec:narrow-character-string}), we
+can use pointers or array of wide-character elements to define wide-character
+string.
+\begin{verbatim}
+wchar_t *  str;
+
+const wchar_t *   str;
+
+int buf_len = 20;
+wchar_t[buf_len] str;
+\end{verbatim}
+
+However, as the number of bytes to store one character is
+more than one, thus to work with \verb!wchar_t*! string, a different family of
+functions need to be used, which start with \verb!w!, e.g. wprintf(), wcslen().
+To get the length of the wide-character string, we use
+\verb!wcslen()!. The string is still NULL-terminated.
+
+IMPORTANT: Working with \verb!wchar_t*! string requires converting to a proper
+locale setting (Sect.\ref{sec:locale}). To enable UTF-8 output to disk, we can
+do
+\begin{verbatim}
+char* locale;
+locale = setlocale(LC_CTYPE, "en_ca.UTF-8")
+\end{verbatim}
+
+IMPORTANT: To read and print a wide-character string (e.g. the data is
+stored in the file in UTF-8 format), we use \verb!%ls! format. 
+
+\begin{verbatim}
+#include 
+#include 
+#include <wchar.h>
+#include 
+
+int main() {
+
+    wchar_t wsKey[] = L"apple\n";
+    wchar_t wsInput[80];
+  
+    wchar_t string[100];
+
+    setlocale(LC_ALL, "");
+
+    printf ("Enter a string: ");
+    scanf("%ls",string);
+
+    printf("String Entered: %ls: length: %dn", string, wcslen(string));
+
+    return 0;
+}
+\end{verbatim}
+
+
+\subsection{ string manipulation}
+\label{sec:string-manipulation-C}
+
+\subsection{* string copy}
+
+\textcolor{red}{\bf String copy}: In C, string are pointers to array, so to do
+string copy, we cannot use '=' operator. We need to call either
+\verb!strcpy()! (or its safer \verb!strncpy()!) or \verb!strdup()!.
+
+\begin{verbatim}
+strcpy(ptr2, ptr1) is equivalent to while(*ptr2++ = *ptr1++)
+\end{verbatim}
+which copy string to a pre-allocated memory on either heap or stack, depending
+on how we declare ptr2. If the string is saved in heap
+memory, it can be used in other functions. \verb!strdup()! only copy string to
+memory on the heap.
+
+Both \verb!strcpy()! and \verb!strncpy()! are C-standard. However,
+\verb!strdup()! is not a ANSI C; but a POSIX.1-2001. So, some compiler
+discourage use, e.g. MSVC use \verb!_strdup!. Also, it hides the memory
+allocation (on the heap). What it  realy does is
+\begin{verbatim}
+char *strdup (const char *s) {
+//More effective implementation: avoiding multiple return
+    char *d = malloc (strlen (s) + 1);   // Allocate memory
+    if (d != NULL)
+        strcpy (d,s);                    // Copy string if okay
+    return d;                            // Return new memory
+}
+char *strdup (const char *s) {
+    char *d = malloc (strlen (s) + 1);   // Space for length plus nul
+    if (d == NULL)
+        return NULL;                     // No memory
+    strcpy (d,s);                        // Copy the characters
+    return d;                            // Return the new string
+}
+\end{verbatim}
+
+Example:
+\begin{verbatim}
+char[20] oldstring = 'This is a string';
+
+//this we don't need to free
+char[20] newstring;
+newstring = strdup(oldstring);
+
+//this we need to free explicitly
+char* newstring;
+newstring = strdup(oldstring);
+...
+free(newstring);
+\end{verbatim}
+If we use assignment, \verb!str1=str2!, the pointer \verb!str1! will point to
+the same place as \verb!str2! and then the current address that \verb!str1!
+pointing to become unaccessible (MEMORY LEAK). 
+
+To allocate memory on the stack, and you don't need to free memory, we can use
+\verb!strdupa()! in the GNU C library. However, using \verb!strdupa()! is
+considered dangerous unless your string to copy is very small. An portable
+version, but longer code than using \verb!strdup! is
+\begin{verbatim}
+char *new = malloc(strlen(old)+1); return new ? strcpy(new, old) : 0;
+
+//faster than using strcpy() as \0 char doesn't need to be searched again
+size_t len = strlen(old) + 1; 
+char *new = malloc(len); return new ? memcpy(new,old, len) : 0;
+\end{verbatim}
+
+% To make sure the string is not modified inside the function, we pass 
+% \verb!const char*! as data type.
+% \begin{verbatim}
+% void do_something(const char *string) {
+% }
+% \end{verbatim}
+
+\subsection{* concatenate: 2 strings}
+
+\textcolor{red}{\bf To concatenate two strings}, we use \verb!strcat()!
+(IMPORTANT: the two strings must not overlap in memory)
+\begin{verbatim}
+char * strcat ( char * destination, const char * source );
+\end{verbatim}
+which append the source string to the destination string. The terminating null
+character in the destination is replaced by the first character in the source
+string; also, the null-character is added to the end of the new string, pointed
+by \verb!destination!. It also return a pointer to the ``new" destination
+string. 
+
+
+{\small \begin{verbatim} 
+#include <stdio.h>
+#include <string.h>
+
+int main() {
+  char str1[50] = "Hello ";
+  char str2[] = "World";
+
+//Option 1:
+  strcat(str1, str2);
+  printf("str1: %s\n", str1);
+
+//Option 2:
+  char *result = malloc((strlen(str1) + strlen(str2) + 1));
+  strcpy(result, str1);
+  strcat(result, str2);
+
+  return 0;
+}
+\end{verbatim}}
+
+To have more control or to avoid the situation that \verb!source! may not be
+NULL-terminated, then we can explicitly specify the number of characters to copy
+\begin{verbatim}
+char * strncat ( char *destination, const char *source, size_t num);
+\end{verbatim}
+with \verb!num!=maximum number of characters to copy.
+
+\subsection{* concatenate: >2 strings with sprintf(), snprintf(), asprintf(),
+string\_format, (C++11) snprintf}
+\label{sec:sprintf}
+\label{sec:snprintf}
+\label{sec:asprintf}
+
+C++11:  write to a \verb!char*!, by using \verb!std::snprintf()!, and then
+convert to a \verb!std::string!. First,find the desired length of the char
+array; and allocate the memory to a \verb!std::unique_prt! smart pointer
+\begin{lstlisting}
+#include <memory>
+#include <iostream>
+#include <string>
+#include <cstdio>
+
+using namespace std; //Don't if you're in a header-file
+
+template<typename ... Args>
+string string_format( const std::string& format, Args ... args )
+{
+    size_t size = snprintf( nullptr, 0, format.c_str(), args ... ) + 1; // Extra space for '\0'
+    unique_ptr<char[]> buf( new char[ size ] ); 
+    snprintf( buf.get(), size, format.c_str(), args ... );
+    return string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
+}
+\end{lstlisting}
+
+\textcolor{red}{\bf To concatenate more than two strings}: we can use
+\verb!sprintf! (or better with \verb!snprintf! or \verb!asprintf!)
+\begin{verbatim}
+char buffer[101];
+// C89: may experience the issue of buffer overrrun
+//    if buffer size if not big enough to handle input
+//    if the input is read-in from user
+sprintf(buffer, "%s%s%s%s", "this", " is", " my", user_input_string);
+
+// To fit into the size allocated, any thing out of the size limit
+// are truncated, e.g. if size > 5, then we know truncation occurs
+char *x = (char *) malloc(5 * sizeof(char));
+int size = snprintf(x, 5, "%s%s%s", "12", "34", "56"); // writes "12345"
+
+// we can also reallocate until the buffer size is big enough
+char *x = (char *) malloc(BUF_LEN * sizeof(char));
+int size = snprintf(x, 5, "%s%s%s", "12", "34", "56");
+if(size > BUF_LEN) {
+    realloc(&x,size * sizeof(char));
+    snprintf(x, 5, "%s%s%s", "12", "34", "56");
+}
+
+// GNU extension: the above step can be done at once
+// we don't need to pre-allocate the memory and specify the size 
+// of the string. 
+// IMPORTANT: the string then need to be explicitly freed
+//      when no longer used. 
+char *joined;
+
+asprintf(&joined, "%s%s%s%s", "this", " is", " my", " story");
+\end{verbatim}
+NOTE: asprintf() and vasprintf() are GNU extensions of sprintf() and vsprintf().
+The size of the buffer is determined by the system. However, we MUST check to
+make sure the memory allocation actually succeeded. 
+ 
+ 
+
+\textcolor{red}{\bf Using strn* function family}, rather than str* counterparts
+is recommended, to make C program stable and secure. The reason is that
+\verb!strcmp! compare the two strings the entire string down to the end until
+it see the NULL characters which in some cases, you pass a string not
+NULL-terminated, then it continues until it reaches the first non-accessible
+memory and crashes the program; while \verb!strncmp! only compares the first
+$n$ characters of the two strings e.g. to compare two string
+\begin{verbatim}
+#include <string.h>
+int strcmp(const char *s1, const char *s2);
+int strncmp(const char *s1, const char *s2, size_t n);
+
+int result = strncmp(string1, string2, compareLimit);
+\end{verbatim}
+If the two strings are the same, return zero (0). Be careful here, it's zero,
+not one. At first pair of mismatch characters, if this character in string1 less
+than that in string2, then return negative value; otherwise, return
+greater-than zero value. In C++, we can use \verb!std::string! and the
+overloaded == operator.
+
+\begin{verbatim}
+char str1[] ="something";
+char str2[] = "another thing";
+/* In this case we know strings are null terminated. Pretend we don't. */
+str1[sizeof(str1)-1] = '\0';
+str2[sizeof(str2)-1] = '\0';
+/* Now the following is safe. */
+if (strcmp(str1, str2)) { /* do something */ } else { /* do something else */ }
+\end{verbatim}
+
+\textcolor{red}{Using string stream} (C++11): Sect.\ref{sec:stringstream}
+\begin{lstlisting}
+// char buf[50];
+// sprintf(buf,"Pair (%d,%d) = %f\n",i,j,(double)i/j);
+
+std::ostringstream oss1, oss2;
+oss2 << "Pair (" << i << "," << j << ") = " << std::fixed << std::setprecision(1) << (double(i)/j) << std::endl;
+
+std::string buf = oss2.str();
+\end{lstlisting}
+
+\textcolor{red}{Write a simple function} (C++11): using \verb!vsnprintf()! and
+\verb!fmt!. NOTE: \verb!va_start! with a reference argument has problems on
+MSVC (fails silently, and returns pointers to random memory); and a workaround
+is using \verb!std::string fmt! instead of \verb!std::string& fmt! (or write a
+wrapper object).
+\begin{lstlisting}
+#include <stdarg.h>  // For va_start, etc.
+
+std::string string_format(const std::string fmt, ...) {
+    int size = ((int)fmt.size()) * 2 + 50;   // Use a rubric appropriate for your code
+    std::string str;
+    va_list ap;
+    while (1) {     // Maximum two passes on a POSIX system...
+        str.resize(size);
+        va_start(ap, fmt);
+        int n = vsnprintf((char *)str.data(), size, fmt.c_str(), ap);
+        va_end(ap);
+        if (n > -1 && n < size) {  // Everything worked
+            str.resize(n);
+            return str;
+        }
+        if (n > -1)  // Needed size returned
+            size = n + 1;   // For null char
+        else
+            size *= 2;      // Guess at a larger size (OS specific)
+    }
+    return str;
+}
+\end{lstlisting}
+
+or using \verb!fmt_str! is safer and faster [but not work on some systems;and
+faster depends entirely on the pre-allocation step being correct; otherwise
+\verb!strcpy! renders it slower]. 
+\url{https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf}
+\begin{lstlisting}
+#include <stdarg.h>  // For va_start, etc.
+#include <memory>    // For std::unique_ptr
+
+std::string string_format(const std::string fmt_str, ...) {
+    int final_n, n = ((int)fmt_str.size()) * 2; /* Reserve two times as much as the length of the fmt_str */
+    std::unique_ptr<char[]> formatted;
+    va_list ap;
+    while(1) {
+        formatted.reset(new char[n]); /* Wrap the plain char array into the unique_ptr */
+        strcpy(&formatted[0], fmt_str.c_str());
+        va_start(ap, fmt_str);
+        final_n = vsnprintf(&formatted[0], n, fmt_str.c_str(), ap);
+        va_end(ap);
+        if (final_n < 0 || final_n >= n)
+            n += abs(final_n - n + 1);
+        else
+            break;
+    }
+    return std::string(formatted.get());
+}
+\end{lstlisting}
+
+\subsection{* remove trailing blank characters}
+
+\textcolor{red}{\bf To remove trailing blank characters}, 
+\begin{enumerate}
+  \item In .NET studio 2008: we use \verb!String.Trim()!
+  \item We define \verb!trim()! function.
+  \begin{verbatim}
+  #include <ctype.h> // isspace()
+  char *ltrim(char *s)
+{
+    while(isspace(*s)) s++;
+    return s;
+}
+
+char *rtrim(char *s)
+{
+    char* back = s + strlen(s);
+    while(isspace(*--back));
+    *(back+1) = '\0';
+    return s;
+}
+
+char *trim(char *s)
+{
+    return rtrim(ltrim(s)); 
+}
+\end{verbatim}
+The function \verb!isspace()! consider all this are space
+\begin{verbatim}
+' ' (0x20)	space (SPC)
+
+'\t' (0x09)	horizontal tab (TAB)
+
+'\n' (0x0a)	newline (LF)
+
+'\v' (0x0b)	vertical tab (VT)
+
+'\f' (0x0c)	feed (FF)
+
+'\r' (0x0d)	carriage return (CR)
+\end{verbatim}
+\end{enumerate}
+
+\subsection{* search substring}
+
+\textcolor{red}{\bf To search for substring}: To search for first occurence of a
+substring
+\begin{verbatim}
+const char *strstr(const char *s1, const char *s2)
+\end{verbatim}
+which returns a pointer to the start of the word in \verb!s1! where \verb!s2! is
+found (if not, return NULL).
+\begin{verbatim}
+if(strstr(sent, word) != NULL) {
+    /* ... */
+}
+\end{verbatim}
+
+
+\subsection{* split the string into tokens: single character delimiter}
+
+\textcolor{red}{\bf To split string into tokens based on a single character
+delimiter}:
+
+{\bf OPTION}:
+\begin{enumerate}
+  \item \verb!strtok()! (4.3BSD, SVr4, POSIX.1-2001, C89, C99) is not
+  thread-safe (as it uses a statis buffer while parsing), i.e.
+  cannot work on two strings at the same time. 
+  
+  \item \verb!strtok_r()! (POSIX.1-2001) is thread-safe, but not C standard
+  
+  \item \verb!strtok_s! (Windows extension to \verb!strtok_r!) is thread-safe
+  and have the same prototype with \verb!strtok_r()!.
+
+NOTE: Check Sect.\ref{sec:macro-detect-OS}
+\begin{verbatim}
+#if defined(_WIN32) || defined(_WIN64)
+/* We are on Windows */
+  # define strtok_r strtok_s
+#endif
+\end{verbatim}
+This would probably break if compiling on cygwin (as \verb!__CYGWIN__! and
+\verb!__unix__!) which reports itself as windows but has posix interfaces like
+\verb!strtok_r! already defined. Using something like \verb!#ifndef HAVE_STRTOK_R! (and detecting it in the build scripts) would be better.
+
+\end{enumerate}
+\url{http://linux.die.net/man/3/strtok_r}  
+
+\begin{mdframed}
+The function name means 'string tokenizer', i.e. split a string into tokens.
+  Both \verb!strtok()! and \verb!strtok_r()! modify the original string (first
+  argument), so making sure a copy of string is used if you want to preserve the
+  original content.   It also means they cannot be used on constant strings.
+  
+%   Both modify original string (i.e. the first argument), i.e. make sure to have
+%   a copy if you don't want the original string to be lost
+
+\end{mdframed}
+
+\begin{verbatim}
+char * strtok ( char * str, const char * delimiters);
+char * strtok_r ( char * str, const char * delimiters, char** p1_savedptr);
+\end{verbatim}
+\textcolor{red}{Here the delimiters can be a NULL-delimited string, but
+individual characters will be used as the splitter}. 
+Using these functions goes through 2 stages (for a given string): first call +
+subsequence calls. The subsequent calls should be put inside a loop, and the
+first call is before the loop.
+
+% We use \verb!strtok()! or
+% \verb!strtok_r()! and a loop.
+% \verb!strtok_r()! also returns the p1 pointer as the third argument.
+
+EXPLAIN: Internally, it uses a static pointer (here we call it p1) pointing to
+the position for the search. In the beginning this position is
+the first character of the original string str.
+\begin{itemize}
+  
+  \item [FIRST RUN] If \verb!str! is not NULL, the static pointer internal to
+  the function p1 is assigned to the first character of \verb!str!.
+  Then it uses p1 to keep track of the next character to scan, until one of the
+  character in the delimiter string is found or the \verb!'\0'! NULL character
+  is found. It means p1 keeps changing the location during the search.
+  
+  If a character in the delimiter string is found, it is replaced by the
+  \verb!'\0'! NULL character, and the pointer pointing to p1 is returned, then
+  p1 will point to the next character, after the found delimiter.
+  
+\begin{verbatim}
+#include <string.h>
+
+p1_savedptr_mirror = strtok (char *str, 
+                           const char* delimiters);
+
+p1_savedptr_mirror = strtok_r (str, delimiters, 
+                            char** p1_savedptr);
+\end{verbatim}  
+
+  \item [NEXT RUN] (in the loop): It continues to scan the string, starting from
+  position pointed by p1, and do the similar job.
+   
+   For both functions, in subsequent calls after the first call, we must pass
+   NULL as the first argument. This is the signal that the function uses to
+   detect that it shoulds continues scanning the static buffer where a previous
+   successful call to the function ended. 
+\begin{verbatim}
+char * strtok   (NULL, delimiters);
+char * strtok_r (NULL, delimiters, char** p1_savedptr);
+\end{verbatim}
+
+% If a NULL-terminated string is passed, it is considered as working on 
+%    if it should pass a new string to the static buffer or
+%    continue working on the data on the static buffer
+
+\end{itemize}
+
+\begin{mdframed}
+EXPLAIN: The first time, give s1, and in subsequent calls to
+\verb!strtok_r()!, instead of passing s1, we only pass NULL. 
+\begin{verbatim}
+  char *hello = "Hello World, Let me live.";
+  char *rest; // to point to the rest of the string after token extraction.
+  char *token; // to point to the actual token returned.
+  char *ptr = hello; // make q point to start of hello.
+  // loop till strtok_r returns NULL.
+  token = strtok_r(ptr, " ,", &rest)
+  while(token != NULL) {
+       printf("%s\n", token); // print the token returned.
+       token = strtok_r(NULL, " ,", &rest)    
+  }
+\end{verbatim}
+
+EXPLAIN:
+When using \verb!strtok()!, it doesn't need the
+third argument.
+\begin{verbatim}
+  token = strtok(ptr, " ,")
+  while(token != NULL) {
+       printf("%s\n", token); // print the token returned.
+       token = strtok(NULL, " ,")    
+  }
+\end{verbatim}
+\url{http://www.cplusplus.com/reference/cstring/strtok/}
+
+\end{mdframed}
+
+\begin{verbatim}
+#include <stdio.h>
+#include <string.h>
+
+int main(void) {
+  char *hello = "Hello World, Let me live.";
+  char *rest; // to point to the rest of the string after token extraction.
+  char *token; // to point to the actual token returned.
+  char *ptr = hello; // make q point to start of hello.
+  // loop till strtok_r returns NULL.
+  while(token = strtok_r(ptr, " ,", &rest)) {
+       printf("%s\n", token); // print the token returned.
+       ptr = rest; // rest contains the left over part..assign it to ptr...and start tokenizing again.    
+  }
+  int i = 0;
+  while(i < 5) {
+    printf("%s\n", tokens[i++]);
+  }
+}
+\end{verbatim}
+
+{\bf IMPORTANT}: The two functions above actually modify the original string s1. 
+So, do not pass string literals to them, as they are read-only, e.g. this is
+wrong
+\begin{verbatim}
+char *token;
+char **rest;
+
+//wrong
+token = strtok_r("Xin chao, cac ban!", " ,", &rest);
+\end{verbatim}
+How the original string is modified? Once the delimiter is found, the
+corresponding delimiter character in the original string is replaced by the
+'\\0' character, and then the function return the pointer to the beginning of
+the string, and the current string pointing to the next character
+\footnote{\url{http://www.cplusplus.com/faq/sequences/strings/strtok/}}.
+
+IMPORTANT: Only one string can be tokenized at a time (i.e. the function is not
+reentrant). It means that tokenize one string completely, then go to the next
+string. Make a copy of the immutable string (e.g. \verb!const! string or string
+literal) before working on it.
+
+% \verb!strtok_r()! provides the third argument to keep the progress, and thus
+% there is a second way, we pass s3.
+
+% IMPORTANT: Here, it returns pointers to the original data. So, remember to make
+% a copy in case you want to manipulate the data, to avoid modifying the original
+% data.
+
+\subsection{* split the string into tokens: string delimiter}
+
+REMEMBER: \verb!strstr! can be used to find the location of a substring inside a
+string
+\begin{verbatim}
+char str[] = "this is abc a big abc input string abc to split up";
+char *pos = strstr(str, "abc");
+\end{verbatim}
+\url{http://stackoverflow.com/questions/29788983/split-char-string-with-multi-character-delimiter-in-c}
+
+Here, we use the two-phase approach: first run and a loop for subsequent runs.
+
+User-defined function  (not thread-safe)
+\begin{lstlisting}
+char *multi_tok(char *input, char *delimiter) {
+    static char *string;
+    if (input != NULL)
+        string = input;
+
+    if (string == NULL)
+        return string;
+
+    char *end = strstr(string, delimiter);
+    if (end == NULL) {
+        char *temp = string;
+        string = NULL;
+        return temp;
+    }
+
+    char *temp = string;
+
+    *end = '\0';
+    string = end + strlen(delimiter);
+    return temp;
+}
+\end{lstlisting}
+
+
+User-defined function (thread-safe)
+\begin{lstlisting}
+typedef char *multi_tok_t;
+
+char *multi_tok(char *input, multi_tok_t *string, char *delimiter) {
+    if (input != NULL)
+        *string = input;
+
+    if (*string == NULL)
+        return *string;
+
+    char *end = strstr(*string, delimiter);
+    if (end == NULL) {
+        char *temp = *string;
+        *string = NULL;
+        return temp;
+    }
+
+    char *temp = *string;
+
+    *end = '\0';
+    *string = end + strlen(delimiter);
+    return temp;
+}
+\end{lstlisting}
+
+Example:
+\begin{lstlisting}
+int main() {
+    char input [] = "this is abc a big abc input string abc to split up";
+    char[] delimiter = "abc";
+
+    char *token = multi_tok(input, &s, delimiter);
+
+    while (token != NULL) {
+        printf("%s\n", token);
+        token = multi_tok(NULL, &s, "abc");
+    }
+}
+\end{lstlisting}
+
+
+\subsection{* compare 2 strings}
+
+Use \verb!<string.h>! (in C) or \verb!<cstring>! (in C++) on  C-string
+\verb!char*!
+\begin{enumerate}
+  \item \verb!strcmp(s1, s2)! : compare two strings (binary comparison byte to
+  byte, not character to character), the result of the comparison depends on the
+  current locale-specific rules. To make sure it follows the locale you want,
+  use \verb!strcoll()!.
+  
+  \item \verb!strcoll()!: compare two strings, the rule follows
+  \verb!LC_COLLATE! category of the selected C-locale.
+  
+  \item \verb!strncmp()!: 
+\end{enumerate}
+
+Use \verb!<wchar.h>! (in C) or \verb!<cwchar>! (in C++) on wide-character
+\verb!wchar_t*!: provide the same functionality like those for \verb!char*!  
+except the prefix \verb!str! is replaced by \verb!wcs!, e.g. strcmp() becomes
+wcscmp().
+\begin{enumerate}
+  \item \verb!wcscmp(wcs1, wcs2)!: 
+\end{enumerate}
+
+\subsection{* work on character and a string}
+
+Use \verb!<string.h>! (in C) or \verb!<cstring>! (in C++) on  C-string
+\verb!char*!
+\begin{enumerate}
+  \item \verb!strrchr()!: last occurence of a character c in string str
+\end{enumerate}
+
+Use \verb!<wchar.h>! (in C) or \verb!<cwchar>! (in C++) on wide-character
+\verb!wchar_t*!: provide the same functionality like those for \verb!char*!  
+except the prefix \verb!str! is replaced by \verb!wcs!, e.g. strcmp() becomes
+wcscmp().
+
+\subsection{* use a string (buffer) to transfer data}
+
+If you have to exchange data between different machines using different encoding
+scheme. To make life easier, you are recommended to use one of the following
+libraries
+\begin{enumerate}
+  
+  \item conversion between character coding: \verb!iconv()! (part of the C
+  library \verb!<iconv.h>!)
+  \url{http://www.gnu.org/savannah-checkouts/gnu/libiconv/documentation/libiconv-1.13/iconv_open.3.html_node}
+  or the library \verb!libiconv! \url{http://www.gnu.org/software/libiconv/}
+  
+  
+  \item  UTF-8 string: We can also use GLIB, QT when dealing with UTF-8 string with non-ASCII
+characters: \url{https://developer.gnome.org/glib/}
+   
+   \item complicated text manipulation: An ICU library written by IBM
+   (Sect.\ref{sec:ICU}): 
+   \url{http://site.icu-project.org/}
+   
+\end{enumerate}
+
+\url{http://www.evanjones.ca/unicode-in-c.html}
+
+\subsection{* convert string and number}
+\label{sec:convert-C-string-to-number}
+
+To convert a string to/from a number, e.g. ``124'' to 124, 
+or 124 to ``124''
+\begin{enumerate}
+  \item C-like function \verb!atoi()! which cannot report error upon conversion
+  
+  \item \verb!strtol()! which can report error
+  
+  \item C++11: <string> header-file
+\begin{verbatim}
+stoi(str, int) : string to signed integer
+stol(str, long) 
+stoll(str, long long)
+
+ 
+stoul(str, unsigned long) : string to unsigned integer
+stoull(str, unsigned long long)
+
+stof(str, float)     : strong to float
+stod(str, double)
+stold(str, long double)
+
+to_string(int)     : wchar_t
+to_wstring(int)    : char*
+\end{verbatim}
+
+\end{enumerate}
+
+\subsection{*: Convert multibyte string from/to wide-char string}
+
+
+Convert from multibyte string to wide-character string
+
+We can use \verb!mbstowcs()! function (MultiByte String TO Wide-Character
+String), which returns the number of wide-characters written to \verb!dest!. The
+multibyte string is pointed by \verb!src!. 
+\begin{Verbatim}
+ /* C language */
+size_t mbstowcs (wchar_t* dest, const char* src, size_t max);
+
+ /* C++ */
+#include <cwchar>
+
+std::size_t mbsrtowcs( wchar_t* dst,
+                       const char** src,
+                       std::size_t len,
+                       std::mbstate_t* ps );
+\end{Verbatim}
+The convertion process stop until the maximum number of wide-characters to be
+converted is \verb!max!, or a NULL-character is reached in \verb!src!. 
+
+
+\subsection{* length of a C string}
+
+In an ASCII NULL-terminated string (\verb!char*!), the function
+\verb!strlen(str)! returns the number of 'meaningful' bytes in the string, not
+including the terminating NULL byte. As each character is also 1 byte, then the
+return value also means the number of character in the ASCII string.
+\begin{verbatim}
+#include <string.h>
+
+size_t strlen(const char *s);
+\end{verbatim}
+\textcolor{red}{The IMPORTANT point is it returns the number of bytes, not
+number of characters.} So, in a multibyte string (UTF-8), it also returns the
+number of bytes.
+
+In a wide-character string, i.e. all characters have the same size, then to
+return the string length, we use \verb!wcslen()! (not counting the NULL-wide
+character).
+\begin{verbatim}
+#include <wchar.h>
+
+size_t wcslen (const wchar_t* wcs);
+\end{verbatim}
+
+
+Return the number of characters of a multibyte string (examining at most
+\verb!max! bytes)
+\begin{Verbatim}
+int mblen (const char* pmb, size_t max);
+\end{Verbatim}
+
+\subsection{* loop through very characters in a C string}
+
+C-style string (NULL-terminated)
+\begin{verbatim}
+char* str = "This is my string";
+for(char* it = str; *it; ++it) {
+    do_things_with(*it);
+}
+
+for (int i = 0; str[i] != '\0'; i++){
+    do_things_with(str[i]);
+}
+for (int i = 0; i < strlen(str); i++){
+    do_things_with(str[i]);
+}
+
+\end{verbatim}
+
+\subsection{format a C string}
+\label{sec:format-C-string}
+
+We can use the approach in Sect.\ref{sec:sprintf}
+
+\subsection{NULL character (string terminator)}
+\label{sec:null-character}
+
+The NULL macro is defined in \verb!<stddef.h>! or \verb!stdio.h! header files.
+
+In C, a string is an array of character (Sect.\ref{sec:character_sets}) with
+0-terminated (i.e. NULL-terminated), i.e. it can receive any of the following
+values: \verb!0! or \verb!\0! (ASCII string, which is a single byte of value
+\verb!0x00!); or \verb!U+0000! (UTF-8 string, which is encoded as a 2-byte
+sequence \verb!0xC0! and \verb!0x80!).
+
+String literal
+\begin{verbatim}
+const char *str = u8"This is a UTF-8 string.";
+\end{verbatim}
+
+{\bf \%c and \%s }: In \verb!sprintf! and \verb!printf!, to specify the format
+for a single character, we use \verb!%c!, as \verb!%c! expect the argument
+of type \verb!char!. \verb!%s! expect an argument of type \verb!char*!, and
+print until it reaches a \verb!0! (or \verb!\0!, the same thing). In other
+words, \verb!%s! expects a zero-terminated string of characters.
+
+\subsection{* check NULL-terminated string?}
+
+\begin{mdframed}
+In Windows, avoid using the following APIs to check for NULL-terminated string
+\footnote{\url{http://blogs.msdn.com/b/oldnewthing/archive/2006/09/27/773741.aspx}}.
+Using IsBadXXXPtr can induce random crashes in other parts of the program which
+make it harders to debug.
+
+\begin{verbatim}
+IsBadStringPtr
+IsBadReadPtr
+IsBadWritePtr
+\end{verbatim}
+\end{mdframed}
+
+\subsection{String I/O}
+
+\begin{Verbatim}
+#include <stdio.h>
+#include <wchar.h>
+
+  wchar_t wsInput[256];
+  wprintf (L"Enter a sentence: ");
+  fgetws ( wsInput, 256, stdin );  /* includes newline characters */
+  wprintf (L"You entered %u characters.\n",wcslen(wsInput));
+  return 0;
+\end{Verbatim}
+
+
+\subsection{Working with Unicode}
+\label{sec:string_Unicode}
+
+C language has not been designed to work with data from file in Unicode format.
+Neither \verb!char! nor \verb!wchar_t! is directly tied to Unicode.
+\verb!wchar_t! size just guarantee that it can store the largest character set.
+
+
+Glib library provides \verb!Glib::ustring! class which has much the same
+interface as \verb!std:string! yet it contains Unicode characters encoded in UTF-8.
+\begin{verbatim}
+#include <glibmm/ustring.h>
+\end{verbatim}
+\url{https://developer.gnome.org/glibmm/unstable/classGlib_1_1ustring.html}
+
+In Windows: 
+\begin{enumerate}
+  \item MFC and C-runtime support for Unicode: (1) define symbol \verb!_UNICODE!
+  before compiling the code, (2) In Visual Studio, project's property page, in
+  {\bf output} page of the Linker folder, set Entry Point symbol to
+  \verb!wWinMainCRTStartup!, (3) use Unicode-aware string manipulation APIs with
+  prefix \verb!_tcs! (e.g. \verb!_tcscpy()!)
+  
+  \item  \verb!BSTR! is called counted Unicode type, i.e. an interface type
+used for communicating with APIs written in Visual Basic, COM, Active X,
+etc.
+
+  \item \verb!UNICODE_STRING! : a kernel data type (used as an interface to
+  underlying low-level kernel APIs)
+  
+  \item \verb!PUNICODE_STRING! : a pointer to \verb!UNICODE_STRING! structure
+  
+  \item \verb!PCUNICODE_STRING! : a pointer to \verb!const CUNICODE_STRING! 
+\end{enumerate}
+
+
+\section{String in C++}
+
+To represent an object with string content, we can use C-style string, i.e.
+an array of characters (Sect.\ref{sec:C-style-string}). 
+To make it work with Object-Oriented programming (OOP), C++ provides a string
+class (Sect.\ref{sec:C++_string}).
+
+
+\subsection{ C-style string}
+\label{sec:C-style-string}
+
+We can use the string as defined in C (Sect.\ref{sec:C_string}) in C++ code,
+given that a proper header file is included: 
+\begin{itemize}
+  \item \verb!<string.h>!
+  
+  \item \verb!<cstring>!: 
+
+{\bf NOTE}: \verb!cstring! is just a wrapper, it includes \verb!<string.h>!
+within itself.
+\footnote{\url{http://www.cplusplus.com/reference/cstring/}}
+
+  \item \verb!<iostream!> : this file includes \verb!<cstring>! within itself
+\end{itemize}
+Before C++11, \verb!std::string! is not guaranteed to provide a
+contiguous, writable buffer. Since C++11 this has changed so that std::string
+does provide you with a contiguous buffer.
+
+The reason to keep using \verb!char*! in C++ is 
+\begin{verbatim}
+- backward compatibility
+- potential performance gain 
+  For example, if performance is absolutely critical, a small C-array on the
+  stack may be a better solution than std::string. 
+- writing a program where you need absolute control over memory
+allocation/deallocation
+
+- NOTE: (Before C++11) std::string isn't guaranteed to provide you with a
+contiguous, writable buffer *, so you can't directly write from a file into an std::string
+However, in the event you need to do this, std::vector would still probably be
+preferable to using a raw C-array.
+\end{verbatim}
+
+{\bf NOTE}: assignment is changing reference, so two pointers pointing to the
+same memory location (Sect.\ref{sec:array-assignment}. You need to use
+explicit copy function to do the real string copy (Sect.\ref{sec:array-copy}).
+
+\begin{verbatim}
+#include <cstring> 
+
+/* or */
+
+#include <iostream>
+\end{verbatim}
+with type \verb!char! in C++98. 
+
+Since C95, the wide-character is supported \verb!wchar_t!, and size of
+\verb!char! is guaranteed to store 8-bit coding of UTF-8, even though no support
+for Unicode yet. C++11 supports Unicode encoding (UTF-8, UTF-16, and UTF-32),
+with 2 new types: \verb!char16_t! and \verb!char32_t!
+(Sect.\ref{sec:character_sets}).
+
+
+\subsection{C++ strings: std::string, std::wstring}
+\label{sec:C++_string}
+
+\subsection{-- std::string (std::basic\_string)}
+\label{sec:std::string}
+\label{sec:std::basic_string}
+
+IMPORTANT: \verb!std::string! class is the typedef for the
+\verb!std::basic_string!
+\footnote{\url{http://en.cppreference.com/w/cpp/string/basic_string}} templated
+on \verb!char!. It only supports fixed-length character encoding scheme, i.e.
+not supporting UTF-8. If you need to support variable-length encodings you could
+try either 
+\begin{enumerate}
+  \item  ICU4C library (Sect.\ref{sec:ICU}).
+  \item QString class (Sect.\ref{sec:QString}) from QT library.
+\end{enumerate}
+
+\begin{Verbatim}
+template <class T, class traits = 
+          class Alloc = allocator<char> >
+class std::basic_string<T> { ...};
+
+typedef std::string std::basic_string<char>
+\end{Verbatim}
+
+
+\verb!std::string! is the C++ version for \verb!char*! data type in C
+(Sect.\ref{sec:narrow-character-string}), and it makes your code more readable
+and safer than using \verb!char*!. 
+
+%This is used in object-oriented programming (OOP).  
+
+The header file is
+\begin{itemize} 
+  \item \verb!<string>!
+  
+  \item \verb!<iostream>!: which indeeds include \verb!<string>!.
+  
+% NOTE: C++ standard allow other headers to include other standard header files.
+% So, if we include <iostream>, it also have <string>.
+However, it's better to explicitly include <string> if we do string processing.
+  
+\end{itemize} 
+
+\begin{mdframed}
+
+The internal implementation is still using \verb!char*!.
+It means the  object containing the string content once defined is fixed-size
+(NOTE: this is the size of the object, not the length of the string it
+contains), with an internal pointer pointing to \verb!char*!, and another member
+\verb!nchars! holding the number of non-NULL characters of the string
+\begin{verbatim}
+class string
+{
+    char *buffer;
+    size_t nchars;
+
+  public:
+    // interface
+};
+\end{verbatim}
+
+Pre C++-11, the internal representation of \verb!std::string! is not guaranteed
+to be contiguous (though many STL implementation use a contiguous memory
+approach). So, when you issue this command to copy, it may fails
+\begin{verbatim}
+std::string s;
+s.resize( strLength );  
+// strLength is a size_t with the length of a C string in it. 
+
+memcpy( &s[0], str, strLength );
+\end{verbatim}
+
+From C++11, the new standard forces the internal data representation has to be
+contiguous. To enforce C++11 standard, check the compiler options.
+\url{http://stackoverflow.com/questions/1986966/does-s0-point-to-contiguous-characters-in-a-stdstring}
+C++11 standard says [21.4.1.5]
+\begin{verbatim}
+The char-like objects in a basic_string object shall be stored contiguously.
+
+That is, for any basic_string object s, the identity &*(s.begin() + n) ==
+&*s.begin() + n shall hold for all values of n such that 0 <= n < s.size().
+\end{verbatim}
+
+\end{mdframed}
+
+The reason to switch to using \verb!std::string! is 
+\begin{verbatim}
+- more intuitive to use (assignment is a duplicate of memory)
+- better searching, more utilities function (copy string, append to string...)
+- reduced risk of segmentation fault (the internal char* array always not NULL)
+- no need to worry about allocation/reallocation/deallocation memory
+   the class manage these tasks automatically
+\end{verbatim}
+
+Example:
+\begin{verbatim}
+std::string str = "hello";
+str::string str2 = str + " hi!";
+\end{verbatim}
+which is better than
+\begin{verbatim}
+const char * str = "hello";
+char str2[1024];
+strcpy (str2, str1);
+strcat(str2, " hi!");
+\end{verbatim}
+
+
+% 
+% To use C++ new style of string which defines \verb!std::string! class and
+% related functions and operators, we use
+\begin{verbatim}
+#include <string>
+
+std::string mystring("Some content");
+\end{verbatim}
+
+
+\subsection{-- std::wstring}
+\label{sec:std::wstring}
+
+\verb!std:wstring! is the C++ version of \verb!wchar_t*! as in C language
+(Sect.\ref{sec:wchar*}). Similar to \verb!std::string!, wstring is a
+\verb!std::basic_string! templated on \verb!wchar_t!
+\begin{Verbatim}
+typedef std::wstring std::basic_string<wchar_t>
+\end{Verbatim}
+\url{http://en.cppreference.com/w/cpp/string/basic_string}
+
+\subsection{-- QString (unicode-aware)}
+\label{sec:QString}
+
+QString class is part of QT library (QTL).
+When it comes to strings, QString offers much more complete functionality
+compared to \verb!std::basic_string! and it is completely unicode aware.
+
+
+\subsection{-- C++11: u16string, u32string}
+\label{sec:u16string}
+\label{sec:u32string}
+
+C++11 standard defines 2 new character data types: \verb!char16_t, char32_t!
+(Sect.\ref{sec:char16_t}), along with that the header file \verb!<string>! also
+define two new classes
+\begin{verbatim}
+typedef std::u16string std::basic_string<char16_t>
+
+typedef std::u32string std::basic_string<char32_t>
+\end{verbatim}
+
+
+\subsection{ string manipulation}
+\label{sec:string-manipulation-C++}
+
+\textcolor{red}{\bf Tokenize a string}:
+You can convert from std::string to \verb!char*! and apply the methods given in
+Sect.\ref{sec:string-manipulation-C}
+\begin{lstlisting}
+char *dup = strdup(str.c_str());
+token = strtok(dup, " ");
+free(dup);
+\end{lstlisting}
+
+{\bf OPTION}:
+You can use \verb!BOOST::tokenizer! class which is powerful as you can define
+your tokenizer function 
+\url{http://www.boost.org/doc/libs/1_52_0/libs/tokenizer/tokenizerfunction.htm}
+\begin{lstlisting}
+struct my_tokenizer_func
+{
+    template<typename It>
+    bool operator()(It& next, It end, std::string & tok)
+    {
+        if (next == end)
+            return false;
+        char const * del = ">=";
+        auto pos = std::search(next, end, del, del + 2);
+        tok.assign(next, pos);
+        next = pos;
+        if (next != end)
+            std::advance(next, 2);
+        return true;
+    }
+
+    void reset() {}
+};
+
+int main()
+{
+    std::string to_be_parsed = "1) one>=2) two>=3) three>=4) four";
+    for (auto i : boost::tokenizer<my_tokenizer_func>(to_be_parsed))
+        std::cout << i << '\n';
+}
+\end{lstlisting}
+
+
+{\bf OPTION} (single character delimiter): You can simply use
+\verb!std::istringstream! (or \verb!stringstream!) wrapping the original string, and go through the stream
+to extract the content from the current position to the character before the delimiter
+\begin{lstlisting}
+#include <iostream>
+#include <string>
+#include <sstream>
+
+std::string myText("some-text-to-tokenize");
+std::istringstream iss(myText);
+std::string token;
+while (std::getline(iss, token, '-'))
+{
+    std::cout << token << std::endl;
+}
+\end{lstlisting}
+NOTE: You can use \verb!stringstream! as well, but it is better to indicate that
+the strinng stream is for input only with \verb!istringstream!
+(Sect.\ref{sec:stringstream})
+\url{http://en.cppreference.com/w/cpp/string/basic_string/getline}
+
+{\bf OPTIOIN} (a string delimiter): Use 
+\verb!.find()! and \verb!.substr()! to get a token
+\begin{lstlisting}
+std::string s = "scott>=tiger";
+std::string delimiter = ">=";
+
+/* single token only */
+std::string token = s.substr(0, s.find(delimiter)); // token is "scott"
+
+/* multiple tokens */
+size_t pos = 0;
+std::string token;
+while ((pos = s.find(delimiter)) != std::string::npos) {
+    token = s.substr(0, pos);
+    std::cout << token << std::endl;
+    /* erase the original string from starting position to the position
+       at the end of the delimiter string
+    */
+    s.erase(0, pos + delimiter.length());
+}
+std::cout << s << std::endl;
+
+/* NOTE:
+ find(const string& str, size_t pos = 0) - return the position
+          of the first occurrence, or return 'npos' value to indicate nothing
+          found
+ 
+ substr(size_t pos = 0, size_t n = npos) - return
+*/
+\end{lstlisting}
+Sect.\ref{sec:npos} discuss \verb!std::string::npos! value.
+\url{http://stackoverflow.com/questions/14265581/parse-split-a-string-in-c-using-string-delimiter-standard-c}
+{\bf OPTION} (a string as delimiter): Write your own function, which returns all
+the tokens in a vector container
+\begin{lstlisting}
+void split(const string& str, const string& delim, vector<string>& parts) {
+  size_t start, end = 0;
+  while (end < str.size()) {
+    start = end;
+    while (start < str.size() && (delim.find(str[start]) != string::npos)) {
+      start++;  // skip initial whitespace
+    }
+    end = start;
+    while (end < str.size() && (delim.find(str[end]) == string::npos)) {
+      end++; // skip to end of word
+    }
+    if (end-start != 0) {  // just ignore zero-length strings.
+      parts.push_back(string(str, start, end-start));
+    }
+  }
+}
+\end{lstlisting}
+or (just the order is different)
+\begin{lstlisting}
+void Tokenize(const string& str,
+                      vector<string>& tokens,
+                      const string& delimiters = " ")
+{
+    // Skip delimiters at beginning.
+    string::size_type lastPos = str.find_first_not_of(delimiters, 0);
+    // Find first "non-delimiter".
+    string::size_type pos     = str.find_first_of(delimiters, lastPos);
+
+    while (string::npos != pos || string::npos != lastPos)
+    {
+        // Found a token, add it to the vector.
+        tokens.push_back(str.substr(lastPos, pos - lastPos));
+        // Skip delimiters.  Note the "not_of"
+        lastPos = str.find_first_not_of(delimiters, pos);
+        // Find next "non-delimiter"
+        pos = str.find_first_of(delimiters, lastPos);
+    }
+}
+
+
+/* USE IT */
+   vector<string> tokens;
+
+    string str("Split me up! Word1 Word2 Word3.");
+
+    Tokenize(str, tokens);
+
+    copy(tokens.begin(), tokens.end(), ostream_iterator<string>(cout, ", "));
+\end{lstlisting}
+\url{http://oopweb.com/CPP/Documents/CPPHOWTO/Volume/C++Programming-HOWTO-7.html}
+
+\subsection{* concatenate: 2 strings}
+
+\begin{verbatim}
+std::string a("Hello ");
+std::string b("World");
+
+//Option 1
+std::string c = a + b;
+
+//Option 2
+a.append(b);
+
+//Option 3
+a += b;
+\end{verbatim}
+
+\subsection{* concatenate: > 2 string}
+
+\textcolor{red}{\bf To concatenate two or more string}, in C++
+\begin{verbatim}
+//Multiple strings
+//they all must be std::string to use more than 2
+s += string("Hello world, ") + string("nice to see you, ") + string("or not.");
+
+// use string-stream
+#include <sstream>
+#include <string>
+
+std::stringstream ss;
+ss << "Hello, world, " << myInt << niceToSeeYouString;
+std::string s = ss.str();
+
+//or
+std::string s = static_cast<std::ostringstream&>(std::ostringstream().seekp(0)
+<< "HelloWorld" << myInt << niceToSeeYouString).str();
+\end{verbatim}
+
+NOTE: When using stringstream, to reuse the stream, we should use
+(Sect.\ref{sec:stringstream-reset})
+
+\subsection{* check character in string}
+
+\textcolor{red}{To check for the existence of a character in a string}. We can
+use this to search for string with whitespaces only
+\begin{verbatim}
+char a = ' ';
+
+std::string str;
+
+if (str.find_first_not_of(a) != std::string::npos) 
+{
+  // a is in str
+}
+\end{verbatim}
+
+\subsection{* create an array of strings}
+
+\textcolor{red}{\bf To create an array of string}, in C++
+\begin{enumerate}
+  \item Using array
+\begin{verbatim}
+std::string strArr[] = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+"Saturday", "Sunday"};
+\end{verbatim}
+  \item Using STL vector (RECOMMENDED)
+\begin{verbatim}
+std::vector<std::string> strVec;
+strVec.push_back("Monday");
+strVec.push_back("Tuesday");
+...
+\end{verbatim}
+
+In C++11, we can do like array for STL vector
+\begin{verbatim}
+std::vector<std::string> strVec = {"Monday", "Tuesday", "Wednesday", "Thursday",
+"Friday", "Saturday", "Sunday"};
+\end{verbatim}
+
+\end{enumerate}
+
+
+\subsection{* replace a substring in a string with a different content}
+
+\textcolor{red}{\bf To replace a substring with something else}:
+\begin{verbatim}
+string replaceInString(std::string str, std::string)
+\end{verbatim}
+
+\subsection{* remove trailing blank characters}
+
+\textcolor{red}{\bf To remove trailing blank characters}, in C++ [NOTE: This is
+a special case of the function above where the substring is white-space]
+\begin{enumerate}
+  \item Boost library has implemented
+  \verb!trim()!\footnote{\url{http://www.boost.org/doc/libs/1_38_0/doc/html/string_algo/usage.html}}
+  which can trim anything, not only spaces, e.g. \verb!trim_left_if()!.
+\begin{verbatim}
+ #include <boost/algorithm/string.hpp>
+using namespace std;
+using namespace boost;
+  
+string str1=" hello world! ";
+string str2=trim_left_copy(str1);   // str2 == "hello world!     "
+string str3=trim_right_copy(str2);  // str3 == "     hello world!"
+trim(str1);                         // str1 == "hello world!"
+// Use trim_right() if only trailing whitespace is to be removed.
+
+string phone="00423333444";
+// remove leading 0 from the phone number
+trim_left_if(phone,is_any_of("0")); // phone == "423333444"
+
+// trim on both end
+trim(str);
+
+// remove white-space in between
+// however it's slower than 'remove_if' approach
+erase_all(str, " ");        
+\end{verbatim}
+  
+  \item Right-trim
+  \begin{verbatim}
+std::string s;
+s.erase(s.find_last_not_of(" \n\r\t")+1);
+  \end{verbatim}
+  
+  \item Right-trim, Left-trim and Trim-from-both-ends. The definition of white
+  spaces depend on locale being used, e.g. locale (VS2005, en) means tabs,
+  spaces, carriage returns, newlines, vertical tabs and form feeds are trimmed
+  \begin{verbatim}
+#include <algorithm> 
+#include <functional> 
+#include <cctype>
+#include <locale>
+
+// trim from start
+static inline std::string &ltrim(std::string &s) {
+   s.erase(s.begin(), std::find_if(s.begin(), s.end(), 
+      std::not1(std::ptr_fun<int, int>(std::isspace))));
+   return s;
+}
+
+// trim from end
+static inline std::string &rtrim(std::string &s) {
+   s.erase(std::find_if(s.rbegin(), s.rend(), 
+      std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+   return s;
+}
+
+// trim from both ends
+static inline std::string &trim(std::string &s) {
+   return ltrim(rtrim(s));
+}  
+  \end{verbatim}
+IMPORTANT: We need to put the definition of \verb!static inline! function in the
+header files. Otherwise, you will get the warning
+\begin{verbatim}
+warning: inline function ... used but never defined
+\end{verbatim}
+Also, to use \verb!find_if()! we need to include <algorithm>. Otherwise, you'll
+get an error
+\begin{verbatim}
+error: 'find_if' is not a member of 'std'
+\end{verbatim}
+  
+  \item Left-trim and Right-trim: but only works for spaces and tabs, i.e. not
+  work for newline, line feed, carriage return.
+\begin{verbatim}
+// trim trailing spaces
+size_t endpos = str.find_last_not_of(" \t");
+if( string::npos != endpos )
+{
+    str = str.substr( 0, endpos+1 );
+}
+
+// trim leading spaces
+size_t startpos = str.find_first_not_of(" \t");
+if( string::npos != startpos )
+{
+    str = str.substr( startpos );
+}
+\end{verbatim}
+  \item Trim both ends using stringstream. However, it cann't
+  deal with string with internal white-spaces
+\begin{verbatim}
+std::stringstream trimmer;
+trimmer << str;
+str.clear();
+trimmer >> str;
+\end{verbatim}
+
+  \item Remove white spaces in between (spaces is defined by in the function
+  \verb!std::isspace!)
+\begin{verbatim}
+static std::string &remove_spaces(std::string &str)
+{
+#if defined(__CXX_EXPERIMENTAL_CXX0X__) || (__cplusplus >= 201103L)
+  str.erase(std::unique(str.begin(), str.end(), [](char a, char b){return a==' '
+  && b==' ';}), str.end());
+#else
+  stringstream line( str );
+  stringstream newline;
+  while( line >> str ) { // read the words, ignoring whitespace
+        newline << " " << str;
+  }
+  str = newline.str();
+  ltrim(str);
+}
+#endif
+}
+\end{verbatim}
+ 
+  \item Remove all white-spaces
+\begin{verbatim}
+//However this doesn't compile on standardc-conforming implementations
+// due to locale-taking overloads of std::isspace
+  str.erase(remove_if(str.begin(), str.end(), std::isspace), str.end());
+  //the solution is to use ::isspace  
+  str.erase(remove_if(str.begin(), str.end(), ::isspace), str.end());
+
+// or
+std::string::iterator end_pos = std::remove(str.begin(), str.end(), ' ')
+str.erase(end_pos, str.end())
+\end{verbatim}
+  
+  \item 
+\begin{verbatim}
+string choppa(const string &t, const string &ws)
+{
+    string str = t;
+    size_t found;
+    found = str.find_last_not_of(ws);
+    if (found != string::npos)
+    	str.erase(found+1);
+    else
+    	str.clear();            // str is all whitespace
+
+    return str;
+}
+\end{verbatim}
+\end{enumerate}
+References:\url{http://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring}
+
+\subsection{* split a string into an array of tokens}
+
+\textcolor{red}{\bf To split a string into an array}:
+\begin{enumerate}
+  \item Write a funciton that return a vector of string
+  
+Example: delimiter is any character from the string 'delimiters'
+
+\begin{lstlisting}
+void StringUtils::Tokenize(const string& str,
+                           vector<string>& tokens,
+                           const string& delimiters)
+
+{/* It uses any character in the string 'delimiters'-argument as the delimiter
+	*/
+    // Skip delimiters at beginning.
+    string::size_type lastPos = str.find_first_not_of(delimiters, 0);
+    // Find first "non-delimiter".
+    string::size_type pos = str.find_first_of(delimiters, lastPos);
+
+    tokens.clear(); /* make sure the vector is empty */
+    while (string::npos != pos || string::npos != lastPos) {
+        // Found a token, add it to the vector.
+        tokens.push_back(str.substr(lastPos, pos - lastPos));
+        // Skip delimiters.  Note the "not_of"
+        lastPos = str.find_first_not_of(delimiters, pos);
+        // Find next "non-delimiter"
+        pos = str.find_first_of(delimiters, lastPos);
+    }
+}
+\end{lstlisting}
+
+  \item Using istringstream
+
+NOTE: Only work with delimiter as space
+
+\begin{verbatim}
+#include <sstream> //std::istringstream
+#include <iterator> //std::istream_iterator
+#include <vector> //std::vector
+
+while (std::getline(input, line))
+{
+  std::istringstream iss(line);
+  std::istream_iterator<std::string> begin(iss), end;
+  
+  //space as delimiter for iss
+  // but here output to std::cout
+  copy(istream_iterator<string>(iss),
+       istream_iterator<string>(),
+       ostream_iterator<string>(cout, "\n"));
+       
+  //space as delimiter for iss
+  // but put to vector 'tokens'
+   vector<string> tokens;
+   copy(istream_iterator<string>(iss),
+     istream_iterator<string>(),
+     back_inserter(tokens));
+
+  //space as delimiter for iss
+  // quick way to put to vector 'tokens'
+  std::vector<std::string> tokens (begin, end);  
+}
+\end{verbatim}
+
+  \item Using boost
+
+Example: delimiter is a space character (space, tab)
+\begin{verbatim}
+vector<string> v;
+ 
+ //the splitter is space
+boost::split(v, line, ::isspace);
+\end{verbatim}
+
+Example: delimiter is any character from the given string
+\begin{verbatim}
+#include <boost/algorithm/string.hpp>
+std::string inputString("One!Two,Three:Four");
+std::string delimiters("|,:");
+std::vector<std::string> parts;
+boost::split(parts, inputString, boost::is_any_of(delimiters));
+\end{verbatim}
+\end{enumerate}
+
+\subsection{* compare 2 strings}
+
+\textcolor{red}{\bf Compare 2 strings}: 
+Comparing string in C++ is easy using the overloaded == operator, and copy
+string in C++ can be done with \verb!=! operator.
+
+To test an empty string, we can use
+\begin{lstlisting}
+if (mystr == "") {}
+
+if (mystr.empty()) {}
+\end{lstlisting}
+The latter method is preferred as it is more general, which can be applied to
+not only \verb!std::string!, but also \verb!std::wstring!
+(Sect.\ref{sec:std::wstring}). 
+
+\textcolor{red}{IMPORTANT}: \verb!""! is interepreted as \verb!char!, which
+cannot be compared with \verb!wchar_t!.
+\url{http://stackoverflow.com/questions/483337/c-is-string-empty-always-equivalent-to-string}
+
+
+\subsection{* convert string to number}
+
+
+\begin{enumerate}
+  \item We can map C++ string to C string, and use function in Sect.\ref{sec:convert-C-string-to-number}
+\begin{verbatim}
+const char* s = cppstring.c_str();
+\end{verbatim}
+  
+  \item Use fastreams
+  
+\begin{lstlisting}
+ifastream<basic_formatters, string_reader> myString(&string);
+int value;
+myString >> value;
+\end{lstlisting}
+
+   \item Use istringstream (slower)
+   
+ \begin{lstlisting}
+string str = "123";
+int numb;
+istringstream ( str ) >> numb;
+
+// or	 
+ 
+#include <sstream>
+#include <string>
+using namespace std;
+
+string myStream = "45";
+istringstream buffer(myString);
+int value;
+buffer >> value;   // value = 45 
+ \end{lstlisting}
+ 
+   \item Use \verb!Boost::lexical_cast!
+ 
+\begin{lstlisting}
+#include <boost/lexical_cast.hpp>
+
+try {
+    int x = boost::lexical_cast<int>( "123" );
+} catch( boost::bad_lexical_cast const& ) {
+    std::cout << "Error: input string was not valid" << std::endl;
+}
+\end{lstlisting}
+\end{enumerate}
+
+
+\subsection{* convert a std::string to char* or std::vector<char>}
+
+If you don't want to modify the content, then 
+\begin{verbatim}
+char const* ca = str.c_str();
+\end{verbatim}
+
+If you want to make a new string, dynamically allocated
+\begin{verbatim}
+char* ca = new char[str.size()+1];
+std::copy(str.begin(), str.end(), ca);
+ca[str.size()] = '\0';
+\end{verbatim}
+and make sure to \verb!delete[]! later.
+
+If you want to make a new string, statitically allocated
+\begin{verbatim}
+size_t const MAX = 80; // maximum number of chars
+char ca[MAX] = {};
+std::copy(str.begin(), (str.size() >= MAX ? str.begin() + MAX : str.end()), ca);
+\end{verbatim}
+and no need for memory free.
+
+This is the right answer
+\begin{verbatim}
+std::string str = "some string" ;
+char *cstr = &str[0u];
+\end{verbatim}
+HOWEVER< it may fails, as pre-C++11, there is no guarantee that the internal
+representation for the sequence of characters is contiguous.
+
+You can use \verb!std::vector<char>! which guarantees contiguous memory
+\begin{verbatim}
+std::string str = "string";
+std::vector<char> chars(str.c_str(), str.c_str() + str.size() + 1u);
+\end{verbatim}
+or
+\begin{verbatim}
+vector<char> v(str.begin(), str.end());
+char* ca = &v[0]; // pointer to start of vector
+\end{verbatim}
+
+\url{http://stackoverflow.com/questions/7352099/stdstring-to-char}
+
+\subsection{copy a string}
+
+
+Suppose you have an existing a string, and you want to copy the content from a
+given position, say 2, to the end of the string (to indicate all the way to the
+end, we use \verb!std::string::npos! value)
+\begin{lstlisting}
+string s = 'text';
+// functions that take string subsets as arguments 
+    // use npos as the "all the way to the end" indicator
+    std::string s2(s, 2, std::string::npos);
+    std::cout << s2 << '\n';
+ 
+\end{lstlisting}
+
+\subsection{format a C++ string}
+\label{sec:format-C++-string}
+
+We have a number of options
+\begin{enumerate}
+  \item fastformat - Sect.\ref{sec:fastformat}: type-safe, fastest, thread-safe,
+  
+  
+  \item output the data, with appropriate format, to string stream, and finally
+  convert to string (Sect.\ref{sec:stringstream})
+  
+  \item Boost::format: very powerful - Sect.\ref{sec:Boost::format()}
+  
+  \item std::snprintf (C++11) - Sect.\ref{sec:std::snprintf}  
+\end{enumerate}
+
+\subsection{* fastformat library}
+\label{sec:fastformat}
+
+\url{http://www.fastformat.org/index.html}
+
+\subsection{* stringstream: ostringstream, istringstream}
+\label{sec:stringstream}
+\label{sec:ostringstream}
+\label{sec:istringstream}
+
+
+For string appending, instead of using \verb!std::string::append()! method, we
+can use \verb!<<! operator (for output data to string stream), or \verb!>>!
+operator (for reading from a string stream), and then finally convert to a
+string using \verb!std::stringstream::str()! method.
+
+\begin{lstlisting}
+std::ostringstream os;
+os << "Content-Type: " << contentType << ";charset=" << charset << "\r\n";
+std::string header = os.str();
+
+std::string header("Content-Type: ");
+header.append(contentType);
+header.append(";charset=");
+header.append(charset);
+header.append("\r\n");
+\end{lstlisting}
+Of course, using string stream takes less code.
+The question is which one is faster.
+
+
+We can have \verb!std::stringstream! or 
+\verb!std::istringstream! or \verb!std::ostringstream! 
+
+A \verb!stringstream! is somewhat larger, and might have slightly lower
+performance -- multiple inheritance can require an adjustment to the vtable
+pointer. The main difference of using istringstream or ostringstream is (at
+least in theory) better expressing your intent, and preventing you from
+accidentally using \verb!>>! where you intended \verb!<<! (or vice versa). OTOH,
+the difference is sufficiently small that especially for quick bits of
+demonstration code.
+\url{http://stackoverflow.com/questions/3292107/whats-the-difference-between-istringstream-ostringstream-and-stringstream-w}
+
+
+
+The Standard library design for streams supports much more than \verb!snprintf!
+does. The design is meant to be extensible, and includes \verb!protected!
+\verb!virtual! methods that are called by the publicly exposed methods. This
+allows you to derive from one of the stream classes, with the assurance that if
+you overload the protected method you will get the behavior you want. I believe
+that a compiler could avoid the overhead of the \verb!virtual! function call,
+but I'm not aware of any compilers that do.
+
+Additionally, stream operations often use growable buffers internally; which
+implies relatively slow memory allocations.
+
+
+
+
+
+The function \verb!read()! reads 5 bytes from the stream (or until ends of
+stream). The function \verb!get()! reads 4 bytes from the stream (or until it
+hits the delimiter (which is \verb!\n! by default) or end of stream); it reads 4
+instead of 5 as it reserves the last character for NULL-terminated string.
+\begin{verbatim}
+#include <iostream>
+
+char a[5];
+
+std::stringstream ss;
+
+ss.read(a,5);
+
+ss.get(a,5);
+\end{verbatim}
+
+\subsection{** reset a stringstream}
+\label{sec:stringstream-reset}
+
+There are a few options
+
+\begin{verbatim}
+ss.str("");             // more intuitive
+
+ss.str(std::string());  // more efficient (though may be the same as above in
+                        // modern compiler
+       
+m=std::stringstream();
+
+std::stringstream().swap(m); // swap m with a default constructed stringstream
+
+
+//RECOMMEND: add the following line as well if the first 2 options are used
+ss.clear()  ; //just clear the error state of the stream, e.g. if a file stream
+    // has the error state set to eofbit (end-of-file), then calling clear()
+    // will set the error state back to goodbit (no error).
+
+\end{verbatim}
+
+
+\subsection{* Boost::format()}
+\label{sec:Boost::format()}
+
+A  format object is constructed from a format-string, and is then given
+arguments through repeated calls to operator \%. Each of those arguments are
+then converted to strings, who are in turn combined into one string, according
+to the format-string.
+
+\begin{verbatim}
+cout << boost::format("writing %1%,  x=%2% : %3%-th try") % "toto" % 40.23 % 50; 
+     // prints "writing toto,  x=40.230 : 50-th try"
+\end{verbatim}
+
+\subsection{* std::snprintf (C++11)}
+\label{sec:std::snprintf}
+
+GOAL: Write to a char* by using std::snprintf and then convert that to a
+std::string.
+
+\begin{lstlisting}
+#include <memory>
+#include <iostream>
+#include <string>
+#include <cstdio>
+
+using namespace std; //Don't if you're in a header-file
+
+template<typename ... Args>
+string string_format( const std::string& format, Args ... args )
+{
+    size_t size = snprintf( nullptr, 0, format.c_str(), args ... ) + 1; // Extra space for '\0'
+    unique_ptr<char[]> buf( new char[ size ] ); 
+    snprintf( buf.get(), size, format.c_str(), args ... );
+    return string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
+}
+\end{lstlisting}
+\url{http://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf}
+
+\subsection{Loop through very characters in the C++ string}
+
+C++11 support range-based \verb!for! loop
+\begin{verbatim}
+// C++11
+std::string str = "Thi is the string";
+for(char& c : str) {
+    do_things_with(c);
+}
+//NOTE: read-only purpose, we use either 
+// for (char c : str)
+// for (char const & c : str)
+
+for (auto it = s.begin(), end = s.end(); it != end; ++it) {
+	do_things_with(*it);
+}
+
+std::for_each(s.begin(), s.end(), [](char & c) {
+	do_things_with(c);
+}
+\end{verbatim}
+
+C++98
+\begin{verbatim}
+// Use string iterator
+std::string str = ???;
+for(std::string::iterator it = str.begin(); it != str.end(); ++it) {
+    do_things_with(*it);
+}
+//NOTE: read-only purpose, we use 'std::string::const_iterator'
+// instead of std::string::iterator
+
+// Use old-fashioned for loop
+for(std::string::size_type i = 0; i < str.size(); ++i) {
+    do_things_with(str[i]);
+}
+for (int i = 0; i < str.size(); i++){
+    do_things_with(str[i]);
+}
+\end{verbatim}
+
+References:
+\begin{enumerate}
+  \item
+  \url{http://stackoverflow.com/questions/9438209/c-for-every-character-in-string}
+\end{enumerate}
+
+
+\subsection{Intrinsic C vs. C++ strings}
+
+Different types have been developed for character in a string
+(Sect.\ref{sec:character}), both in C and C++. However, it is suggested to use
+UTF-8 and then \verb!char*! is good enough. Don't use \verb!wchar_t! or any
+C++11 newer type \verb!char16_t, char32_t!.
+
+In general, there are three important things:
+\begin{enumerate}
+  \item an array of character:
+\begin{Verbatim}
+char my_str[10];
+
+/* or */
+
+char[10] my_str; 
+\end{Verbatim}
+
+   \item a C-string (Sect.\ref{sec:C_string}): the string must be terminated by
+   a NULL character (Sect.\ref{sec:null-character}. The library to deal with
+   string in this form is from \verb!<cstring>! (using in C++) or
+   \verb!string.h! (in C)
+\begin{Verbatim}
+char * my_str;
+int strlen = 10;
+ 
+  //NOTE: potential bug
+allocate(my_str, size_of(char)* (strlen));
+
+  // SHOULD add 1 for the NULL-character
+allocate(my_str, size_of(char)* (strlen+1));
+\end{Verbatim}
+
+   \item a C++-string object \verb!std::string! whose internal representation we
+   don't need to know. The header file is \verb!<string>!
+   (Sect.\ref{sec:C++_string})
+\end{enumerate}
+To convert between C-style and C++-style string, we read
+Sect.\ref{sec:string_convert-C-C++}. 
+
+A good comparison \url{http://cs.stmarys.ca/~porter/csc/ref/c_cpp_strings.html}
+\begin{verbatim}
+C-strings  (#include <cstring>)         C++ strings  (#include <string>)
+===============================         ================================
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Declaring a C-string variable           Declaring a C++ string object
+-----------------------------           -----------------------------
+char str[10];                           string str;
+
+Initializing a C-string variable        Initializing a C++ string object
+--------------------------------        --------------------------------
+char str1[11] = "Call home!";           string str1("Call home!");
+char str2[] = "Send money!";            string str2 = "Send money!";
+char str3[] = {'O', 'K', '\0'};         string str3("OK");
+Last line above has same effect as:
+char str3[] = "OK";
+                                        string str4(10, 'x');
+                                        
+Assigning to a C-string variable        Assigning to a C++ string object
+--------------------------------        --------------------------------
+Can't do it, i.e., can't do this:       string str;
+char str[10];                           str = "Hello";
+str = "Hello!";                         str = otherString;
+
+Concatenating two C-strings             Concatenating two C++ string objects
+---------------------------             ------------------------------------
+strcat(str1, str2);                     str1 += str2;
+strcpy(str, strcat(str1, str2));        str = str1 + str2;
+
+Copying a C-string variable             Copying a C++ string object
+---------------------------             ---------------------------
+char str[20];                           string str;
+strcpy(str, "Hello!");                  str = "Hello";
+strcpy(str, otherString);               str = otherString;
+
+Accessing a single character            Accessing a single character
+----------------------------            ----------------------------
+str[index]                              str[index]
+                                        str.at(index)
+                                        str(index, count)
+                                        
+Comparing two C-strings                 Comparing two C++ string objects
+-----------------------                 --------------------------------
+if (strcmp(str1, str2) < 0)             if (str1 < str2)
+    cout << "str1 comes 1st.";              cout << "str1 comes 1st.";
+if (strcmp(str1, str2) == 0)            if (str1 == str2)
+    cout << "Equal strings.";               cout << "Equal strings.";
+if (strcmp(str1, str2) > 0)             if (str1 > str2)
+    cout << "str2 comes 1st.";              cout << "str2 comes 1st.";
+    
+Finding the length of a C-string        Finding the length of a C++ string object
+--------------------------------        -----------------------------------------
+strlen(str)                             str.length()
+
+Output of a C-string variable           Output of a C++ string object
+-----------------------------           -----------------------------
+cout << str;                            cout << str;
+cout << setw(width) << str;             cout << setw(width) << str;
+\end{verbatim}
+
+\subsection{* length of a C++ string}
+
+We can use either one of the two methods \verb!.size()! or \verb!.length()!.
+
+\begin{verbatim}
+std::string mystr("Hello!");
+
+mystr.size(); 
+mystr.length();
+\end{verbatim}
+
+\subsection{* length of a string in Windows}
+
+Windows define the DIM() macro to return the exact number of characters,
+regardless of the number of bytes for each character
+\begin{verbatim}
+#define DIM(x) ( sizeof((x)) / sizeof((x)[0]) )
+\end{verbatim}
+
+Example:
+\begin{verbatim}
+class Whatever { ... };
+Whatever data[] = {
+   { ... },
+    ...
+   { ... },
+};
+
+for(int i = 0; i < DIM(data); i++) // scan the table looking for a match 
+
+\end{verbatim}
+
+\section{Literal string (string literal)}
+\label{sec:string_literal}
+\label{sec:literal-string}
+
+% In the computer, to define a constant string (known as literal strings) which can
+% be enclosed by either a single or double quotes, depending on the programming
+
+There are some cases that you define a fixed-content string in the program
+(known at compile-time), or you read the data from file, and you want it to be
+read-only (known at run-time). 
+\begin{itemize}
+  \item known at compile-time: you define literal string (or string literal)
+  
+A literal string is any string enclosed by either a single or double quotes,
+depending on the programming language. In C/C++, it uses double quotes for
+literal string and single quote for literal character.
+A literal character is a special case of literal string, and is described in
+Sect.\ref{sec:literal-character}.
+  
+  \item known at run-time: you pass data to \verb!const char*! variable.
+\end{itemize}
+
+Depending on how you define, the data is stored in the {\bf text segment} in the
+program's object code (for literal string), which is read-only, or in the {\bf
+data segment} which is a modifiable region but marked with not-modifiable flag
+for \verb!const char*! data.
+
+\subsection{raw form vs. cooked form}
+
+Literals can be extended in both raw and cooked forms, with the exception of
+string literals, which can be processed only in cooked form. 
+
+\subsection{pointer assignment vs. string initialization}
+
+String literals have static storage duration, and thus exist in memory for the
+life of the program.  A string literal is a bit of text between single quotes or
+double quotes. In C/C++, the enclosing delimiters are double quotes, e.g.
+``Hello, world!'', while for a character, it uses single quotes
+\begin{Verbatim}
+cout << "Hello, world!" << endl;
+
+cout << 'x' << endl;  // a single-character string
+\end{Verbatim}
+The data type for this string is \verb!char*!. There are different ways to
+define a regular literal string: (1) pointer assignment, (2) string
+initialization (using [] operator).
+
+\begin{verbatim}
+ // pointer assignment
+char *szStr = "1234";
+
+ // string initialization
+char szStr[] = "Hello, world!";
+\end{verbatim}
+
+
+\begin{mdframed}
+The important difference between using pointer assignment vs. string
+initialization. 
+
+{\it string initialization}: If we use an array, then the data is put into the
+{\bf data segment}; then \verb!str! points to a location in the data segment,
+with the content is the copy of the string 'Hello', and a string literal 'Hello'
+is put into text segment memory. We are allowed to modify the content of the
+string \verb!szStr!. The string is called a {\bf mutable string}, i.e. the
+string is modifiable.
+
+{\it pointer assignment}: If we use pointer assignment, we have the pointer pointing
+to the literal string; then remember that you can access the
+content using the pointer, but are not allowed to change the content of the
+string. The string is called \textcolor{red}{immutable string}. If your code try
+to modify it, the result is undefined behavior and you can get segmentation fault.
+\begin{verbatim}
+char *szStr = "Hello, C++!";
+szStr[2] = 'A';      // Results undefined (Seg.error)
+\end{verbatim}
+
+To allow the compiler to detect operations that try to modify an immutable
+string, we should use \verb!const char*!, then the compiler will tell you during
+compilation time if you try to modify it \footnote{\url{https://www.securecoding.cert.org/confluence/display/seccode/STR05-C.+Use+pointers+to+const+when+referring+to+string+literals}}.
+From C++0x standard, whenever you use pointer assignment, the compiler must
+issue an error message and as you to use \verb!const char*!
+\begin{verbatim}
+const char * bird = "wren";  //requirement in C++11
+\end{verbatim}
+\end{mdframed}
+
+
+
+NOTE: String literals placed side-by-side to initialize a character array are
+concatenated during compilation, e.g.
+\begin{verbatim}
+char szStr[] = "Hello,"  " world!"; // yield a single string
+\end{verbatim}
+
+A {\it multiline regular string literal} can be created using either
+\begin{verbatim}
+// indentation doesn't matter
+const char* text = "Four score and seven years "
+        "ago, our forefathers brought forth "
+        "upon this continent a new nation.";
+        
+// indentation here affect the string content
+const char *text2 = "Here, on the other hand,  \
+span several lines, \
+quoting each line's \
+This works,	but you can't indent.";
+
+// we can use the trick
+// However, to add comma (,) to the string
+// we need to enclose within paranthesis or quotes.
+// and compiler warning is created as well
+#define MULTI_LINE_STRING(a) #a
+const char *text = MULTI_LINE_STRING(
+  Using this trick(,) you don't need to use quotes.
+  Though newlines and     multiple     white   spaces
+  will be replaced by a single whitespace.
+);
+
+// consume everything between the parantheses
+// consecutive whitespaces are replaced by a single space
+#define MULTILINE(...) #__VA_ARGS__
+\end{verbatim}
+but in this case we don't have the pointer pointing to the string literal.
+
+
+NOTE: As double quotes is used to mark the beginning or the end of the string,
+to add double quotation mark in the content of the literal string, we need to
+use \verb!\"!. Using a single quotation mark in a string is okay, without using
+backslash. To add a single backslash character in the literal string, use
+\verb!\\!.
+\begin{verbatim}
+char *szStr = "1234\"\\ hello";
+\end{verbatim}
+szStr is the pointer pointing to the memory address in the text segmen.
+
+% yields the (single) string "Hello, world!", i.e. similar to
+% \begin{verbatim}
+% char szStr[] = "Hello, world!";
+% \end{verbatim}
+
+
+\begin{mdframed}
+It's important to know that using escape character (Sect.\ref{sec:escape_char})
+in string literal should be with careness.
+\begin{verbatim}
+char szStr1[] = "\01" "23";
+char szStr2[] = "\0123";
+\end{verbatim}
+which can gives different representation in memory.
+\begin{verbatim}
+"\01" "23" --> \01 | 2 | 3 | \0 | (1 block = 1 byte)
+"\0123"    --> \012| 3 | \0
+\end{verbatim}
+\end{mdframed}
+
+\subsection{C++03: regular string literal}
+\label{sec:regular-string-literal}
+
+C++03 offers 2 kinds of string literal 
+\begin{itemize}
+  \item contains within double quote:
+  
+  The result is a null-terminated array of type \verb!const char!
+
+  \item contains within \verb!L""!
+  
+  The result is a null-terminated array of type \verb!const wchar_t!
+  (Sect.\ref{sec:wchar_t})
+  
+\end{itemize}
+None of them offers support for any unicode encoding in C++03, only there is a
+change in the definition of \verb!char! type in C++03 (Sect.\ref{sec:char}).
+
+You can use an un-named literal string by passing directly the literal string to
+a function
+\begin{verbatim}
+my_func("hello world");
+
+void my_func(const char* str)
+{
+  // working with 'str' without modifying it
+}
+\end{verbatim}
+
+You can also define a name, i.e. a variable, whose content is a literal string
+by using the type \verb!const char[]!
+\begin{verbatim}
+const char[] str = "hello world";
+\end{verbatim}
+When we define a regular string literal, we actually define a pointer pointing
+to a memory.
+
+So, when you write two overload function
+\begin{verbatim}
+
+void doSomethingWith(const void* i) { cout << "void*" << endl; };
+void doSomethingWith(double d)        { cout << "double" << endl; };
+void doSomethingWith(const string& s) { cout << "string" << endl; };
+
+// and pass a string literal
+doSomethingWith("foo");
+\end{verbatim}
+\verb!const void*! is the only type in our example than can point directly to
+the \verb!const char[]!, so that one is picked. 
+\url{http://blog.knatten.org/2012/05/11/a-string-literal-is-not-a-string/}
+
+\subsection{-- Literal string wide-character (C++03)}
+
+Since C++03, it offers 2 kinds of string literal:
+\begin{enumerate}
+  \item ``\ldots'' produce a string literal of type \verb!const char!.
+  \item L''\ldots'' produce a null-terminated array of type \verb!const wchar_t!
+\end{enumerate}
+However, neither of them work wells with UTF-8, UTF-16 or any kinds of
+Unicode. See C++11 supports.
+
+\begin{verbatim}
+L'x'
+
+L"this is a string"
+\end{verbatim}
+
+\subsubsection{Literal string (Unicode, C++11)}
+
+C++11 defines new integral data type to handle Unicode characters, that you need
+to prefix the literal string with \verb!u8! or \verb!u! or \verb!U!
+(Sect.\ref{sec:C++_character})
+\begin{verbatim}
+const char[] = u8"I'm a UTF-8 string."
+const char16_t[] = u"This is a UTF-16 string."
+const char32_t[] = U"This is a UTF-32 string."
+\end{verbatim}
+
+
+References:
+\begin{enumerate}
+  \item \url{http://en.cppreference.com/w/cpp/language/string_literal}
+\end{enumerate}
+
+\subsection{C++11: regular string literal}
+\label{sec:regular-string-literal-C++11}
+
+Since C++11, it supports 3 Unicode encodings: UTF-8, UTF-16, and UTF-32.
+\begin{verbatim}
+u8"I'm a UTF-8 string."  // whose type is 'const char[]'
+u"This is a UTF-16 string."  //   type is 'const char16_t[]'
+U"This is a UTF-32 string."  //   type is 'const char32_t[]'
+\end{verbatim}
+which uses two new types \verb!char16_t! and \verb!char32_t!
+(Sect.\ref{sec:char16_t}).
+
+NOTE: We can also insert Unicode codepoint directly into the literal string,
+e.g. \verb!\u2018! with the number after \verb!\u! is HEXadecimal number
+(16-bit) and \verb!\U! (for 32-bit code points).
+%\subsection{-- Regular string literal}
+
+\subsection{-- Raw string literal (C++11)}
+\label{sec:raw_string_literal-C++11}
+
+
+C++0x has planned to add raw string literal
+(Sect.\ref{sec:raw-string-literal}) to the language standard
+\footnote{\url{http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2006/n2053.html}}.
+It becomes official in C++11.
+
+NOTE: In general case, the begin is marked with \verb!''delimiter(! and end with
+\verb!)delimiter''!; with \verb!delimiter! is any string upto 16 characters
+(including an empty string) that we use as delimiter.
+In an empty delimiter, everything between \verb!''(! and \verb!)''!
+is treated as part of the string, including the backslash \verb!\! character. 
+
+\begin{verbatim}
+R"(The String Data \ Stuff " )"
+R"delimiter(The String Data \ Stuff " )delimiter"
+\end{verbatim}
+Here, everything between ``( and )'' is part of the string, i.e. we don't need
+to be use backslash for \verb!\\! and \verb!``!. Also, we're flexible to use
+``splitter( and )splitter'', rather than ``( and )''. In the second example, the delimiter is
+the word '{\it splitter}'. It can be any string up to 16 characters in length,
+including the empty string, with no space, no control character and no
+\verb!'\\'! character. This allows us to put ( and ) inside the string.
+
+\subsection{in Windows}
+
+In Windows, to make your code Unicode-awareness (compile whether Unicode is
+enabled or not), you should use TCHAR as the data type, which is mapped to the proper C-lang
+intrinsic data type, and TEXT() macro (or \verb!T()! or \verb!_T()!) to wrap the
+literal string.
+\begin{verbatim}
+TCHAR *automessage = TEXT("This message can be either ASCII or UNICODE!");
+       // using TEXT() is the same as using T() or _T()
+#ifdef UNICODE
+  #define TEXT(t) L##t
+  #define _T(t) L##t
+  #define T(t) L##t
+#else
+  #define TEXT(t) t
+  #define _T(t) t
+  #define T(t) t
+#endif       
+\end{verbatim}
+
+\begin{mdframed}
+{\bf Microsoft specific}: the maximum length for a string literal is 2,048
+bytes (both for type \verb!char[]! and \verb!wchar_t!). Type \verb!wchar_t! means 2-byte for
+each character, including the terminal character '\verb!\0!'; and we need to add
+'L' preceding the literal string.
+\begin{verbatim}
+wchar_t wszStr[] = L"1a1g";
+\end{verbatim}
+\end{mdframed}
+
+
+\textcolor{red}{CString} data type:
+\begin{verbatim}
+#include <atlstr.h>
+
+CString s = "This is a test";     // 8-bit only
+CStringA s = "This is a test";    // 8-bit characters will work in Unicode app*
+CString s = L"This is a test";    // Unicode only
+CStringW s = L"This is a test";   // Unicode characters will work in 8-bit app*
+CString s = _T("This is a test"); // Unicode-aware
+CString s("This is a test");      // 8-bit only (ANSI)
+
+CStringA s("This is a test");     // 8-bit characters will work in Unicode app*
+CStringW s(L"This is a test");    // Unicode characters will work in an 8-bit app*
+CString s(_T("This is a test"));  // Unicode-aware
+
+
+   // This implicitly call MultiByteToWideChar operation of
+   // CString constructor to convert, at run-time, the narrow-character string
+   // to 16-bit 
+CString s = "This is a test"; 
+
+// NOTE:
+CString gray("Gray");
+CString cat("Cat");
+CString graycat = gray + cat;  // ANSI string
+
+CString gray(_T("Gray"));
+CString cat(_T("Cat"));
+CString graycat = gray + cat; // Unicode string
+\end{verbatim}
+
+
+% Code to works on ANSI compilation
+% \begin{verbatim}
+% \end{verbatim}
+
+% Code that is Unicode-aware, using \verb!_T()! macro
+% \begin{verbatim}
+% \end{verbatim}
+
+% NOTE: 
+% \begin{verbatim}
+%   // non-Unicode
+% #define _T(x) x // non-Unicode version
+% 
+%   // Unicode
+% #define _T(x) L##x // Unicode version    
+% \end{verbatim}
+
+
+
+\section{String in Windows C++}
+
+\subsection{in Windows}
+\label{sec:string_Windows}
+
+
+Instead of using C-lang intrinsic data types, Visual C++ in Windows defines a
+number of data types to use (CString, basic\_string, System.String) and a number
+of macros that can make your code Unicode-awareness. In Windows, with string
+processing, there are three concepts: ANSI string, MultiByte-character string
+(MBCS) and Unicode string. By default, ANSI string is used.
+\begin{itemize}
+  \item CString : MFC applications only
+  \item CAtlString, CAtlStringA, and CAtlStringW: MFC appliction, with or
+  without C-runtime support.
+    
+  \item CStringT: use in CRT applications.
+  \item System.String: use managed C++/CLI applications.
+  \item  
+\end{itemize}
+To add more features to the string class, you can create a subclass of
+\verb!CStringT!. 
+
+To use MBCS, enable the macro \verb!MBCS! when compile the code.
+
+To enable Unicode support in an MFC application, it requires
+the program to be compiled with \verb!UNICODE! macro defined before including
+\verb!<windows.h>! header file.
+\begin{verbatim}
+#define UNICODE
+#include <windows.h>
+\end{verbatim}
+
+To enable Unicode support in a C-runtime application, you uses a different macro
+\verb!_UNICODE! (with the underscore). This, if defined, determine how the
+string manipulation APIs starting with \verb!_tcs! (in \verb!<tchar.h>!) are
+mapped to normal versions or wide-character versions. Typically, you are
+expected to define both, and include the two header files
+\begin{verbatim}
+#define UNICODE
+#define _UNICODE
+#include <windows.h>
+#include <tchar.h>
+\end{verbatim}
+
+As two macros are expected to be used at the same time, if you write a code
+that use Unicode, you are suggested to put these at the beginning
+\begin{verbatim}
+#ifdef UNICODE
+  #ifndef _UNICODE
+    #define _UNICODE
+  #endif
+#endif
+#ifdef _UNICODE
+  #ifndef UNICODE
+    #define UNICODE
+  #endif
+#endif
+\end{verbatim}
+
+
+\subsubsection{CString, CAtlString (MFC, native projects)}
+\label{sec:CString}
+
+\verb!CString! is a useful data type being used in MFC applications, making it
+easier to do string manipulation than C-lang intrinsic data types. If you write
+an MFC application, you should always use \verb!CString! type which you need to
+include the header-file \verb!<atlstr.h>!. CAtlString is another option to use
+in an MFC application, with or without CRT support.
+
+The macro \verb!UNICODE! (or \verb!_UNICODE!) maps the data type to either
+\verb!CStringW! class (16-bit) or \verb!CStringA! class (8-bit). IMPORTANT:
+Using CStringA and CStringB explicitly is available only in VS.Net version, not
+in Visual Studio 6.
+\begin{itemize}
+  \item CStringA class wrap \verb!char! type, thus support ANSI string or MBCS
+  string. 
+  
+  \item CStringW class wrap \verb!wchar_t! type, thus support Unicode string.
+\end{itemize}
+The stored character data for a CString object is kept in a CStringData object.
+It can generate the data using a NULL-terminated C-style string; yet it doesn't
+retain the NULL character in the stored character data. The length information
+is stored instead.
+
+The only time you need to do conversion is when your code interface (e.g. call)
+with the APIs that requires other string data types. A CString object contains 3
+values: a pointer to a buffer, a count of the valid characters in the buffer,
+and a buffer length. By default, you know nothing about the size of the buffer
+length as it is handled internally, so you can do string manipulation easily.
+Instead, it is less efficient
+
+
+
+
+String concatenation is very straight forward with CString
+\begin{verbatim}
+CString gray(_T("Gray"));
+CString cat(_T("Cat"));
+CString graycat = gray + cat;
+\end{verbatim}
+
+IMPORTANT: string concatenation operator + is defined as an overloaded operator
+on two objects: (1) at least one is CString, (2) maximum one is LPCSTR.
+\begin{verbatim}
+  // OKAY
+CString graycat = CString("Gray") + CString("Cat");
+CString graycat = CString("Gray") + "Cat";
+CString graycat = CString(_T("Gray")) + _T("Cat");
+
+
+//ERRORs (not allow two LPCSTR objects with operator +)
+CString graycat = "Gray" + "Cat";
+CString graycat("Gray" + "Cat");
+\end{verbatim}
+
+\subsubsection{CStringT (CRT projects)}
+
+\verb!CStringT! is used in C run-time (CRT) application. CStringT is an alias of
+\verb!CString! \footnote{\url{http://www.flounder.com/cstring.htm}}, yet it's
+better as the character type can be one of the 3 options: \verb!char!,
+\verb!wchar_t! or \verb!TCHAR!
+\footnote{\url{http://msdn.microsoft.com/en-us/library/5bzxfsea.aspx}}.
+
+\subsubsection{System.String (C++/CLI projects)}
+\label{sec:System.String}
+
+\verb!System::String! is used in managed-code (C++/CLI) projects
+(Sect.\ref{sec:managed_C++}).
+
+\subsubsection{\_bstr\_t}
+\label{sec:_bstr_t}
+
+\verb!_bstr_t! type
+ 
+ \url{http://msdn.microsoft.com/en-us/library/ms235631.aspx}
+ 
+\subsubsection{CComBSTR}
+\label{sec:CComBSTR}
+
+\subsubsection{basic\_string}
+\label{sec:basic_string}
+
+\verb!basic_string! 
+
+\subsubsection{TCHAR*, LPCSTR (WinAPI)}
+\label{sec:TCHAR}
+
+WinAPI also define several new types: PSTR, LPCSTR, LPTSTR, LPCTSTR, LPWTFISALL
+Most kernel APIs want LPCTSTR parameters.  Because the (LPCTSTR) operator is
+defined for CString (Sect.\ref{sec:CString}), the compiler will automatically
+invoke the conversion.
+
+\begin{verbatim}
+#define  LPSTR          char*
+#define  LPCSTR         const char*
+
+#define  LPWSTR         wchar_t*
+#define  LPWCSTR        const wchar_t*
+
+#define  LPTSTR         TCHAR*
+#define  LPCTSTR        const TCHAR* 
+\end{verbatim}
+NOTE: LP = long pointer, C = constant, W = wide, T = tchar, STR = string.
+
+It's very common that programs on Windows are developed using WinAPI
+(Sect.\ref{sec:WinAPI}) which defines several macros to make it easier handling
+narrow character and wide-character string. To switch between using \verb!char*!
+or \verb!wchar_t*! strings, WinAPI use \verb!UNICODE! and/or \verb!_UNICODE!
+macro (usually both). This is how to use in a Windows program
+\footnote{\url{http://www.cplusplus.com/articles/2w6AC542/}}
+\begin{verbatim}
+#define UNICODE   // must be before the windows.h
+#include <windows.h>
+\end{verbatim}
+or
+\begin{verbatim}
+#define UNICODE
+#define _UNICODE
+#include <windows.h>
+#include <tchar.h>
+\end{verbatim}
+
+Some header files automatically define both at the same time if once is used 
+\footnote{\url{http://en.wikibooks.org/wiki/Windows_Programming/Unicode}}
+\begin{verbatim}
+#ifdef UNICODE
+  #ifndef _UNICODE
+    #define _UNICODE
+  #endif
+#endif
+
+#ifdef _UNICODE
+  #ifndef UNICODE
+    #define UNICODE
+  #endif
+#endif 
+\end{verbatim}
+
+The reason we need to use both \verb!UNICODE! and \verb!_UNICODE! as
+\verb!UNICODE! is used by Windows headers, and \verb!_UNICODE! is used by
+C-runtime/MFC headers
+\url{http://blogs.msdn.com/b/oldnewthing/archive/2004/02/12/71851.aspx}
+\begin{verbatim}
+The plain versions without the underscore affect the character set the Windows
+header files treat as default. So if you define UNICODE, then GetWindowText will
+map to GetWindowTextW instead of GetWindowTextA, for example. Similarly, the
+TEXT macro will map to L"..." instead of "...".   
+
+The versions with the underscore affect the character set the C runtime header
+files treat as default. So if you define _UNICODE, then _tcslen will map to
+wcslen instead of strlen, for example. Similarly, the _TEXT macro will map to
+L"..." instead of "...".   
+\end{verbatim}
+
+To make the code that can be build for ANSI or for Unicode, we use \verb!TCHAR!
+data type, i.e. if we use \verb!#define UNICODE!, it
+will be mapped to  \verb!wchar_t!; otherwise it maps to \verb!char!. However,
+there is some issues that cannot be resolved using TCHAR, especially with string
+literal
+\begin{verbatim}
+const char*    a = "Foo";
+const wchar_t* b = L"Bar";  // <-- note the L.  That makes it wide. 
+\end{verbatim}
+To get around this problem, WinAPI provides some macros \verb!_T()! and
+\verb!T()! and \verb!TEXT()! that all do the same thing. This codes can be
+compiled in either ANSI or Unicode properly
+\begin{Verbatim}
+const TCHAR*   d = _T("foo");  // works in both Unicode and ANSI builds
+\end{Verbatim}
+This is how the macro is defined
+\begin{Verbatim}
+#ifdef UNICODE
+  #define TEXT(t) L##t
+  #define _T(t) L##t
+  #define T(t) L##t
+#else
+  #define TEXT(t) t
+  #define _T(t) t
+  #define T(t) t
+#endif
+\end{Verbatim}
+
+Again, how to use a single function that accepts different argument type
+(\verb!char*! or \verb!wchar_t*!) depending on ANSI or Unicode use ? Untill
+C++11, C programming language doesn't have molymorphic ability, i.e. no support
+for function overloading. For example, we need two versions for a function to
+delete a file
+\begin{verbatim}
+#ifdef UNICODE
+#define DeleteFile DeleteFileW
+#else
+#define DeleteFile DeleteFileA
+#endif
+
+\end{verbatim}
+To make it easier, WinAPI defines macro \verb!DeleteFile()! which maps to either
+one of the below functions
+\begin{verbatim}
+DeleteFile   <-  Takes a TCHAR string (LPCTSTR)
+DeleteFileA  <-  Takes a char string (LPCSTR), ANSI version
+DeleteFileW  <-  Takes a wchar_t string (LPCWSTR), Unicode version
+
+DeleteFile( _T("myfile.txt") );   
+\end{verbatim}
+
+
+WinAPI also defines macros for struct that have character string member, e.g. OPENFILENAME
+structure. 
+\begin{verbatim}
+OPENFILENAME  <-  has TCHAR strings
+OPENFILENAMEA <-  has char strings
+OPENFILENAMEW <-  has wchar_t strings
+\end{verbatim}
+
+IN SUMMARY:
+\begin{enumerate}
+  \item Use TCHAR for characters and \verb!TCHAR*! for C string.
+  
+  \item Use \verb!std::basic_string<TCHAR>! instead of \verb!std::string! for
+  C++ string.
+  
+\begin{verbatim}
+typedef std::basic_string<TCHAR> tstring; 
+\end{verbatim}  
+
+  \item Put all string literal in macros \verb!_T(), T()! or \verb!TEXT()!
+  whenever working with WinAPI. Don't use with other libs, e.g. standard lib is
+  not Unicode friendly.
+  
+  \item Replace standard lib functions (e.g. strcpy, strcar, \ldots) with
+  \verb!tstring! member functions, e.g. 
+\begin{verbatim}
+_tcscpy, _tcscat, ...
+\end{verbatim}
+  
+  \item Avoid using C or C++ style type cast for
+  string (Sect.\ref{sec:type-cast})
+  
+  \item When reading from file or writing text data to file, DON'T use
+  \verb!TCHAR!, make sure you use the type that you know the size.  If you write
+  data out, you should use Unicode encoding. When you have to use explicitly
+  \verb!char! or \verb!wchar_t!, and you want to copy to \verb!TCHAR!, you need
+  to do one by one character, i.e. write your own copy function to do that.
+  
+\begin{Verbatim}
+// this function copies a char C string to a TCHAR C string:
+void ustrcpy(TCHAR* dst, const char* src)
+{
+  while(*src)
+  {
+   *dst = *src;
+   ++dst;
+   ++src;
+  }
+  *dst = *src;
+}
+
+/* or you can write template */
+template <typename T, typename TT>
+void ustrcpy( T* dst, const TT* src )
+{
+  //.. same as above
+}
+\end{Verbatim}
+  
+\end{enumerate}
+
+\subsection{UNICODE\_STRING}
+
+
+This is a Window special data type for kernel APIs.
+\begin{verbatim}
+typedef struct _UNICODE_STRING {
+    USHORT Length;
+    USHORT MaximumLength;
+    PWSTR Buffer;
+} UNICODE_STRING, *PUNICODE_STRING;
+\end{verbatim}
+
+
+
+\section{String in .NET}
+
+In Managed C++ or C++/CLI, we can use data from .NET, i.e. convert \verb!System::String! to \verb!wchar_t*! or \verb!char*!
+
+This always returns a wide Unicode string pointer because CLR strings are internally Unicode. 
+\url{https://msdn.microsoft.com/en-us/library/d1ae6tz5.aspx}
+
+\begin{verbatim}
+// compile with: /clr
+
+#include < vcclr.h >
+
+using namespace System;
+String ^str = "Hello";
+
+pin_ptr<const wchar_t> wch = PtrToStringChars(str);
+  printf_s("%S\n", wch);
+  
+  
+ // Conversion to char* :
+   // Can just convert wchar_t* to char* using one of the 
+   // conversion functions such as: 
+   // WideCharToMultiByte()
+   // wcstombs_s()
+   // ... etc
+size_t  sizeInBytes = ((str->Length + 1) * 2);
+char    *ch = (char *)malloc(sizeInBytes);
+ 
+  size_t convertedChars = 0;
+  
+   err = wcstombs_s(&convertedChars, 
+                    ch, sizeInBytes,
+                    wch, sizeInBytes);     
+\end{verbatim}
+
+\section{Covert string between C++ and C-style}
+\label{sec:string_convert-C-C++}
+
+\subsection{* const char* from std::string}
+
+% In previous C++ standard, the implementation of \verb!.c_str()! member
+% function is allowed to return anything, 
+% including a \verb!char*! to the internal buffer of a C++-string, we use
+% \verb!std::
+
+In C++98, \verb!.c_str()! returns to the \verb!const char*! to the internal
+buffer data of the std::string object. Even though we can use \verb!char*! to
+get access (pointing) to the first character in the buffer data, any
+non-\verb!const! method applied to \verb!s2! will 
+\begin{verbatim}
+using namespace std;
+
+string s = "Hello world";  /* locate on stack */
+  /* s2 point to the location on stack */
+char* s2 = s.c_str(); /* okay, but be careful 
+                         that s2 will be invalidated once a
+                         non-const method is used on 's' or
+                         's' going out-of-scope
+                      */
+
+const char* s3 = s.c_str(); /* recommended */
+
+  /* location on heap */
+string* s = new string("Hello, mr. heap...");
+\end{verbatim}
+
+From C++11, both \verb!.c_str()! and the newer member function
+\verb!.data()! (C++11) can get directly access to the internal data object
+
+\begin{verbatim}
+/* C++98: const char* c_str() const; */
+
+/* C++11: const char* c_str() const noexcept; */
+
+std::string cppstr = "hello";
+
+
+char* str = cppstr.c_str(); /* we cannot modify str */
+
+/* never do this
+char* pointer=(char*)str.c_str();
+*/
+\end{verbatim}
+This returns the pointer pointing directly to the internal array currently used
+by {\it std::string} object to store the characters. Do not try to modify the
+content using \verb!char*! as it is expected to be a const data.
+
+\textcolor{red}{\bf IMPORTANT}: any modification to the string directly to
+\verb!std::string! can invalid the returned \verb!char*! pointer, as the internal memory may be
+reallocated to another position, and \verb!char*! pointer does not know about
+that to point to the new location.
+\url{http://stackoverflow.com/questions/17402980/what-does-c-str-method-from-string-class-returns}
+
+So, we should make a copy if we want to do something without affecting
+the {\it std::string} object. The member function is safe even for empty string.
+\begin{verbatim}
+//const char* c_str() const;
+
+#include <cstring>
+#include <string>
+
+int main() {
+std::string myfile("Data.txt");
+
+if (filetest(myfile.c_str(), S_IFREG) != 0) {
+  printf("File %s do not exist", myfile.c_str());
+}
+
+std::string str ("Please split this sentence into tokens");
+
+char * cstr = new char [str.length()+1];
+// copy to a new location
+std::strcpy (cstr, str.c_str());
+\end{verbatim}
+
+To pass \verb!std::string! to a function that needs \verb!char*! (a writable
+copy), we do either
+\begin{enumerate}
+  \item Non-standard C/C++ function, a Posix function \verb!strdup()!:
+  \begin{verbatim}
+  char* writable=strdup(str.c_str());
+  \end{verbatim}
+  
+  \item or
+\begin{verbatim}
+std::string str;
+char * writable = new char[str.size() + 1];
+std::copy(str.begin(), str.end(), writable);
+writable[str.size()] = '\0'; // don't forget the terminating 0
+
+// don't forget to free the string after finished using it
+delete[] writable;
+\end{verbatim}
+\end{enumerate}
+However, the approach is not exception safe, as any thing that stop the program
+between 'new' call and 'delete' can cause memory leak, as nothing free the
+memory automatically. 
+
+%\subsection{* const char* from std::string}
+
+To pass \verb!std::string! to a function that needs \verb!const char*!, we do
+\begin{verbatim}
+std::string str;
+const char * c = str.c_str();
+\end{verbatim}
+
+\subsection{* std::string from const char*}
+
+To get C++-string of a C string equivalent, we should use \verb!const char*!,
+NOT \verb!char *!, as string literal cannot be modified
+(Sect.\ref{sec:string_literal})
+
+\begin{verbatim}
+const char* str="Hello, world!";
+std::string mycpp_str(str);
+
+//or concatenate an existing C++-string
+std::string mycpp_str = cpp_str_old + std::string(str);
+\end{verbatim}
+ 
+
+\subsection{*: char* (TCHAR*) vs. CString}
+
+Example: one string
+\begin{verbatim}
+char * p = "This is a test";
+
+char * p = _T("This is a test");
+
+LPTSTR p = _T("This is a test");
+
+TCHAR * p = _T("Gray");
+\end{verbatim}
+
+now we convert to CString
+\begin{verbatim}
+CString s = p;
+CString s(p);
+
+p = _T("Cat");
+s += p;
+
+  // or using Format() method of CString
+CString s;
+s.Format(_T("%s is equal to %s, valid data"), parm1, parm2);  
+\end{verbatim}
+
+\url{http://www.flounder.com/cstring.htm}
+
+
+Example: a CString object can be casted to an object of LPCTSTR type (const
+char*)
+\begin{verbatim}
+CString s("GrayCat");
+   // type cast
+LPCTSTR p =  s;
+\end{verbatim}
+
+
+Example: get access to the internal pointer of CString object using
+\verb!GetBuffer()! method, and then \verb!ReleaseBuffer()! method.
+\verb!GetBuffer()! method can accept zero or one parameter.
+\begin{itemize}
+  \item one parameter (a number): return a pointer to the buffer, and it
+  guarantees the size of the buffer is the same as that number (in characters)
+  [NOTE: not bytes, as CString is Unicode-aware]
+\begin{verbatim}
+LPTSTR p = s.GetBuffer(1024);
+\end{verbatim}  
+
+  \item no parameter: just return the pointer to the buffer (you need to make
+  sure not to modifying the size of the buffer). The pointer is actually
+  pointing to a read-only memory region. If you really modify the memory
+  pointed by the pointer, you will get error.
+  
+\end{itemize}
+\begin{verbatim}
+CString s(_T("File.ext"));
+  
+LPTSTR p = s.GetBuffer();  // once you do this
+      // DO NOT use any CString method, until you call ReleaseBuffer()
+      // to maintain the integrity of the data
+      
+LPTSTR dot = strchr(p, '.'); // OK, should have used s.Find...
+if(p != NULL)
+    *p = _T('\0');
+    
+    
+s.ReleaseBuffer();  // what is does: recompute the length
+\end{verbatim}
+
+Example: BAD CODING
+\begin{verbatim}
+CString s(...);
+LPTSTR p = s.GetBuffer();
+//... lots of things happen via the pointer p
+int n = s.GetLength(); // BAD!!!!! PROBABLY WILL GIVE WRONG ANSWER!!!
+s.TrimRight();         // BAD!!!!! NO GUARANTEE IT WILL WORK!!!!
+s.ReleaseBuffer();     // Things are now OK
+int m = s.GetLength(); // This is guaranteed to be correct
+s.TrimRight();         // Will work correctly
+\end{verbatim}
+
+\subsection{* exception-safe approach}
+
+The approaches above are not exception safe, as any thing that stop the
+program between 'new' call and 'delete' can cause memory leak, as nothing free the
+memory automatically. 
+
+There are two options to provide exception safe:
+\begin{enumerate}
+  \item \verb!std::vector!: which manage the memory for you
+  \begin{verbatim}
+std::string str;
+std::vector<char> writable(str.size() + 1);
+std::copy(str.begin(), str.end(), writable.begin());
+
+// get the char* using &writable[0] or &*writable.begin()
+  \end{verbatim}
+  
+  \item \verb!boost::scoped_array!: which need Boost library, and automatically
+  delete memory upon going out of scope
+  \begin{verbatim}
+std::string str;
+boost::scoped_array<char> writable(new char[str.size() + 1]);
+std::copy(str.begin(), str.end(), writable.get());
+writable[str.size()] = '\0'; // don't forget the terminating 0
+
+// get the char* using writable.get()
+
+// memory is automatically freed if the smart pointer goes 
+// out of scope
+  \end{verbatim}
+\end{enumerate}
+
+
+\section{<string.h>, <cstring>, and <string>}
+\label{sec:header-file-comparison-string}
+
+In C, you uses \verb!<string.h>! header file.
+
+
+To use C++ string, we use \verb!<string>! header file.
+
+
+To use C-string in C++, we can choose between \verb!<string.h>! or
+\verb!<cstring>!. However, you need to knows the difference between them.
+\begin{itemize}
+  \item In <string.h>: some C types are defined as typedef
+  (Sect.\ref{sec:typedef}), e.g. \verb!wchar_t! is a typedef.
+  
+  Using this in C++ prevents things like template specialization from working on
+  those types. 
+ 
+\begin{lstlisting}
+typedef int Foo;
+template<typename T> struct Bar {};
+template<> struct Bar<int> {};
+template<> struct Bar<Foo> {};
+\end{lstlisting}
+here \verb!Foo! and \verb!int! are considered the same because of typedef, so
+you get errors
+\begin{verbatim}
+main.cpp:7:19: error: redefinition of 'Bar<int>'
+template<> struct Bar<Foo> {};
+                  ^~~~~~~~
+main.cpp:5:19: note: previous definition is here
+template<> struct Bar<int> {};
+                  ^
+1 error generated.
+\end{verbatim}
+  
+  \item In <cstring>:
+  Using \verb!<cstring>! is better which makes those types defined as
+  typedef in <string.h> into real types.
+  
+  C++ also allows overloading, and <cstring> specifies some overloades to C
+  functions to allow a function to return a pointer to non-const data, if the
+  input argument is a pointer to a non-const data; wherease C functions in
+  <string.h> takes and returns only pointers to const. 
+  
+\end{itemize}
+
+
+\verb!<string.h>! places all the identifiers in the global namespace, while
+\verb!<cstring>! put them inside the \verb!std! namespace.
+So, when you use 
+\begin{verbatim}
+#include <string.h>
+
+memcpy(...)
+\end{verbatim}
+but
+\begin{verbatim}
+#include <cstring>
+
+std::memcpy(...)
+\end{verbatim}
+or 
+\begin{verbatim}
+#include <cstring>
+
+using namespace std;
+memcpy(...)
+\end{verbatim}
+
+NOTICE: These files can be implicitly included, once the code include another
+standard header file, e.g. iostream.
+
+In C++11, in the standard (20.9.14.6 and 7):
+the content of \verb!<cstring>! is the same as the standard C library header
+\verb!<string.h>! with the exception that the function \verb!memchr()! is
+replaced by two versions (one accepts const data and the other is not)
+\begin{verbatim}
+const void* memchr(const void* s, int c, size_t n);
+void* memchr( void* s, int c, size_t n);
+\end{verbatim}
+(both have the same behavior as the original destination)
+
+\url{http://stackoverflow.com/questions/8380805/difference-between-string-h-and-cstring}
+
+\section{Convert string from/to number}
+
+The faster way is C-style, and the safer way is C++-style. For C++ string, we
+just convert to C-style string \verb!std::string().c_str()! member function,
+then use the following APIs.
+
+\subsection{from integer or floating-point}
+
+\begin{framed}
+On Windows CE derived platforms, there are no iostreams by default. The way to
+go there is preferaby with the \verb!_itoa<>! family, usually \verb!_itow<>!
+(since most string stuff are Unicode there anyway).
+\end{framed}
+
+C-style: use \verb!itoa()! function. However, it's not a part of the
+language standard, and thus is not portable
+\begin{verbatim}
+#include <stdlib.h>
+
+	
+\end{verbatim}
+C-style: Use \verb!sprintf()! or \verb!snprintf()! to convert from number to
+string.
+\begin{verbatim}
+char str[12];
+int num = 3;
+sprintf(str, "%d", num); // str now contains "3"
+
+//to avoid buffer overflow
+snprintf(str, sizeof(str), "%d", num);
+\end{verbatim}
+
+Write your own \verb!itoa()! function
+\begin{verbatim}
+#include <string>
+string itoa(int a)
+{
+    string ss="";   //create empty string
+    while(a)
+    {
+        int x=a%10;
+        a/=10;
+        char i='0';
+        i=i+x;
+        ss=i+ss;      //append new character at the front of the string!
+    }
+    return ss;
+}
+\end{verbatim}
+
+C++-style: The third option is to use \verb!std::stringstream!.
+\textcolor{red}{IMPORTANT: If you uses parallelism with multiple threads, there
+may be potential locking at various locale information during formatting. To
+avoid this, use sprintf() instead.}
+\begin{verbatim}
+#include <sstream>
+   #include <string>
+   template<typename T>
+   T StringToNumber(const std::string& numberAsString)
+   {
+      T valor;
+
+      std::stringstream stream(numberAsString);
+      stream >> valor;
+      if (stream.fail()) {
+         std::runtime_error e(numberAsString);
+         throw e;
+      }
+      return valor;
+   }
+   
+  int main() {
+    double number= StringToNumber<double>("0.6");
+  }
+\end{verbatim}
+or
+\begin{verbatim}
+int myint = 10;
+
+std::stringstream str;
+str << myint;
+
+std::string result;
+   str >> result;
+//or
+   result = str.str();   
+\end{verbatim}
+
+
+Another option is to use \verb!Boost.Lexical_Cast!. However,
+\verb!boost::lexical_cast! throw exception so you should prepare to deal with it
+when you pass invalid value
+\begin{verbatim}
+#include <boost/lexical_cast.hpp>
+#include <iostream>
+#include <string>
+
+int main() {
+    std::string str("0.6");
+    double dub = boost::lexical_cast<double>(str);
+}
+\end{verbatim}
+or
+\begin{verbatim}
+template<typename to, typename from>
+to lexical_cast(from const &x) {
+  std::stringstream os;
+  to ret;
+
+
+  os << x;
+  std::string x(os.str());
+  
+  os >> ret;
+
+  return ret;  
+}
+\end{verbatim}
+
+Boost.Format which can does a lot more thing than simple conversion
+\footnote{\url{http://www.boost.org/doc/libs/1_36_0/libs/format/doc/format.html}}
+\begin{verbatim}
+int i = 10;
+std::string result;
+
+result = str(boost::format("%1%", i));
+
+fastformat::fmt(result, "{0}", i);
+fastformat::write(result, i);
+\end{verbatim}
+
+
+C++11 has \verb!std::to_string()!
+\footnote{\url{http://en.cppreference.com/w/cpp/string/basic_string/to_string}}
+\begin{verbatim}
+std::string str = std::to_string(50);
+\end{verbatim}
+
+C++11: The fourth option is to use STL with \verb!std::stod! and
+\verb!std::to_string!. 
+\begin{verbatim}
+include <string>
+include <cstring>
+include <cstdlib>
+
+std::string  s  = "0.6"
+std::wstring ws = "0.7"
+double d  = std::stod(s);
+double dw = std::stod(ws);
+\end{verbatim}
+
+
+
+\subsection{to integer}
+
+
+\begin{verbatim}
+#include <stdlib.h>     /* atoi */
+
+// to 4-byte integer
+int atoi (const char * str);
+
+// to long integer
+long int atol ( const char * str );
+  // parsing the string and interpreting it 
+  // as a number being represented of a specified 'base'
+  // 'endptr' will point to the next character in the string 'str'
+  // after the number
+long int strtol (const char* str, char** endptr, int base);
+
+// to unsigned long integer
+unsigned long int strtoul (const char* str, char** endptr, int base);
+
+\end{verbatim}
+
+In C++11, we can use \verb!std::to_string()!. Prior to that, we can use
+stringstream
+\begin{verbatim}
+#include <string>
+#include <sstream>
+
+#if defined(__CXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
+	std::string s = std::to_string(5);
+#else
+	int i = 5;
+	std::string s;
+	std::stringstream out;
+	out << i;
+	s = out.str();
+#endif
+\end{verbatim}
+
+
+Example:
+\begin{verbatim}
+ char szNumbers[] = "2001 60c0c0 -1101110100110100100000 0x6fffff";
+  char * pEnd;
+  long int li1, li2, li3, li4;
+  li1 = strtol (szNumbers,&pEnd,10);
+  li2 = strtol (pEnd,&pEnd,16);
+  li3 = strtol (pEnd,&pEnd,2);
+  li4 = strtol (pEnd,NULL,0);
+\end{verbatim}
+
+\subsection{to floating-point number}
+
+If the conversion fails, then it return 0.0. If the correct value is out of
+range of representable values, a positive/negative \verb!HUGE_VAL! is returned,
+and \verb!errno! is set to \verb!ERANGE! [NOTE: \verb!errno! is the macro that
+keep the last error number, of of the possible value is ERANGE].
+\begin{verbatim}
+#include <stdio.h>      /* printf, NULL */
+#include <stdlib.h>     /* strtod */
+
+// str must contains only numeric value
+double atof (const char* str);
+
+// if 'str' has number and then alphabet characters
+// then use this to extract the first part containing the number
+double strtod (const char* str, char** endptr);
+\end{verbatim}
+In the second function, it extract the number, and put \verb!endptr! pointing to
+the next non-numeric character in the string (very useful when parsing a string
+with multiple values, separated by white-spaces etc.). This function is
+very useful.
+
+After the white-spaces are discarded from the front of the string, the string of
+characters must be
+\begin{enumerate}
+  \item C90 (C++98): 
+\begin{verbatim}
+[+/-] digits [.] digits [{e/E} [+/-] digits]
+\end{verbatim}
+  \item C99/C11 (C++11): the string can has more than one form
+\begin{verbatim}
+// form 1
+[+/-] digits [.] digits [{e/E} [+/-] digits]
+
+// form 2
+[0x/0X] hexa-digits [.] [{p/P} [+/-] hexa-digits]
+
+// form 3
+INF/INFINITY
+
+// form 4
+NAN or NAN{sequence-characters}
+\end{verbatim}
+with \verb!{sequence-character}! can be alphanumeric or the under score
+(\verb!_!).
+\end{enumerate}
+
+NOTE: []=optional, \verb!{e/E}! represents the exponential part; \verb!{p/P}!
+represents the power of 2 exponent. We don't have \verb!{! or \verb!}! in the
+string.
+
+Example:
+\begin{verbatim}
+char szOrbits[] = "365.24 29.53";
+  char* pEnd;
+  double d1, d2;
+  d1 = strtod (szOrbits, &pEnd);
+  d2 = strtod (pEnd, NULL);
+  
+\end{verbatim}
+
+
+\subsection{in Windows}
+
+Using \verb!CString! class data type, we can use \verb!Format! method easily. We
+don't have to worry about the buffer size
+
+\begin{verbatim}
+CString s;
+  // decimal number to string
+  // using _T() for Unicode-aware
+s.Format(_T("The total is %d"), total);
+
+  // string to integer
+  // use with Unicode-aware code
+  // the macros _tcstoul() and _ttoi()
+CString hex = _T("FAB");
+CString decimal = _T("4011");
+ASSERT(_tcstoul(hex, 0, 16) == _ttoi(decimal));
+\end{verbatim}
+
+One radix to another, e.g. hex digits to integer: The answer is strtoul,
+wcstoul, or better still, \verb!_tcstoul!.
+\begin{verbatim}
+
+ULONG strtoul(LPCSTR ptr, LPSTR * endptr, int base)
+ULONG wcstoul(LPCWSTR ptr, LPWSTR * endptr, int base)
+ULONG _tcstoul(LPCTSTR ptr, LPTSTR * endptr, int base)
+
+These functions expect an input string of the form
+
+[whitespace] [{+ | -}] [0 [{ x | X }]] [digits]
+\end{verbatim}
+The \verb!whitespace! can be space or tab (and is ignored during the
+conversion). The \verb!base! value can be any integer from 2 to 36, or 0. If
+base=0, then the special rule is used
+\begin{verbatim}
+If the first digit is 0 and the character which follows it is not 'x' or 'X',
+then the number is interpreted as if base were specified as 8.  
+
+If the first digit is 0 and the character which follows is 'x' or 'X', then the
+'0x' or '0X' is ignored as input and the remainder of the number is interpreted
+as if base had been 16.  Otherwise, it is interpreted as if base were 10.    
+\end{verbatim}
+
+
+The macro \verb!_ttoi()! becomes \verb!_atoi()! (ANSI code) or
+\verb!_wtoi()! (Unicode-code). Use \verb!_tcstoul()! for unsigned-conversion to any radix
+(e.g. 2,8, 10 or 16), or \verb!_tstoul()! for signed-conversion to any radix.
+
+IMPORTANT: string to double (this is a real pain before Visual Studio 2005)
+\begin{verbatim}
+  // Before VS6
+  // use T2A() macro to convert to narrow-character string first
+USES_CONVERSION
+CString s = _T("123.45");
+double d = atof(T2A(s));   
+ 
+ // From Visual Studio 2005 (VS6), a wide-character version has been added
+double wtof(const wchar_t * string);
+  // and the Unicode-aware versio is _ttof()
+CString s = _T("123.45");
+#ifdef _MSC_VER < 1300
+  USES_CONVERSION
+  double d = atof(T2A(s));
+#else
+double d = _ttof(s);
+#endif
+
+\end{verbatim}
+
+\section{Special values in std::string}
+
+\subsection{npos}
+\label{sec:npos}
+
+\verb!std::string::npos! is a special value equal to the maximum value
+representable by \verb!size_type!.
+It is generally used to indicate the end of the string.
+Example: when a function is expecting an index of a character inside the string,
+and if this \verb!npos! value is returned, it means no character is found.
+
+\begin{lstlisting}
+  // string search functions return npos if nothing is found
+    std::string s = "test";
+    if(s.find('a') == std::string::npos)
+        std::cout << "no 'a' in 'test'\n";
+\end{lstlisting}
+\url{http://en.cppreference.com/w/cpp/string/basic_string/npos}

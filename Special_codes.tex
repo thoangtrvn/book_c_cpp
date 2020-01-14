@@ -1,0 +1,97 @@
+\chapter{Special Codes}
+\label{chap:special_code}
+
+
+\section{CRC (Cyclic Redundancy Check)}
+\label{sec:CRC}
+
+It's important to check the integrity of a raw-data after being transmitted via
+a digital network. The reason is that data is transmitted in blocks via a noisy
+(error-introducing) channel. To avoid error, the transmitter generate a value
+(i.e. the {\bf checksum}) based on a given function with the input is the
+transmitted datablock
+\begin{verbatim}
+CRC-value = f(datablock)
+\end{verbatim}
+and then append this to the message. 
+
+When the message (datablock + the CRC-value) is received at the other end, it
+uses the same function, generate a new value using the datablock, and compare
+with the CRC-value. If the two values are the same, then the datablock is
+correctly received.
+
+The worst case is that the datablock and/or CRC-value is corrupted, but the
+final calculation gives a match CRC-value. It's impossible to avoid this
+completely, but we can minimize the chance to occur by increasing the amount of
+information in the checksum function, e.g. using two bytes instead of one byte. 
+
+The basic idea of an CRC algorithm is to treat the datablock as an enormous
+binary number, divided it by another fixed binary number, and then get the
+remainder from this division as the CRC-value.
+
+ Examples of check-sum function
+\begin{enumerate}
+  \item the datablock is viewed as sequence of positive integers
+  
+Example: simply the sum of the bytes in the message mode 256
+  
+\begin{verbatim}
+   Message                    :  6 23  4
+   Message with checksum      :  6 23  4 33
+   Message after transmission :  6 27  4 33
+\end{verbatim}
+Here, the chance for error to be undetected is 1/256.
+
+NOTE: A better approach is to widen the bytes, e.g. using 16-bit register
+instead of 8-bit, and then sum the bytes mod 65536 instead of 256. Here, the
+chance for error to be undetected is 1/65536, which is much smaller.
+ 
+ 
+  \item the datablock is viewed as a (message) polynomials with binary
+  coefficients, e.g. each number is treated as a bit-string whose bits are the
+  coefficient of a polynomial, i.e. the polynomial whose coefficients are either
+  0 or 1. Then the CRC-value is the remainder of this operation: the polynomial
+  representation of the datablock is multiplied by $x^n$, and then divided
+  by a given CRC-polynomial. The coefficients of the remainder polynomial is the
+  CRC-value.
+\begin{equation}
+M(x) \times x^n = Q(x) \times G(x) + R(x)
+\end{equation}
+with M(x) is the representation of the datablock, G(x) is the CRC-polynomial,
+and R(x) is the remainder or the CRC-value.
+
+Example: the number 23 (decimal) is 10111, so each bit is the coefficient
+\begin{verbatim}
+1*x^4 + 0*x^3 + 1*x^2 + 1*x^1 + 1*x^0
+\end{verbatim}
+or simply
+\begin{verbatim}
+x^4 + x^2 + x^1 + x^0
+\end{verbatim}
+  
+  Here, \verb!x! is assumed 2. By changing the rule how the coefficients work,
+  different CRC functions were developed. Selecting a good polys is very
+  important. The goal is to avoid: SINGLE-BIT ERROR, TWO-BIT ERROR, ERROR WITH
+  AN ODD NUMBER OF BITS, BURST ERRORS
+ \end{enumerate}
+
+
+Using poly is important in developping CRC algorithms. It turns out that the
+reflection of a good poly (e.g. G=11101) is also a good poly, e.g. if
+G=10111. The set of standard good polys are defined as CRC-CCITT
+
+\begin{verbatim}
+   X25   standard: 1-0001-0000-0010-0001
+   X25   reversed: 1-0000-1000-0001-0001
+
+   CRC16 standard: 1-1000-0000-0000-0101
+   CRC16 reversed: 1-0100-0000-0000-0011
+\end{verbatim}
+
+
+References:
+\begin{enumerate}
+  \item \url{http://www.zlib.net/crc_v3.txt}
+  \item
+  \url{http://www.drdobbs.com/implementing-the-ccitt-cyclical-redundan/199904926}
+\end{enumerate}

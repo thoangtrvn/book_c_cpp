@@ -1,0 +1,1811 @@
+\chapter{Lex + Yacc}
+
+Lex and Yacc was the two of the most popular tools in the early days of Unix
+hacker's kit. They are used to construct the tool that can recognize input from
+a given grammar, and help to build grammar parser, and semantic analyzer.
+Nowadays, they should be replaced with Flex and Bison (Chap.\ref{chap:Bison}).
+
+They were developped since 1970s and thus during the time, many global
+variables and magic macros were added and hanging out all over the place.
+
+It becomes a particular problem if you want to run multiple instances of your
+generated parser (or, heaven forfend, multiple parsers with different grammars)
+in the same binary without having them interfere with each other.
+
+\section{Compiler overview}
+\label{sec:compiler-overview}
+
+A compiler has 3 parts, with the flow of information as given:
+\begin{enumerate}
+  \item front-end
+
+\begin{verbatim}
+Lexer/Scanner  ---> Parser   --> Semantic Analyzer
+\end{verbatim}
+  
+  \item middle-end
+
+\begin{verbatim}
+Semantic Analyzer ---> 
+     Optimizers
+\end{verbatim}  
+  
+  \item back-end
+  
+\begin{verbatim}
+Optimizers --->
+      code generator
+\end{verbatim}
+\end{enumerate}
+
+{\bf Lexer/Scanner}: is the process of converting a sequence of characters into
+a sequence of tokens. \textcolor{red}{Tools that help to generate a
+lexer/scanner:} Lex (Sect.\ref{sec:Lex}) or Flex (Sect.\ref{sec:Flex}).
+
+Example: input
+\begin{verbatim}
+foo = 1 - 3**2
+\end{verbatim}
+converted into
+\begin{verbatim}
+Lexeme              Token type
+-------------------------------
+foo                 Variable
+=                   Assignment Operator
+1                   Number
+-                   Subtraction Operator
+3                   Number
+**                  Power Operator
+2                   Number
+\end{verbatim}
+
+
+{\bf Parser }: The parser will generate a tree of grammar structure; 
+identify syntax error during this stage. To help generate a parser, we can use
+tools like Yacc (Sect.\ref{sec:Yacc}) or Bison (Sect.\ref{sec:bison}).
+
+{\bf Semantic Analyzer}:  performing semantic checks, e.g. type checking, object
+binding, etc. 
+
+{\bf Optimizer}: generate intermediate codes, make program run fasters
+
+
+{\bf Code generator}: convert intermediate code into machine-dependent code
+
+\section{Lex}
+\label{sec:Lex}
+
+Lex was written by Mike Lesk and Eric Schmidt
+(the Google guy). It is the tool that enables you to develop/generate a lexical
+analyzer. 
+
+It is no longer used, and should be replaced by Flex (Sect.\ref{sec:Flex}).
+
+
+\chapter{Flex + Bison}
+\label{chap:Bison}
+\label{chap:Flex}
+
+\url{http://www.cs.uic.edu/~spopuri/cparser.html}
+
+Flex and bison are code-generating tools designed to aid in compiler development
+(Sect.\ref{sec:compiler-overview}. Flex is a generator-purpose lexer generator
+Bison is a general purpose parser generator. Both virually guaranteed to be
+faster than anything you could write manually in a reasonable amount of time.
+Also, updating and fixing Flex and Bison source files is a lot easier than
+updating and fixing custom parser code. Flex and Bison have mechanisms for error
+handling and recovery, which is something you definitely don't want to try to
+bolt onto a custom parser. Flex and Bison have been around for a long time, so
+they far freer from bugs than newer code.
+
+User needs to define an annotated context-free grammar
+(Sect.\ref{sec:bison-grammar-file}), then \verb!bison! utility can help
+generating a parser: a GLR parser or LALR(1) parser, that can parse an text
+input written in that language.
+
+The generated parser is in C or C++ code, that can be compiled easily into a
+binary program or library.
+
+\section{Flex}
+\label{sec:Flex}
+
+Flex is {\bf f}ast lexical analyzer generator (Sect.\ref{sec:Lex}). 
+
+Stage 1 done by {\bf Flex} (fast lexical analyzer): we use Flex to
+define the grammar.
+
+\begin{verbatim}
+*.l ---[flex]---> produce a file containing C/C++ source code 
+                       (lex.yy.c or lex.yy.C)
+\end{verbatim}
+
+The file \verb!lex.yy.c! contains \verb!yylex()! created by flex (Sect.\ref{sec:yylex}).
+The syntax of \verb!.l! specification file is discussed in
+Sect.\ref{sec:flex_grammar-file}.
+  
+NOTE: user-code can also be added here too.
+
+\subsection{Flex version change from 2.5.4 to above}
+
+\verb!FlexLexer! class since Flex 2.5.5 has a few incompatible changes
+\begin{verbatim}
+FlexLexer.h defines 2 classes: FlexLexer and yyFlexLexer
+
+// the abstract class that provide external (C++ interfaces) provided
+//  to flexx C++ lexer objects
+class FlexLexer{
+
+  virtual void yyrestart(std::istream* s) = 0; //existing - using pointer
+  virtual void yyrestart(std::istream& s) = 0; // new - using reference
+  
+  // new
+  // support using reference, besides the traditional using pointer
+  int yylex(std::istream& new_in, std::ostream& new_out)
+  {
+     switch_streams(new_in, new_out);
+     return yylex();
+   }
+}
+
+
+class yyFlexLexer: public FlexLexer {
+  // a specific lexer class that we can use
+  //  or define a subclass of this class
+  
+  // new 
+  // support reference arguments
+  yyFlexLexer(std::istream& arg_yyin, std::ostream& arg_yyout);
+  
+  // new
+  yy_buffer_state* yy_create_buffer(std::istream& s, int size);
+  
+  void yyrestart(std::istream& s);
+  
+  // new (using stack-based structure)
+  //    push and pop
+  void yypush_buffer_state(yy_buffer_state* new_buffer);
+  void yypop_buffer_state();
+  
+  // new
+  virtual void switch_streams(std::istream* new_in = 0,
+                                std::ostream* new_out = 0);
+  virtual int yywrap();
+  
+  
+  private:
+    void ctor_common();
+  
+  // removed (obsolete) and is replacec by a stack structure
+  protected:
+    //struct yy_buffer_state* yy_current_buffer;   
+    
+  //instead
+  //  a stack structure is used
+   size_t yy_buffer_stack_top;        /**< index of top of stack. */
+   size_t yy_buffer_stack_max;        /**< capacity of stack. */
+   yy_buffer_state** yy_buffer_stack; /**< Stack as an array. */
+   void yyensure_buffer_stack(void);
+    
+}
+
+\end{verbatim}
+
+NOTE:
+\begin{verbatim}
+// to create multiple lexer classes, we use -P flag
+//    to rename each yyFlexLexer class to some other name xxFlexLexer
+//    see below, e.g. MdlLexer.h file
+
+In this header file, it is important to include the FlexLexer.h only once
+
+ #if !defined(yyFlexLexerOnce)
+    #include <FlexLexer.h>
+ #endif
+\end{verbatim}
+
+
+\subsection{-- changed required for a user-defined xxxLexer class}
+
+
+MdlLexer.h: if we write a user-defined class that derive from \verb!yyFlexLexer! class (Sect.\ref{sec:yyFlexLexer})
+\begin{verbatim}
+ #if !defined(yyFlexLexerOnce)
+    #include <FlexLexer.h>
+ #endif
+
+class MdlLexer : public yyFlexLexer
+{
+
+}
+\end{verbatim}
+
+LensLexer.h: if we write a user-defined class that derive from \verb!yyFlexLexer! class (Sect.\ref{sec:yyFlexLexer})
+\begin{verbatim}
+ #if !defined(yyFlexLexerOnce)
+    #include <FlexLexer.h>
+ #endif
+
+class LensLexer : public yyFlexLexer
+{
+
+}
+\end{verbatim}
+
+also, we need to use option 
+\begin{verbatim}
+%option c++
+%option yyclass='LensLexer'
+%option noyywrap
+\end{verbatim}
+inside 
+
+\section{Use C++ with Flex and Bison}
+\label{sec:example-Flex-Bison-C++}
+
+Bison and Flex were written in C, but more important their output is C code.
+However, what if we want to generate C++ with Flex and Bison!
+
+Example: we want it to parse a source file with 4 portions
+\begin{itemize}
+  \item a header with just say 'sNaZZle' and version number
+  \item a section with a series of statements declaring type, e.g. type foo
+  \item a section with a series of statements containing actual data
+  \item a section with only a single statement (as a footer), \verb!end!
+\end{itemize}
+, e.g. the example
+code
+\begin{verbatim}
+sNaZZle 1.3
+type foo
+type bar
+type bas
+0 0 10 5        foo
+20 10 30 20     foo
+7 8 12 13       bas
+78 124 100 256  bar
+end
+\end{verbatim}
+check \url{http://aquamentus.com/flex_bison.html}
+
+As a first stage, you need to define the grammar and save in a \verb!.l! file -
+this file is readable by Flex - Sect.\ref{sec:flex_grammar-file}. The generated
+output file is \verb!lex.yy.c! (Sect.\ref{sec:lex.yy.c})
+
+\section{Flex grammar file or scanner specification (*.l): output is tokens}
+\label{sec:flex_grammar-file}
+
+The input file for flex is called a "scanner specification" and it is
+conventional for it to have an ``.l'' suffix, e.g. \verb!snazzle.l! file for the
+language described in Sect.\ref{sec:example-Flex-Bison-C++}
+
+The grammer file need to be converted into tokens for use by Bison
+(Sect.\ref{sec:connect-scanner-parser}).
+\verb!flex! is the tool to convert the below file. \verb!flex! is called 
+lexer, tokenizer, scanner. This phase is called lexical analysis.
+
+Once having tokens, the parser (created by Bison) can analyze the correctness of
+any input file written in the given grammar.
+
+The input file has 3 sections, separated by \verb!%%!, i.e. we have two
+\verb!%%! lines: first section is 'definitions', second section is 'rules', and
+the third seciton is verbatim code, i.e. user-code that get copied directly to
+the generated C/C++ source output.
+
+\begin{verbatim}
+definitions
+%%
+rules
+%%
+user code
+\end{verbatim}
+
+\subsection{definition section}
+\label{sec:flex_grammar-definitions-section}
+
+{\bf IMPORTANT}: In the definitions section (but not in the rules section -
+Sect.\ref{sec:flex_grammar-rules-section}), an unindented comment (i.e., a line
+beginning with "/*") is also copied verbatim to the output up to the next "*/".
+
+\begin{verbatim}
+DIGIT    [0-9]
+ID       [a-z][a-z0-9]*
+\end{verbatim}
+
+In the definitions and rules sections, any indented text or text enclosed in
+\verb!%{! and \verb!%}! is copied verbatim to the output (with the \verb!%{}!'s
+removed). The \verb!%{}!'s must appear unindented on lines by themselves.
+
+\url{http://dinosaur.compilertools.net/flex/flex_6.html}
+
+\subsection{rules section}
+\label{sec:flex_grammar-rules-section}
+
+ The rules section of the flex input contains a series of rules of the form:
+\begin{verbatim}
+pattern   action
+\end{verbatim}
+with \verb!pattern! must be unindented, and the action must be on the same line.
+
+Example: \verb!*.l! file with the rules section
+\begin{verbatim}
+%%
+L : L ';' E
+  | E
+;
+E : E ',' P
+  | P
+;
+P : 'a'
+  | (M)
+;
+M : /* nothing */
+  | L
+;
+%%
+\end{verbatim}
+
+In the definitions and rules sections, any indented text or text enclosed in
+\verb!%{! and \verb!%}! is copied verbatim to the output (with the \verb!%{}!'s
+removed). The \verb!%{}!'s must appear unindented on lines by themselves.
+
+
+In the rules section, any indented or \verb!%{}! text appearing before the first
+rule may be used to declare variables which are local to the scanning routine
+and (after the declarations) code which is to be executed whenever the scanning
+routine is entered
+
+\subsection{user-code section}
+\label{sec:flex_grammar-user-code-section}
+
+The user code section is simply being copied to `lex.yy.c' generated output
+file (Sect.\ref{sec:lex.yy.c}).
+
+Here, you put any function that you want to be put into the generated
+\verb!lex.yy.c! (or .cc) file, that can be used in the Bison *.y file.
+
+
+
+
+\section{Bison}
+\label{sec:bison}
+
+Stage 2 done by {\bf Bison}: we use Bison to develop language parsers -
+  Sect.\ref{sec:bison-grammar-file}
+
+
+\begin{verbatim}
+*.y ---[bison]--> produce a file containing C/C++ source code
+\end{verbatim}  
+which contains \verb!yyparse()! function created by bison.
+
+This function will in turn call yylex() created by flex from your scanner
+specification. It groups the words into sentences, the sentences into paragraphs
+and the paragraphs into sections; and enables users to define specific behavior,
+i.e. what function to called; upon reading a particular 
+sentence/paragraph/section.
+
+
+\subsection{yytname: token tables}
+
+There are three ways of writing terminal symbols in the grammar
+\begin{enumerate}
+  \item a named token, using ALL UPPERCASE
+  
+\begin{verbatim}
+Each such name must be defined with a Bison declaration such as %token
+\end{verbatim}
+  
+  \item A character token type (or literal character token) is written in the
+  grammar using the same syntax used in C for character constants; for example,
+  '+' is a character token type.
+  
+  Thus, the token type '+' is used to represent the character `+' as a token
+  
+  \url{http://dinosaur.compilertools.net/bison/bison_6.html}
+  
+  \item A literal string token is written like a C string constant; for example, "<=" is a literal string token.
+  
+\end{enumerate}
+
+Since Bison 2.6, Bison was  changed to use \verb!YY_NULL! instead of NULL to end
+its yytname list
+
+
+\begin{verbatim}
+--token-table
+	      This switch causes the name.tab.c output to include
+	      a list of token names in order by their token  num-
+	      bers;   this is defined in the array yytname.  Also
+	      generated are #defines for YYNTOKENS, YYNNTS,  YYN-
+	      RULES, and YYNSTATES.
+\end{verbatim}
+
+\subsection{Bison version change}
+
+\subsection{-- bison 2.4,1}
+\label{sec:copyright-bison-2.4}
+
+The generated file, e.g. speclang.tab.C has copyright
+\begin{verbatim}
+A Bison parser, made by GNU Bison 2.4.1
+Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+\end{verbatim}
+
+\subsection{-- bison 2.7}
+\label{sec:copyright-bison-2.7}
+
+The generated file, e.g. speclang.tab.C has copyright
+\begin{verbatim}
+Bison implementation for Yacc-like parsers in C
+
+Copyright (C) 1984, 1989-1990, 2000-2012
+\end{verbatim}
+
+\url{https://compilers.iecc.com/comparch/article/12-12-006}
+
+\subsection{-- bison 2.6}
+
+Bison was recently changed
+to use \verb!YY_NULL! instead of NULL (or 0) to end its yytname list
+
+
+\subsection{-- bison 2.5.x}
+
+\url{https://lists.gnu.org/archive/html/info-gnu/2012-06/msg00004.html}
+
+Fix bugs:
+\begin{enumerate}
+  \item  YYBACKUP works as expected.
+  
+  \item when -std is passed to GCC, i.e. \verb!__STRICT_ANSI__! is defined, then 
+  \verb!__attribute__! is no longer disabled (previous Bison versions disable this)
+  
+  
+  \item support C++11: 
+  
+\begin{verbatim}
+C and C++ parsers use "nullptr" instead of "0" when __cplusplus is 201103L
+  or higher.
+\end{verbatim}
+\end{enumerate}
+
+\subsection{-- bison 3.x}
+
+This major release  drop support for generating parsers in K\&R C. Also
+\begin{enumerate}
+  \item no longer use \verb!%pure_parser! but use Sect.\ref{sec:reentrant-parser}
+  
+ NOTE: Use \verb!%pure-parser! to be compatible with Bison 2.0 and 3.0; though for future-proof, it should be something else. 
+  
+  \item no longer use \verb!YYPARSE_PARAM! or \verb!YYLEX_PARAM! and \verb!YYLEX! macro names;
+  
+   as \verb!yylex! function is called directly, if we need to pass extra
+   argument, use \verb!%lex-param! and \verb!%parse-param! option in speclang.y
+   file. This may requires modifying yyerror as well.
+   
+\end{enumerate}
+
+Bison will start using some of the C99 features for its own code, especially the
+definition of variables after statements. The generated C parsers still aim at C90.
+  
+
+\subsection{-- bison 3.0.2 (2013)}
+
+\url{https://gist.github.com/dajobe/6115089}
+
+\subsection{-- bison 3.0.3 }
+
+\subsection{-- bison 3.0.4 (2015)}
+
+This is a long overdue bug fix release
+\begin{enumerate}
+  \item support named \verb!%union!
+
+\begin{verbatim}
+%union foo {int ival;};
+
+\end{verbatim}
+This is for Yacc-compability, but its usefullness is not clear. This is however, not required for POSIX YACC.
+
+  \item Fix bug (broken C parser) when
+  
+ \verb!%defines! is used together with \verb!%define api.value.type union!
+ 
+ \begin{verbatim}
+ %defines
+ 
+ %define api.value.type union
+ \end{verbatim}
+ 
+\end{enumerate}
+
+\subsection{-- bison 3.0.5 (2018)}
+
+Documents: \url{https://www.gnu.org/software/bison/manual/html_node/index.html}
+
+\section{Bison grammar file or parser specification (*.y): output is behavior}
+\label{sec:bison-grammar-file}
+
+Bison is a general-purpose parser generator that converts a grammar, e.g. an
+annotated context-free grammar into a deterministic LR or generalized LR (GLR)
+parser employing LALR(1) parser tables. 
+
+NOTE: Bison can also generate IELR(1) or canonical LR(1) parser tables; but it
+is at experimental stages. It is recommended to read Sect.\ref{sec:compiler-overview}.
+
+Suppose you want to compile C++ code (i.e. input file whose content follows C++
+specification language), then you need to write a \verb!speclang.y! file (or any file with \verb!.y! extension)
+
+\begin{verbatim}
+%{
+  Prologue
+%}
+
+Bison declarations
+
+%%
+Grammar rules
+%%
+
+Epilogue
+\end{verbatim}
+
+This Bison specification file has three sections (separated by lines containing
+\verb!%%!). So, there are two \verb!%%! in the file
+\begin{enumerate}
+  
+  \item A Prologue (enclosed within \verb!%{! and \verb!%}!) precedes a Bison
+  declaration section
+  
+  \item Grammar rule section
+  
+  \item Epilogue (or Additional C code) section
+\end{enumerate}
+
+
+\subsection{-- first section}
+\label{sec:bison-grammar-file-first-section}
+
+\textcolor{red}{The first section} of a bison file (from the start of the file
+to the first \verb!%%!) is called the Definitions Section.
+It contains two parts: 
+\begin{enumerate}
+  \item a Prologue, i.e. the C code  put between \verb!%{! and
+\verb!%}! which is copied directly to the output file uninterpreted. Such code
+forms the "C declarations" section of the input file.
+
+  \item Bison declarations
+\end{enumerate}
+You may have more than one Prologue section, intermixed with the Bison declarations. 
+When in doubt, it is usually safer to put prologue code before all Bison declarations, rather than after. 
+
+\url{https://www.gnu.org/software/bison/manual/html_node/Grammar-Outline.html}
+
+
+\subsection{---- Prologue}
+
+This section provides information that copied (without no modification) to the
+C++ generated file, and is placed at the top of the resulting source file or
+which is needed by bison to create the parser.
+
+{\tiny
+\begin{verbatim}
+%{
+ // any thing in between %{ %}
+ // will be added to the output C/C++ generated source file
+ 
+ #include "some-header.h"
+ 
+ // other choices (to add an additional argument to yyparse function)
+ // Bison 2.x only
+ #define YYPARSE_PARAM parm
+ 
+ // other choices (to add an additional argument to yylex function)
+ // Bison 2.x only
+ #define YYLEX_PARAM parm
+ 
+ // if we want to write a custom yyparse function, map the call to yyparse 
+ //  to this function
+ #define yyparse lensparse
+%}
+\end{verbatim}  
+}
+
+If you have more than one Prologue, i.e. intermixed with Bison declaration, one
+way to explicitly tell which block should reside at the top of the generated
+file, is by usingg \verb!%code top! directive (for the block to reside at the
+beginning of the file) and \verb!%code! unqualified directive (for the other
+blocks)
+\begin{verbatim}
+%code top {
+  // C / C++ codes
+  
+}
+\end{verbatim}
+
+IMPORTANT RULES:
+\begin{itemize}
+  \item lines begining with white-spaces will be copied verbatim into the
+  resulting generated C/C++ source file near the top.
+  
+  you should restrict yourself to comments on such lines because there is no
+  guarantee about their exact position in the resulting source file, e.g.
+  speclang.tab.C if Bison input file is speclang.y file
+  
+  \item lines contained between a \verb!%{! and a \verb!%}! are also copied
+  verbatim into the generated C/C++ source file.   
+\end{itemize}
+
+\subsection{---- Bison declaration}
+
+This contains options that tell Bison how to generate code in speclang.tab.C file
+
+{\tiny
+\begin{verbatim}
+%pure_parser
+%locations
+%lex-param parm
+%parse-param {void* parm}
+
+%union {
+  double V_double;
+  int V_int;
+  std::string * P_string;
+}
+
+%token <V_double> DOUBLE_CONSTANT
+%token POST
+%token THREADS
+
+ /* types for non-terminal */
+%type <P_phase> sharedPhase
+
+%left OR AND EQUAL
+
+%start mdlFile
+  /* mdlFile is the root or the first non-terminal rule
+     to be considered
+  */
+%%
+\end{verbatim}  
+}
+
+IMPORTANT RULES:
+\begin{itemize}
+  \item lines begining with white-spaces will be copied verbatim into the
+  resulting generated C/C++ source file near the top.
+  
+  you should restrict yourself to comments on such lines because there is no
+  guarantee about their exact position in the resulting source file, e.g.
+  speclang.tab.C if Bison input file is speclang.y file
+  
+  \item The other lines beginning with a \% are information that bison needs to
+   construct the parser.
+   
+{\tiny
+\begin{verbatim}
+%token SOMETOKEN  = list the tokens that the scanner returns to the parser
+  conventional to name these with all uppercase letters (I add the T_ prefix as
+  well)
+  the scanner function yylex(), should use these tokens as return values
+
+%start prog_name  = tells the parser that prog_name is the first rule 
+                    to look at (the start-start non-terminal)
+   Non-terminals are conventionally written in lower case
+   
+\end{verbatim}   
+}
+   
+   \item you CANNOT use  automatic storage for C++ \verb!std::string! in
+   \verb!%union!  (or any other string class with non-trivial constructor), you
+   need to use dynamic (heap)  \verb!std::string *! (string pointer).
+\begin{verbatim}
+%union {
+    std::string *str;
+    double V_double;
+    C_edgeset_extension* P_edgeset_extension;
+}
+\end{verbatim}   
+
+The \verb!%union! section declares all data types that you need to use for
+semantic values. The data types are given with names, e.g. \verb!str! and
+\verb!V_double!; and these names are used in \verb!%type! and
+\verb!%token! for the terminal and non-terminal symbols.
+\begin{verbatim}
+%type <P_edgeset_extension> edgeset_extension
+\end{verbatim}
+
+Example:
+\begin{verbatim}
+edgeset_extension: DOT TYPE '(' declarator ')' {
+  SyntaxError* localError = 
+       new SyntaxError(CURRENTFILE,
+                       @1.first_line,
+                       "EdgeSet Extension",
+                       ". Type ( Declarator )");
+  $$ = new C_edgeset_extension($4, localError);
+}
+\end{verbatim}
+ 
+You will need to change all of the uses of \verb!yylval->str! or \verb!$$!,
+\verb!$1!, etc.where \verb!$N %type! is to use dynamically allocated strings.
+So, instead of \verb!$$ = "success";!, we use
+\begin{verbatim}
+some_terminal: RULE {
+   $$ = new std::string("success");
+}
+\end{verbatim}  
+\url{http://stackoverflow.com/questions/24925776/whats-wrong-with-these-yacc-and-lex-file-using-c-string}
+
+   \item \verb!%locations!: 
+   
+   
+   \item \verb!%lex-param! : the value to it is the name of the argument passed to yylex when being called inside yyparse
+   
+   
+   \item \verb!%parse-param!: the list of values to it are pasted exactly to
+   arguments (from second argument) to yyparse() and yyerror()
+   
+\end{itemize}
+
+\subsection{-- second section}
+\label{sec:bison-grammar-file-second-section}
+
+\textcolor{red}{The second section} of a bison file (from the start of
+the first \verb!%%! to the second \verb!%%!) is called the Rules Section.
+
+This section describes the non-terminals in the grammar (those things which are
+built from tokens and other non-terminals). The rule has the form 
+
+{\tiny
+\begin{verbatim}
+a non-terminal ":"  sequence-of-patterns-separated-by-vertical-bars(|) 
+   ;  /* end with a semi-colon */
+\end{verbatim}
+}
+
+After each pattern, there is an optional to insert the block of C/C++ code by
+enclosing them between \verb!{! and \verb!}!.
+
+Example:
+\begin{verbatim}
+%%
+
+mdlFile:  parserLineList {
+
+}
+;
+
+parserLineList: parserLine {
+
+}
+| parserLineList parserLine {
+
+}
+;
+
+parserLine: struct {
+   HIGH_LEVEL_EXECUTE(parm, $1);
+}
+| interface {
+   HIGH_LEVEL_EXECUTE(parm, $1);
+}
+| edge {
+   HIGH_LEVEL_EXECUTE(parm, $1);
+}
+| node {
+   HIGH_LEVEL_EXECUTE(parm, $1);
+}
+| variable {
+   HIGH_LEVEL_EXECUTE(parm, $1);
+}
+| constant {
+   HIGH_LEVEL_EXECUTE(parm, $1);
+}
+| functor {
+   HIGH_LEVEL_EXECUTE(parm, $1);
+}
+%%
+\end{verbatim}
+  
+\subsection{-- third section}
+\label{sec:bison-grammar-file-third-section}
+
+\textcolor{red}{The third section}
+
+\subsection{tokens recognizable by BISON}
+
+Bison 
+\url{http://dinosaur.compilertools.net/bison/bison_13.html}
+
+
+\subsection{running bison}
+
+\begin{verbatim}
+bison -v -d lang.y
+\end{verbatim}
+
+\url{http://www.di-mgt.com.au/converting_from_lex_and_yacc.html}
+
+\subsection{FlexLexer.h}
+
+There are many changes in FlexLexer.h file at different versions of flex.
+So, make sure you use the right one.
+
+The generated scanner uses the line:
+\begin{verbatim}
+#include <FlexLexer.h>
+
+\end{verbatim}
+which means that the FlexLexer.h file will be searched for in system include directories. 
+\url{http://stackoverflow.com/questions/25758776/fatal-error-flexlexer-h-no-such-file-or-directory}
+
+\url{https://github.com/bingmann/flex-bison-cpp-example/blob/master/src/FlexLexer.h}
+
+\url{https://panthema.net/2007/flex-bison-cpp-example/flex-bison-cpp-example-0.1.4/doxygen-html/classExampleFlexLexer.html}
+
+\section{Scanner}
+
+Here, we discusses different scanner functions as generated, e.g. in speclang.tab.C from speclang.y file (Sect.\ref{sec:bison-grammar-file})
+\begin{itemize}
+  \item yylex - Sect.\ref{sec:yylex}
+  
+  \item yyparse - Sect.\ref{sec:yyparse}
+\end{itemize}
+
+The generated file, speclang.tab.C has 
+\begin{enumerate}
+  \item  The first part is copyright information (Sect.\ref{sec:copyright-bison-2.4}, Sect.\ref{sec:copyright-bison-2.7})
+
+  \item The second part: macros names
+  
+\begin{verbatim}
+#define YYBISON  1 
+
+
+#define YYBISON_VERSION "2.4.1"
+
+#define YYSKELETON_NAME "yacc.c"
+
+// using %pure-parser or not?
+#define YYPURE 1
+
+// push parser?
+#define YYPUSH 0
+
+// pull parser?
+#define YYPULL 1
+
+
+// until bison 2.4.1
+// ... using location?
+#define YYLSP_NEEDED 1
+
+// until bison 2.4.1
+//   enabling token table?
+#ifndef YYTOKEN_TABLE
+ #define YYTOKEN_TABLE 0
+#endif
+\end{verbatim}
+
+Since Bison 2.6, \verb!YY_NULL! is used to end the yytname table 
+\begin{verbatim}
+#ifndef YY_NULL
+#  if defined __cplusplus && 201103L <= __cplusplus  
+#   define YY_NULL nullptr 
+#else
+# define YY_NULL 0
+#endif
+#endif
+\end{verbatim}
+
+
+From Bison 2.6 to 2.9
+\begin{verbatim}
+// this section will be replaced by 
+//  #include "speclang.tab.h"
+#ifndef YY_YY_SPECLANG_TAB_H_INCLUDED
+  # define YY_YY_SPECLANG_TAB_H_INCLUDED
+  /* Enabling traces.  */
+  #ifndef YYDEBUG
+  # define YYDEBUG 0
+#endif
+\end{verbatim}
+
+   \item YYDEFACT[STATE-NAME]:  
+   
+The array \verb!yydefact[]! define default reduction number in state STATE-NUM, i.e.
+what to perform when YYTABLE doesn't specify something else to do
+
+
+   \item \verb!YYTABLE[YYPACT[STATE-NUM]]!:
+   
+The array \verb!yytable[]! define what to do in state STATE-NUM. 
+\begin{itemize}
+  \item if positive value: shift that token
+  
+  \item if negative value: reduce the rule which number is opposite
+  
+  \item (until Bison 2.4.1): if zero, do what YYDEFACT says
+
+Since Bison 2.6, it uses two macros
+\begin{verbatim}
+#define yypact+value_is_default(Yystate) \
+   (!!((Yystate) == (-656)))
+   
+#define yytable_value_is_error(Yytable_value) \
+   YYID (0)
+\end{verbatim}
+  
+  \item if \verb!YYTABLE_NINF!, error
+  
+\begin{verbatim}
+#define YYTABLE_NINF -226
+\end{verbatim}
+\end{itemize}
+
+Example: bison 2.4.1
+\begin{verbatim}
+// in Bison 2.4.1
+yyn = yypact[yystate];
+if (yyn == YYPACT_NINF)
+  goto yydefault;
+
+
+yyn = yytable[yyn];
+if (yyn <= 0)
+{
+  if (yyn == 0 || yyn == YYTABLE_NINF)
+     goto yyerrlab;
+  yyn = -yyn;
+  goto yyreduce;
+}
+\end{verbatim}
+
+Example: bison 2.7
+\begin{verbatim}
+if (yypact_value_is_default (yyn))
+  goto yydefault;
+  
+yyn = yytable[yyn];
+if (yyn <= 0)
+{
+  if (yytable_value_is_error (yyn))
+     goto yydefault;
+  yyn = -yyn;
+  goto yyreduce;
+}
+\end{verbatim}
+\end{enumerate}
+
+
+
+
+\subsection{yylex(): non-reentrant vs reentrant}
+\label{sec:yylex}
+
+The lexical analyzer function, \verb!yylex!, recognizes tokens from the input stream
+and returns them to the parser. 
+
+Bison does not create this function automatically; you must write it so that
+yyparse can call it - Sect.\ref{sec:yyparse}. The function \verb!yylex()! is
+sometimes referred to as a lexical scanner. To write it, we just need to map the
+name \verb!yylex! to the real lexical scanner we write, e.g. \verb!lenslex!
+
+
+By default, \verb!yylex! has minimal 2 arguments, to use a third argument, we define the name for the macro 
+\verb!YYLEX_PARAM!, as this function is called inside \verb!yyparse! the name passed to \verb!YYLEX_PARAM! should be the name of the 
+variable inside \verb!yyparse!.
+
+\begin{verbatim}
+// in Bison 2.4.1 and earlier, the call to yylex is encapsulated via the macro name YYLEX
+#define YYLEX_PARAM parm
+#ifdef YYLEX_PARAM
+  # define YYLEX yylex (&yylval, &yylloc, YYLEX_PARAM)
+#else
+  # define YYLEX yylex (&yylval, &yylloc)
+#endif
+
+
+// in Bison 2.7 and earlier, the call to yylex is encapsulated via the macro name YYLEX
+// if inside speclang.y we have
+//  %lex-param parm
+//    then a third argument with name 'parm' is always present
+#ifdef YYLEX_PARAM
+  # define YYLEX yylex (&yylval, &yylloc, YYLEX_PARAM)
+#else
+  # define YYLEX yylex (&yylval, &yylloc, parm)
+#endif
+
+\end{verbatim}
+
+\subsection{-- example 1 - user-defined lenslex}
+
+
+Example: in the first section of bison specification file - Sect.\ref{sec:bison-grammar-file-first-section}
+\begin{verbatim}
+#define yylex lenslex
+#define YYLEX_PARAM parm
+
+int lenslex(YYSTYPE *lvalp, YYLTYPE *locp, void *context);
+
+inline int lenslex(YYSTYPE *lvalp, YYLTYPE *locp, void *context)
+{
+  // must return the numeric code for the type of token 
+  //   it has just found, or 0 for end-of-input
+  //
+  return ((LensContext *) context)->
+         lexer->lex(lvalp, locp, (LensContext *) context);
+}
+
+\end{verbatim}
+
+
+\subsection{-- example 2 - simple}
+
+Example:
+If you use flex to generate C code, then it uses
+\begin{verbatim}
+// no argument
+int yylex();
+\end{verbatim}
+ a function without specifying anything about its parameter list.
+NOTE: (int yylex(void) would declare it to have no parameters.
+
+Each time it is called, it accesses to the input stream of data using
+global communication variables \verb!yylval! and \verb!yylloc!
+\begin{verbatim}
+yylex ()
+{
+  ...
+  if (c == EOF)     /* Detect end of file. */
+    return 0;
+  ...
+  if (c == '+' || c == '-')
+    return c;      /* Assume token type for `+' is '+'. */
+  ...
+  return INT;      /* Return the type of the token. */
+  ...
+}
+
+\end{verbatim}
+
+
+The function \verb!yylex()! takes input (a file name or a sequence of
+characters) and break them apart into a series of tokens (words); tokens are
+passed to the parser - \verb!yyparse()! which is another function generated by
+Bison (Sect.\ref{sec:bison}).
+
+\begin{mdframed}
+ 
+The lexical analyzer function, \verb!yylex!, recognizes tokens from the input
+stream and returns them to the parser.
+Bison does not create this function automatically; you must write it so that
+yyparse can call it. So, \verb!yylex! can be the result of using Flex
+(Sect.\ref{sec:Flex}) to create a lexical scanner.
+\begin{itemize}
+
+  \item  In simple programs, yylex is often defined at the end of the Bison grammar file. 
+
+  \item If yylex is defined in a separate source file, you need to arrange for the
+token-type macro definitions to be available there. To do this, use the `-d'
+option when you run Bison, so that it will write these macro definitions into a
+separate header file `name.tab.h' (or speclang.tab.h) which you can include in
+the other source files that need it.
+
+\url{http://www.iro.umontreal.ca/~fourniep/bison/bison_7.html}
+
+\end{itemize}
+
+\end{mdframed}
+
+\subsection{yyparse(): non-reentrant vs reentrant}
+
+When calling bison and passing the bison specification file, e.g. speclang.y -
+Sect.\ref{sec:bison-grammar-file}, it generates the file, with the same name,
+and extension \verb!.tab.c!, e.g. \verb!speclang.tab.c!.
+
+\begin{verbatim}
+bison -v -d speclang.y
+\end{verbatim}
+
+Inside \verb!speclang.tab.c!, it generates \verb!yyparse! function. By default,
+this is a non-argument function. However, user can define a \verb!void*!
+argument to \verb!yyparse! by defining the macro \verb!YYPARSE_PARAM! in the
+first section - Sect.\ref{sec:bison-grammar-file-first-section}
+
+\begin{verbatim}
+// in C++
+int yyparse (void);
+
+// in C
+int yyparse();
+\end{verbatim}
+
+Example: the generated code (speclang.tab.c)  has a section like this
+\begin{verbatim}
+    /* Prevent warnings from -Wmissing-prototypes.  */
+    
+#ifdef YYPARSE_PARAM
+   #if defined __STDC__ || defined __cplusplus
+       int yyparse (void *YYPARSE_PARAM);
+   #else
+       int yyparse ();
+   #endif
+#else /* ! YYPARSE_PARAM */
+       #if defined __STDC__ || defined __cplusplus
+       int yyparse (void);
+       #else
+       int yyparse ();
+   #endif
+#endif /* ! YYPARSE_PARAM */
+\end{verbatim}
+and a section for the body of the \verb!yyparse! function
+\begin{verbatim}
+// in Bison 2.4.1 and earlier, the call to yylex is encapsulated via the macro name YYLEX
+
+#ifdef YYPARSE_PARAM
+   #if defined __STDC__ || defined __cplusplus
+       int yyparse (void *YYPARSE_PARAM)
+   #else
+       int yyparse ()
+   #endif
+#else /* ! YYPARSE_PARAM */
+       #if defined __STDC__ || defined __cplusplus
+       int yyparse (void)
+       #else
+       int yyparse ()
+   #endif
+#endif /* ! YYPARSE_PARAM */
+{
+
+  //... 
+  
+  if (yychar == YYEMPTY)
+  {
+    YYDPRINTF((stderr, "Reading a token: "));
+    
+    yychar = YYLEX;
+  }
+  
+  // ...
+}
+
+\end{verbatim}
+
+In Bison 2.x, yyparse() call yylex() via the macro name \verb!YYLEX! (Sect.\ref{sec:yylex}).
+However, in Bison 3.0, it calls directly \verb!yylex!. This can be a problem, if you define a yylex with 3 arguments. 
+\begin{verbatim}
+  if (yychar == YYEMPTY)
+  {
+    YYDPRINTF((stderr, "Reading a token: "));
+    
+    yychar = yylex(&yylval, &yylloc);
+  }
+\end{verbatim}
+
+To resolve that issue, enforce passing a third argument with a given name by defining \verb!%lex-param! in speclang.y
+\begin{verbatim}
+%lex-param parm
+\end{verbatim}
+then the generated speclang.tab.C will has
+\begin{verbatim}
+  if (yychar == YYEMPTY)
+  {
+    YYDPRINTF((stderr, "Reading a token: "));
+    
+     yychar = yylex(&yylval, &yylloc, parm);
+  }
+\end{verbatim}
+
+
+\begin{mdframed}
+
+In C, a function with no argument means 'unknown' parameter list 
+\begin{verbatim}
+void myfunc(); // unknown parameter list
+void myfunc(void); // no parameter
+\end{verbatim}
+
+C++ language grammar does not allow function with unknown parameter list, i.e.
+you need to provide the precise parameter list.
+\end{mdframed}
+
+
+\subsection{yyerror}
+\label{sec:yyerror}
+
+The Bison parser detects a parse error or syntax error whenever it reads a token which cannot satisfy any syntax rule. 
+
+The macro YYERROR 
+
+The Bison parser expects to report the error by calling an error reporting function named yyerror, which you must supply.
+It is called by yyparse whenever a syntax error is found, and it receives one argument, which is \verb!char*! argument.
+
+\begin{verbatim}
+yyerror (s)
+     char *s;
+{
+  fprintf (stderr, "%s\n", s);
+}
+
+\end{verbatim}
+
+However, if speclang.y has
+\begin{verbatim}
+'%locations %define api.pure' 
+\end{verbatim}
+then the generated yyerror
+\begin{verbatim}
+ void yyerror (char const *msg);                 /* Yacc parsers.  */
+ 
+ void yyerror (YYLTYPE *locp, char const *msg);  /* GLR parsers.   */
+\end{verbatim}
+
+
+NOTE: If you need to track line error, you can access to the line using yylloc (YYLTYPE struct):
+
+\begin{verbatim}
+#define YY_USER_ACTION {yylloc.first_line = yylineno; \
+        yylloc.first_column = colnum;                 \
+        colnum=colnum+yyleng;                         \
+        yylloc.last_column=colnum;                    \
+        yylloc.last_line = yylineno;}
+
+
+void yyerror (const char *s)
+{
+
+        fprintf(stderr, "%s line:%d", s,yylloc.first_line);
+}
+
+\end{verbatim}
+\url{https://lists.gnu.org/archive/html/help-bison/2010-01/msg00022.html}
+
+
+If we also use \verb!%parse-param! (Sect.\ref{sec:parse-param-option-bison})
+
+\subsection{non-reentrant parser: yylex(), yyparse()}
+\label{sec:yyparse}
+
+For reentrant parser, check Sect.\ref{sec:yyparse-C++}.
+
+For a non-reentrant parser, the Bison parser is actually a C function named
+\verb!yyparse!. This functions also uses many C identifiers starting with
+\verb!yy!, e.g. yylex.
+
+
+
+\begin{mdframed}
+
+We call the function yyparse to cause parsing to occur.
+This function reads tokens, executes actions, and ultimately returns when it
+encounters end-of-input or an unrecoverable syntax error.
+The return value is 0 if parsing was successful; otherwise a non-zero value
+indicating the type of error, e.g. 1.
+
+You can also write an action which directs yyparse to return immediately without reading further, by calling either
+\begin{verbatim}
+YYACCEPT
+    Return immediately with value 0 (to report success).
+YYABORT
+    Return immediately with value 1 (to report failure).
+\end{verbatim}
+
+\end{mdframed}
+
+\subsection{C++ : yylex, yyparse}
+\label{sec:yyparse-C++}
+\label{sec:yylex-C++}
+
+For C non-reentrant parser, check Sect.\ref{sec:yyparse-C++}.
+Here, we discuss using C++ reentrant parser (i.e. thread-safe) where global
+communication variables \verb!yylval! and \verb!yylloc! cannot be used, as it
+does not maintain the property of a reentrant function
+(Sect.\ref{sec:reentrant-parser}).
+
+
+You can add the parameters to yylex(), and yyparse() based on the following
+order
+\begin{enumerate}
+  
+  \item YYSTYPE* first (if \verb!%define api.pure full! is used)
+  
+  \item YYLTYPE* second (if \verb!%locations! is used)
+  
+  \item Since Bison 3.0: (for yylex()) any number of arguments next (based on the argument of
+  \verb!%lex-param!) and (for yyparse()) any number of arguments next (based on
+  the argument of \verb!%parse-param!)
+  
+  In Bison 2.0, we just need to define macros \verb!YYLEX_PARAM! or
+  \verb!YYPARSE_PARAM! for the names of the third arguments if needed.
+  
+  \item finally, arguments defined from \verb!%param! option
+\end{enumerate}
+\url{http://sourceforge.net/p/urjtag/mailman/message/31850904/}
+
+Example:
+\begin{enumerate}
+  \item To have
+\begin{verbatim}
+int yylex   (scanner_mode *mode, environment_type *env);
+int yyparse (parser_mode *mode, environment_type *env);
+\end{verbatim}
+
+in the *.l file, add
+\begin{verbatim}
+%lex-param   {scanner_mode *mode}
+%parse-param {parser_mode *mode}
+%param       {environment_type *env}
+\end{verbatim}
+
+IMPORTANT: For C++ reentrant parser, we can use these options to define extra arguments to yylex, yyparse, and yyerror.
+\begin{itemize}
+  \item If you wish to pass additional arguments to yylex, use \verb!%lex-param! 
+  
+  \item If you wish to add additional arguments to yyparse and yyerror, use
+  \verb!%parse-param!
+
+One or more extra arguments to yyparse
+\begin{verbatim}
+%parse-param {int *nastiness} {int *randomness}
+\end{verbatim}
+
+Example:
+\begin{verbatim}
+%parse-param {int *randomness}
+\end{verbatim}
+then speclang.tab.C 
+\begin{verbatim}
+void yyerror (int *randomness, const char *msg);
+int  yyparse (int *randomness);
+\end{verbatim}
+
+If if both \verb!%define api.pure full! (or just \verb!%define api.pure!) and \verb!%locations! are used; or (since Bison 3.0) if
+\verb!%parse-param! and \verb!%locations! is used:
+\begin{verbatim}
+void yyerror (YYLTYPE *llocp, int *randomness, const char *msg);
+int  yyparse (int *randomness);
+\end{verbatim}
+
+So we need to use modify the interface of yyerror, if \verb!%parse-param! is used (since Bison 3.0).
+
+  \item To pass additional arguments to both yylex(\ldots) and yyparse(\ldots), use
+  \verb!%param!.
+\end{itemize}
+
+  \item To have
+\begin{verbatim}
+int yylex   (YYSTYPE *lvalp, scanner_mode *mode, environment_type *env);
+int yyparse (parser_mode *mode, environment_type *env);
+\end{verbatim}  
+we need to use 
+in the *.l file, add
+\begin{verbatim}
+%lex-param   {scanner_mode *mode}
+%parse-param {parser_mode *mode}
+%param       {environment_type *env}
+%define api.pure full
+\end{verbatim}
+
+  \item To have
+\begin{verbatim}
+int yylex   (YYSTYPE *lvalp, YYLTYPE *llocp,
+             scanner_mode *mode, environment_type *env);
+int yyparse (parser_mode *mode, environment_type *env);
+\end{verbatim}
+\end{enumerate}
+in the *.l file, add
+\begin{verbatim}
+%lex-param   {scanner_mode *mode}
+%parse-param {parser_mode *mode}
+%param       {environment_type *env}
+%define api.pure full
+%locations
+\end{verbatim}
+
+% Unfortunately, the code block containing the definition of yylex is inserted
+% into the generated code before YYLTYPE is defined.
+
+You may have the error
+\begin{verbatim}
+error: too few arguments to function 'int mdllex(YYSTYPE*,YYLTYPE*, void*)'
+\end{verbatim}
+as you have \verb!#define yylex mdllex!, 
+and somewhere, you use
+\begin{verbatim}
+yychar = yylex(&yyval, &yylloc);
+\end{verbatim}
+To fix this, add \verb!%lex-param {context}! to the *.l file.
+
+\url{http://www.gnu.org/software/bison/manual/html_node/Pure-Calling.html}
+
+\url{http://www.gnu.org/software/bison/manual/html_node/Parser-Function.html}
+
+\subsection{C++ : yyerror}
+
+In early version of bison, you only have
+\begin{verbatim}
+void yyerror (const char *msg);
+\end{verbatim}
+to call when you want to indicate an error.
+
+However, this is different in newer version of bison, if you add
+\begin{verbatim}
+%parse-param {int *randomness}
+\end{verbatim}
+then you will have the generated one
+\begin{verbatim}
+void yyerror (int *randomness, const char *msg);
+int  yyparse (int *randomness);
+\end{verbatim}
+
+if you have \verb!%define api.pure full! and \verb!%locations!, then you will
+have
+\begin{verbatim}
+void yyerror (YYLTYPE *llocp, int *randomness, const char *msg);
+int  yyparse (int *randomness);
+\end{verbatim}
+
+To resolve the missing of the first version, you need to add this to \verb!*.y!
+file inside the code block
+\begin{verbatim}
+%code provides {
+void yyerror (char const*);
+%}
+\end{verbatim}
+% int  yylex (YYSTYPE*, YYLTYPE*);
+% extern "C" int yyparse ();
+
+\subsection{generate C code or C++ code}
+\label{sec:lex.yy.c}
+\label{sec:lex.yy.cc}
+
+NOTE: The generated file (from the grammar file \verb!*.l!) is \verb!lex.yy.c!
+(C-code) or \verb!lex.yy.cc! (C++-code) depending on the options being used.
+
+
+Flex provides two different ways to generate scanners for use with C++.
+
+\begin{enumerate}
+
+  \item simply compile the C code generated by flex, i.e. \verb!lex.yy.c!
+  file, using a C++ compiler.
+  
+  You can then use C++ code in your rule actions instead of C code.
+  
+  IMPORTANT: you remains using \verb!FILE*! variables instead of C++
+  \verb!std::istream! or \verb!std::ostream!. Also, default input source for
+  your scanner remains \verb!yyin!, and default echoing is still done to \verb!yyout!.
+  
+  \item generate C++ code with \verb!flex -+! or \verb!flex --c++! (or the
+  equivalent \verb!%option c++! in the *.l file) with the generated file is
+  \verb!lex.yy.cc!.
+  
+  The generated scanner includes the header file `FlexLexer.h', which defines
+  the interface to two C++ classes. 
+  \begin{itemize}
+    \item \verb!FlexLexer! class: a base class defines general scanner class
+    interface
+    
+    \item \verb!yyFlexLexer! class: derived from FlexLexer
+    
+    Note that a yyFlexLexer object contains its entire scanning state. Thus you
+    can use such objects to create reentrant scanners
+    (Sect.\ref{sec:reentrant-parser}).
+    You can instantiate multiple instances of the same yyFlexLexer class, and
+    you can also combine multiple C++ scanner classes together in the same program
+    using \verb!-P! option
+  \end{itemize}
+
+\end{enumerate}
+\url{http://flex.sourceforge.net/manual/Code_002dLevel-And-API-Options.html}
+
+\url{http://stackoverflow.com/questions/22239614/bison-how-to-fix-this-too-many-arguments-to-function-int-yylex-error}
+
+\subsection{C++ : yywrap}
+\label{sec:yywrap_C++}
+
+If you get the error
+\begin{verbatim}
+ lex.yy.cc:(.text+0x402): undefined reference to yywrap'
+\end{verbatim}
+
+{\bf What yywrap() is for?} (when you work with multiple input files) - The
+scanner calls this function on end of file, so you can point it to another file
+and continue scanning its contents. If someone calls the compiler with multiple
+source files, I store them in a list or array, and then yywrap() is called at
+the end of each file to give you a chance to continue with a new file.
+
+\begin{enumerate}
+  \item You can use the default \verb!yywrap()! by linking agains \verb!-lfl!
+(libfl.so, libfl.a)
+\begin{verbatim}
+sudo apt-get install libfl-dev
+\end{verbatim}
+
+The package is Multi-Arch enabled, so the files are under the
+\verb!/usr/lib/i386-linux-gnu/! or \verb!/usr/lib/x86_64-linux-gnu/! directory,
+depending on whether you are on 32 or 64 bit. Or possibly under
+\verb!/usr/lib/armhf-linux-gnu/! if you are on ARM.
+\begin{verbatim}
+locate libfl
+\end{verbatim}
+\url{http://askubuntu.com/questions/289547/where-are-flex-libraries-located}
+
+  \item  If you don't need this, modify \verb!*.l! file
+  
+add
+\begin{verbatim}
+%option noyywrap
+\end{verbatim}
+in *.l file (make sure it is outside \verb!%{! \verb!%}! region
+(Sect.\ref{sec:flex_grammar-file}).
+
+\url{http://solaris2linuxport.blogspot.com/2010/12/porting-isuues-for-yacc-and-lex-to.html}
+
+  \item Implement your own yywrap(), and put it into the third section
+  in the *.l file (after the second \verb!%%!)
+  
+\begin{lstlisting}
+int yywrap() {
+   // open next reference or source file and start scanning
+   if((yyin = compiler->getNextFile()) != NULL) {
+      line = 0; // reset line counter for next source file
+      return 0;
+   }
+   return 1;
+}
+\end{lstlisting}
+\url{http://stackoverflow.com/questions/1811125/undefined-reference-to-yywrap}
+
+\end{enumerate}
+
+
+\subsection{C++ : use a custom parser (e.g. MdlLexer class or LensLexer class)}
+
+Options: \url{http://flex.sourceforge.net/manual/Scanner-Options.html}
+
+First, your parser need to be derived from \verb!yyFlexLexer! class.
+
+
+To use your parser, either
+\begin{itemize}
+  \item use flex with \verb!--yyclasss=NAME!
+  
+  \item put into *.l file: \verb!%option yyclass=NAME!
+
+\begin{verbatim}
+%option c++
+%option yyclass="MdlLexer"
+\end{verbatim} 
+
+  \item if your custom parser is only a change in the prefix (as flex use
+  \verb!yy! as the default prefix), you have a few option
+  
+  \begin{enumerate}
+    \item put this code in your *.l file,
+  
+  \begin{verbatim}
+#undef yyFlexLexer
+#define yyFlexLexer xxFlexLexer
+#include <FlexLexer.h>
+
+
+#undef yyFlexLexer
+#define yyFlexLexer zzFlexLexer
+#include <FlexLexer.h>
+  \end{verbatim}
+  
+    \item change the prefix dynamically, replace PREFIX with the prefix you want
+    to use
+\begin{verbatim}
+ // compile with 
+flex -PPREFIX
+flex --prefix=PREFIX
+
+ // or put in the *.l file
+%option prefix="PREFIX"
+\end{verbatim}
+    \end{enumerate}
+
+Example: \verb!%option prefix="zz"! for the zzFlexLexer class scanner  
+\end{itemize}
+
+So flex will place your actions in the member function \verb!foo::yylex()!
+instead of \verb!yyFlexLexer::yylex()!. It also generates a
+\verb!yyFlexLexer::yylex()! member function that emits a run-time error (by
+invoking \verb!yyFlexLexer::LexerError()!) if called.
+
+    
+
+\section{Parser: not reentrant vs. reentrant}
+
+How to have multiple instances of your generated parser (or, heaven forfend,
+multiple parsers with different grammars) in the same binary without having them
+interfere with each other? This requires defining a reentrant parser
+(Sect.\ref{sec:reentrant-parser}).
+In other words, 
+the \verb!yyparse()! and \verb!yylex()! driver functions in the generated code
+have to be reentrant. 
+
+Example: Bison/Flex grammar that parses CVS master files  -  often thousands of
+them in a single run. The goal is to (a) to be able to spread the job across
+multiple processors so the work gets done faster, and (b) not to allow I/O waits
+for some masters being parsed to block compute-intensive operations on others. 
+
+
+
+\subsection{not reentrant}
+\label{sec:not-reentrant-parser}
+\label{sec:parser-not-reentrant}
+
+Normally, Bison generates a parser which is not reentrant. This is suitable for
+most uses, and it maintains compatibility with Yacc.
+So, they use statically allocated variables for communication with yylex(),
+including \verb!yylval! and \verb!yylloc!.
+\begin{verbatim}
+int yylex();
+\end{verbatim}
+
+However, a non-reentrant program is not safe to be used in asynchronous
+scenario, e.g. called from a signal handler. As it uses static global variable, 
+in a multiple threads of control, a nonreentrant program must be called only
+within interlocks. 
+
+\subsection{reentrant (pure-parser)}
+\label{sec:reentrant-parser}
+\label{sec:pure_parser-bison}
+
+In a reentrant function, no globals allowed; they have to keep their parsing and
+lexing state in purely stack- and thread-local storage, and deliver their
+results back the way ordinary reentrant C functions would do it (that is,
+through structures referenced by pointer arguments).
+
+NOTE: Yacc and Lex couldn't do this, as they use a bunch of global variables.
+
+A reentrant program is one which does not alter in the course of execution, i.e.
+it maintains itself as pure read-only code. Reentrancy is important whenever
+asynchronous execution is possible;
+
+\textcolor{red}{In Bison, to indicate a reentrant parser (for yyparse())
+function), we add one of these lines} to the \verb!*.y! file; (and also to
+\verb!.l! file - as described shortly)
+\begin{verbatim}
+
+  // compatible with Bison 3.x
+  // same effect as using pure-parser, except that Bison is 
+  // more careful to warn about unreasonable usage in the latter case.
+%define api.pure full
+
+  // deprecated since Bison 2.6.2 (still supported in Bison 3.0)
+%pure-parser
+
+  // the original keyword (no longer supported in Bison 3.1)  
+%pure_parser
+\end{verbatim}
+\url{https://code.google.com/p/lilypond/issues/detail?id=3488}
+
+\url{https://www.gnu.org/software/bison/manual/html_node/Pure-Decl.html}
+
+NOTE: \verb!yyparse()! is the parser function (Sect.\ref{sec:yyparse-C++}),
+and the convention for calling yyparse() itself is unchanged. But if we use 3
+lines \url{http://esr.ibiblio.org/?p=6341}
+\begin{verbatim}
+%define api.pure full
+%lex-param {yyscan_t scanner}
+%parse-param {yyscan_t scanner}
+\end{verbatim}
+\verb!yyscan_t! is (in effect) a special private structure used to hold your
+scanner state. 
+\url{http://www.gnu.org/software/bison/manual/html_node/Pure-Decl.html}
+\begin{verbatim}
+yyparse(yyscan_t *scanner)
+\end{verbatim}
+
+
+\textcolor{red}{In Flex, to indicate a reentrant scanner (for yylex()
+function), you need to update the grammar file}
+(Sect.\ref{sec:flex_grammar-file})
+\begin{verbatim}
+%option reentrant bison-bridge
+\end{verbatim}
+
+IMPORTANT: The result is that the communication variables \verb!yylval! and
+\verb!yylloc! become local variables in \verb!yyparse()! - Sect.\ref{sec:yyparse}, and a different
+calling convention is used for the lexical analyzer function \verb!yylex()!.
+\textcolor{red}{Notice the different in the interfaces of yyparse() and yylex()
+functions, from no arguments, to}
+
+\verb!lvalp! (or previously yylval) is where yylex() will put its token value
+when it's called by yyparse().
+\begin{itemize}
+  \item either 
+\begin{verbatim}
+int
+yylex (YYSTYPE *lvalp)
+{
+  ...
+  *lvalp = value;  /* Put value onto Bison stack.  */
+  return INT;      /* Return the type of the token.  */
+  ...
+}
+\end{verbatim}
+
+  \item or this (if \verb!%locations! is used, i.e. we can get access to
+  textual line number via \verb!yylineno! in the parser code)
+\begin{verbatim}
+int
+yylex (YYSTYPE *lvalp, YYLTYPE *llocp)
+{
+  ...
+  *lvalp = value;  /* Put value onto Bison stack.  */
+  return INT;      /* Return the type of the token.  */
+  ...
+}
+\end{verbatim}
+or
+\begin{verbatim}
+yylex(YYSTYPE *yylval_param, yyscan_t yyscanner)
+\end{verbatim}
+
+\end{itemize}
+and the two global variable \verb!yylval! and \verb!yylloc! are replaced by two
+pointers passed by arguments to yylex(lvalp, llocp)
+
+
+
+\subsection{example}
+
+\url{http://fossies.org/linux/collectd/src/liboconfig/parser.c}
+
+\section{Connect Scanner output to Parser input}
+\label{sec:connect-scanner-parser}
+
+The output of a scanner is a token as any tokens defined in \verb!%token!
+option. In the *.l file, we define the list of tokens using \verb!%token!
+option, and the grammar rule to recognize these token from the input
+(Sect.\ref{sec:flex_grammar-file}).
+
+The parser (*.y file) uses the \verb!yyparse()! which returns 1 if the input
+satisfies the grammar rule, and then it decides the action to take for each
+token detected (Sect.\ref{sec:yyparse}).
+
+The *.y file only has access to tokens names (in uppercase), but not others
+(e.g. \verb!YY_CURRENT_BUFFER!, \verb!YY_BUFFER_STATE!) defined by flex which
+can only be used in the generated \verb!lex.yy.c! (or \verb!lex.yy.cc!) file.
+\textcolor{red}{If you want to access them in a bison grammar}, the easiest way
+is to encapsulate the use of them in a small function you define in the 3rd
+section of the .l file. Then you call that function from the .y file or any
+other source file.
+
+
+
+\section{Your compiler}
+
+Your own code will probably call the function \verb!yyparse()! created by bison
+from your parser specification, which in turns call \verb!yyflex()! created by
+flex.
+
+You can use yylex() independent of yyparse() and you can supply your own yylex()
+to be used with a bison generated yyparse(). 
+
+
+When you call yyparse() from your code, the parser will repeatedly call yylex()
+to obtain tokens (words and punctuation) from the input stream. With each new
+token, the parser will decide whether to push the token onto its internal stack
+or to reduce a sequence of tokens on the stack to create {\bf a new language
+part} (called {\bf non-terminal}) to push onto the stack. 
+One of the non-terminals is the "start-state". When this non-terminal is
+matched, yyparse() will return.
+When the parser returns, its internal stack vanishes and so you are responsible
+for finding some method of returning the information you need from that stack
+
+Now, you can to execute a block of C/C++ code that you provide each time bison
+matches a pattern.
+
+EXPLAINS:
+\url{http://www.mactech.com/articles/mactech/Vol.16/16.07/UsingFlexandBison/index.html}
+	
+\section{Troubleshoort}
+

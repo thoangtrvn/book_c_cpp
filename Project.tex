@@ -1,0 +1,1939 @@
+\chapter{Project structure}
+
+\section{Folder structure}
+
+We should use one version manager, e.g. SVN. In one project, we should have the
+following folders
+\begin{verbatim}
+branches
+tools
+trunk
+vendor 
+\end{verbatim}
+and one file \verb!00README.TXT! to contains disclaiming information.
+\begin{enumerate} 
+  \item \verb!branches! should contain side-line development, experimental,
+  development lines of multiple version of the same products (before putting in
+  the stable release in \verb!trunk!.
+  \item \verb!trunk! should contains only the main line of development
+  \item \verb!vendor! to contain third-party libraries. When installing we
+  should use the PREFIX=../../trunk/base.
+\end{enumerate}
+
+
+\subsection{trunk}
+
+We should have the following folders
+\begin{verbatim}
+base
+bin
+doc
+src
+test
+timing
+verification
+\end{verbatim}
+where
+\begin{itemize}
+  \item \verb!base!: contains the folders of third-party libraries
+  \item \verb!bin!: binary files
+  \item \verb!doc!: documents (example or code manuals)
+  \item \verb!test!: some test cases
+  \item \verb!timing!:
+  \item \verb!verification!: 
+\end{itemize}
+
+\subsection{src}
+
+In the \verb!src! folder, we should have the following folders
+\begin{verbatim}
+arch
+	- linux_laptop.mk
+	- osx.mk
+	- ...	
+\end{verbatim}
+and any other codes subfolders (to be discribed later). Important files
+\begin{verbatim}
+Makefile
+Makefile.arch
+\end{verbatim}
+and other source codes files.
+
+\subsection{Makefile}
+\label{sec:Makefile_EP_EM}
+
+
+We realize that using system name would help better select the proper setting,
+rather using information about system architecture of 'uname' or any other
+utilities. That's why we define the \verb!arc! folder, with files describing the
+compiling configuration using the system name. The \verb!arch! should contains
+different configuration setting for different system, e.g.
+\verb!./arch/linux_laptop.mk! for the system \verb!LINUX_LAPTOP!. To know which
+file is selected, \verb!Makefile! should include the file \verb!Makefile.arch!
+first
+
+Example: This is for EM
+\begin{verbatim}
+CXX=mpic++
+CC=mpicc
+LD=$(CXX)
+
+#flags for defining macros
+DFLAGS += -DWITH_MPI -DADD_ -D$(PLAT) -DUSE_CSTDIO_LFS
+
+#base directory where to look for other third-party packages
+BASE_DIR = $(PWD)/../base
+# third-party packages
+OOMPH_DIR = $(BASE_DIR)/oomph
+SCOTCH_DIR = $(BASE_DIR)/scotch
+
+##################
+# Installation specific information
+##################
+# Flags for C pre-processor
+EM_CPPFLAG = -DCARDIAC_BOOST -DCARDIAC_OPENMP -DWITH_MPI
+AM_CPPFLAG = -DHAVE_CONFIG_H -I. -I$(OOMPH_DIR) -DOOMPH_HAS_MPI \
+         -DOOMPH_HAS_TRIANGLE_LIB -DOOMPH_HAS_TETGEN_LIB \
+         -DUSING_OOMPH_SUPERLU -DUSING_OOMPH_SUPERLU_DIST \
+         -I$(OOMPH_DIR)/build/include -I$(SCOTCH_DIR)/build/include \
+         -DLINUX_LAPTOP -I../base $(EM_CPPFLAGS)
+         
+# The solver is coded based on omph-lib         
+# Include files and libraries for third_party
+OOMPH-LIB_INCLUDE_DIR=$(OOMPH_DIR)/build/include
+OOMPH-LIB_LIB_DIR=$(OOMPH_DIR)/build/lib
+OOMPH-LIB_EXTERNAL_LIBS= -lHYPRE -lptscotch -lptscotcherr -loomph_hsl \
+	-loomph_arpack -loomph_triangle -loomph_tetgen -loomph_superlu_3.0
+	-loomph_parmetis_3.1.1 -loomph_superlu_dist_2.3 \
+	-loomph_metis_from_parmetis_3.1.1 -lblas -llapack
+
+EXTERNAL_DIST_LIBRARIES=-L$(BASE_DIR)/hypre/build/lib \
+ 	-L$(BASE_DIR)/scotch/build/lib
+EXTERNAL_DIST_INCLUDE_DIR=$(BASE_DIR)/hypre/build/include
+
+#Additional machine specific linking information that
+# allows mixed-language compilation/linking
+# e.g. Here is for RedHat Linux
+FLIBS=-L/usr/lib/gcc/x86_64-redhat-linux/4.4.6 \
+	-L/usr/lib64 -L/usr/lib/ -L/lib/ -L/lib64 \
+	-lm -lgcc_s -L/reader_files
+	
+# Flags required for the shared libraries
+SHARED_LIBRARY_PATH=-Wl, --rpath -Wl,$(OOMPH_DIR)/build/lib
+
+CXXFLAGS_OPT = -g2 -O2 $(AM_CPPFLAGS) -I$(OOMPH-LIB_INCLUDE_DIR) \
+	-I(EXTERNAL_DIST_INCLUDE_DIR)
+CXXFLAGS_DEBUG = -g -O0 $(AM_CPPFLAGS) -I$(OOMPH-LIB_INCLUDE_DIR) \
+	-I(EXTERNAL_DIST_INCLUDE_DIR)
+\end{verbatim}
+Depending on which system, we may need different APIs; what's why we need to
+define a macro using the name of the system, e.g. \verb!LINUX_LAPTOP!. So, in
+the code, if the API has different version, and to choose which one depending
+on the system, we use 
+\begin{verbatim}
+#ifdef LINUX_LAPTOP
+    call this_API
+#else 
+    call that_API
+#endif
+\end{verbatim}
+
+The \verb!Makefile.arch! tells us the information about the \verb!ARCHGUESS!
+macro, which is the name of the \verb!mk! file in the \verb!./arch! folder.
+\begin{verbatim}
+## Makefile.arch
+
+#guess hostname with hostname command, stripping off all numbers
+HOSTNAME := $(shell hostname -s | sed 's/[0-9]*//g')
+
+#depending on the hostname, we define ARCHGUESS
+ifeq ($(HOSTNAME), thunder)
+  ARCHGUESS = thunder
+endif
+ifeq ($HOSTNAME), titan)
+  ARCHGUESS = titan
+ endif
+ 
+# or we just simply override it
+ARCHGUESS = linux_laptop
+
+#Finally, if no result
+ifndef ARCHGUESS
+	$(error Unrecognized build host. Edit Makefile.arch)
+endif
+\end{verbatim}
+the value of \verb!ARCHGUESS! will be used in \verb!Makefile! file as
+\verb!ARCH! macro.
+
+So \verb!Makefile! file
+\begin{verbatim}
+# Get name of architecture-specific incldue file 
+SHELL = /bin/bash
+
+# Define what are target-command
+.PHONY: DEFAULT COMMON_TARGETS makedirs clean distclean depend
+
+include Makefile.arch
+
+ARCH ?= $(ARCHGUESS)
+
+include arch/$(ARCH).mk
+
+#keep version number of SVN
+SVNVERSION := $(shell svnversion ./ )
+
+#where to save binary (compiled file)
+BINDIR = ../bin
+
+HEARTSRC = \
+	Cardioid.cc \
+	... \  [here we list all source files]
+	... \  [.cc = C++ source]
+
+SPISRC= spi_impl.c
+SIMDSRC= clooper.c TT06GatesSimd.c TT06Gates.c TT06NonGates.c \
+	TT06NonGatesSimd.c workBound.c svd.c
+
+DDCMD_FILES = \
+	codata.h \
+	ddcMalloc.c \
+	ddcMalloc.h \
+	... \
+	...
+	
+DDCMDSRC = $(filter %.c, $(DDCMD_FILES))
+
+HEARTOBJS = $(HEARTSRC:%.cc=$(OBJDIR)
+\end{verbatim}
+
+
+\verb!objs-$ARCH_FILENAME!
+
+Example: This is for EP
+{\small \begin{verbatim}
+# Get name of architecture-specific include file from hostname
+SHELL = /bin/bash
+
+.PHONY: DEFAULT COMMON_TARGETS makedirs clean distclean depend
+
+include Makefile.arch
+# If defined, use architecture file set with ARCH variable
+ARCH ?= $(ARCHGUESS)
+include arch/$(ARCH).mk
+\end{verbatim}}
+which needs to read the compiling options from the architecture file, e.g. in
+the case of system called \verb!peloton! with Intel microprocesors, we use
+\verb!arch/peloton.mk!
+\begin{verbatim}
+
+CXX=mpic++ -fopenmp
+CC=mpicc --std=gnu99 
+LD=$(CXX)
+
+DFLAGS = -DPELOTON -DWITH_PIO -DWITH_MPI \
+    -DADD_ -DUSE_CSTDIO_LFS -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
+
+INCLUDE =
+
+CFLAGS_BASE = $(INCLUDE) $(DFLAGS)
+CXXFLAGS_BASE = $(INCLUDE) $(DFLAGS)
+
+
+CFLAGS_OPT =   $(CFLAGS_BASE) -g -O3
+CFLAGS_DEBUG = $(CFLAGS_BASE) -g -ggdb -O0 -fno-inline
+CFLAGS_PROF =  $(CFLAGS_BASE) -g -pg -O3 -DPROFILE
+
+CXXFLAGS_OPT =   $(CXXFLAGS_BASE) -g -O3
+CXXFLAGS_DEBUG = $(CXXFLAGS_BASE) -g -ggdb -O0 -fno-inline
+CXXFLAGS_PROF =  $(CXXFLAGS_BASE) -g -pg -O3 -DPROFILE
+
+LDFLAGS_OPT   = $(LDFLAGS_BASE) $(CFLAGS_OPT) $(CXXFLAGS_OPT)
+LDFLAGS_DEBUG = $(LDFLAGS_BASE) $(CFLAGS_DEBUG) $(CXXFLAGS_DEBUG)
+LDFLAGS_PROF  = $(LDFLAGS_BASE) $(CFLAGS_PROF) $(CXXFLAGS_PROF)
+\end{verbatim} 
+
+Now, the next content in the Makefile
+ {\small \begin{verbatim}
+SVNVERSION := $(shell svnversion ./ )
+
+#------------------------------------------------------------------------------
+#
+
+BINDIR = ../bin
+
+#NO main file is put here
+HEARTSRC= \
+    ThreadServer.cc \
+    ThreadUtils.cc \
+    stringUtils.cc \
+    readCellList.cc \
+    PioHeaderData.cc \
+    ...
+
+SPISRC=  spi_impl.c
+SIMDSRC=  clooper.c TT06GatesSimd.c TT06Gates.c TT06NonGates.c TT06NonGatesSimd.c workBound.c svd.c
+
+DDCMD_FILES = \
+    codata.h \
+    ddcMalloc.c \
+    ddcMalloc.h \
+    ddcMath.h \
+    error.c \
+    error.h \
+    external.h \
+    ...
+DDCMDSRC = $(filter %.c, $(DDCMD_FILES)
+
+\end{verbatim} }
+All the source files of EP is \verb!HEARTSRC! macro, except the main file
+(cardioid.cc). Now we add the main file
+\begin{verbatim}
+HEARTOBJS = $(HEARTSRC:%.cc=$(OBJDIR)/%.o)
+HEARTOBJS += $(DDCMDSRC:%.c=$(OBJDIR)/%.o)
+HEARTOBJS += $(SPISRC:%.c=$(OBJDIR)/%.o)
+HEARTOBJS += $(SIMDSRC:%.c=$(OBJDIR)/%.o)
+
+CARDIOIDSRC = $(HEARTSRC) cardioid.cc
+CARDIOIDOBJS = $(CARDIOIDSRC:%.cc=$(OBJDIR)/%.o)
+CARDIOIDOBJS += $(DDCMDSRC:%.c=$(OBJDIR)/%.o)
+CARDIOIDOBJS += $(SPISRC:%.c=$(OBJDIR)/%.o)
+CARDIOIDOBJS += $(SIMDSRC:%.c=$(OBJDIR)/%.o)
+\end{verbatim}
+As we can build for different architectures, we need to put the object files in
+different folder, then we add the architecture as the prefix to the folder for
+object files
+\begin{verbatim}
+OBJDIR := objs-$(ARCH)
+OBJDIR_PRECOMPILED := objs_precompiled-$(ARCH)
+\end{verbatim}
+The executable file
+\begin{verbatim}
+EXENAME = cardioid
+\end{verbatim}
+Compiling options 
+\begin{verbatim}
+DFLAGS += -DDiff_Weight_Type_Single
+
+DEFAULT: opt
+
+COMMON_TARGETS: $(DDCMD_FILES) makedirs
+\end{verbatim}
+There are different build targets (default: opt = optimized binary). Other
+options: \verb!debug!, \verb!profile! (generate profile to use with gprof),
+\verb!clean! or \verb!distclean!. For ddcMD developers, i.e. those who want to
+chage the I/O files, use \verb!ddcMD_dist! which compress the files into tar.gz
+file for distribution. NOTE: \textcolor{red}{For each build target, a different
+suffix is added to make a different binary files}
+\begin{verbatim}
+opt:
+    @$(MAKE) --no-print-directory COMMON_TARGETS \
+    $(BINDIR)/cardioid-$(ARCH) \
+    BUILD_SUFFIX=$(ARCH) OBJDIR=objs-$(ARCH) \
+    CFLAGS="$(CFLAGS_OPT)" CXXFLAGS="$(CXXFLAGS_OPT)" \
+    LDFLAGS="$(LDFLAGS_OPT)"  EXENAME=cardioid-$(ARCH)
+\end{verbatim}
+Then the directives to compile the source codes (C and C++)
+\begin{verbatim}
+$(OBJDIR)/%.o: %.cc
+    $(CXX) $(CXXFLAGS) -o $@ -c $<
+
+$(OBJDIR)/%.o: %.c
+    $(CC) $(CFLAGS) -o $@ -c $<
+\end{verbatim}
+There are other targets we may want to know for testing
+\begin{verbatim}
+testLoadBalancer:
+    @$(MAKE) --no-print-directory makedirs testLoadBalancer-target \
+    BUILD_SUFFIX=$(ARCH) OBJDIR=objs-$(ARCH) \
+    CFLAGS="$(CFLAGS_OPT)" CXXFLAGS="$(CXXFLAGS_OPT)" \
+    LDFLAGS="$(LDFLAGS_OPT)"  EXENAME=testLoadBalancer-$(ARCH)
+
+testLoadBalancer-target: $(CARDIOIDOBJS) $(OBJDIR)/testLoadBalancer.o
+    $(LD) $(DFLAGS) -o $(BINDIR)/$(EXENAME) $(OBJDIR)/testLoadBalancer.o $(CARDIOIDOBJS) $(LDFLAGS)
+
+testGridRouter: makedirs $(CARDIOIDOBJS) $(OBJDIR)/testGridRouter.o
+    $(LD) $(DFLAGS) -o testGridRouter $(OBJDIR)/testGridRouter.o $(CARDIOIDOBJS) $(LDFLAGS)
+
+compareSnapshots: 
+    @$(MAKE) --no-print-directory makedirs compareSnapshots-target \
+    BUILD_SUFFIX=$(ARCH) OBJDIR=objs-$(ARCH) \
+    CFLAGS="$(CFLAGS_OPT)" CXXFLAGS="$(CXXFLAGS_OPT)" \
+    LDFLAGS="$(LDFLAGS_OPT)"  EXENAME=compareSnapshots-$(ARCH)
+
+compareSnapshots-target: $(HEARTOBJS) $(OBJDIR)/compareSnapshots.o Version.cc
+    $(LD) Version.cc $(DFLAGS) -o $(BINDIR)/$(EXENAME) $(HEARTOBJS) $(OBJDIR)/compareSnapshots.o $(LDFLAGS)
+ 
+\end{verbatim}
+and for profiling as well as performance analysis
+\begin{verbatim}
+profile:
+    @$(MAKE) --no-print-directory COMMON_TARGETS \
+    $(BINDIR)/cardioid-$(ARCH)-prof \
+    BUILD_SUFFIX=$(ARCH)-prof OBJDIR=objs-$(ARCH)-prof \
+    CFLAGS="$(CFLAGS_PROF)" CXXFLAGS="$(CXXFLAGS_PROF)" \
+    LDFLAGS="$(LDFLAGS_PROF)"  EXENAME=cardioid-$(ARCH)-prof
+mpip:
+    @$(MAKE) --no-print-directory COMMON_TARGETS \
+    $(BINDIR)/cardioid-$(ARCH)-mpip \
+    BUILD_SUFFIX=$(ARCH)-mpip OBJDIR=objs-$(ARCH)-mpip \
+    CFLAGS="$(CFLAGS_MPIP)" CXXFLAGS="$(CXXFLAGS_MPIP)" \
+    LDFLAGS="$(LDFLAGS_MPIP)"  EXENAME=cardioid-$(ARCH)-mpip
+flops:
+    @$(MAKE) --no-print-directory COMMON_TARGETS \
+    $(BINDIR)/cardioid-$(ARCH)-hpm \
+    BUILD_SUFFIX=$(ARCH) OBJDIR=objs-$(ARCH)-hpm \
+    CFLAGS="$(CFLAGS_OPT) -DNDEBUG -DNTIMING -DHPM" CXXFLAGS="$(CXXFLAGS_OPT) -DNDEBUG -DNTIMING -DHPM" \
+    LDFLAGS="-L/usr/local/tools/mpitrace/lib -lmpihpm_smp $(LDFLAGS_OPT)"  EXENAME=cardioid-$(ARCH)-hpm 
+oss:
+    @$(MAKE) --no-print-directory COMMON_TARGETS \
+    $(BINDIR)/cardioid-$(ARCH)-oss \
+    BUILD_SUFFIX=$(ARCH) OBJDIR=objs-$(ARCH) \
+    CFLAGS="$(CFLAGS_OPT)" CXXFLAGS="$(CXXFLAGS_OPT)" \
+    LDFLAGS="$(LDFLAGS_OPT)"  EXENAME=cardioid-$(ARCH)-oss \
+   LD="/usr/global/tools/openspeedshop/oss-dev/bgq/oss202/bgq/bin/osslink -c pcsamp $(CXX)"
+\end{verbatim}
+
+
+\section{EP}
+\label{sec:EP}
+
+EP is the project for doing electrophysiology, the main branch of Cardioid
+project.  IMPORTANT: EP doesn't use oomph-lib nor hypre packages. The solver may
+be self-contained in the code. It's finite difference method with explicit
+operator-splitting method for numerical solving. The mesh is organized into
+a grid of cubes.
+
+% {\small \begin{verbatim}
+% int main(int argc, char** argv)
+% {
+%    int npes, mype;
+%    MPI_Init(&argc,&argv);
+%    MPI_Comm_size(MPI_COMM_WORLD, &npes);
+%    MPI_Comm_rank(MPI_COMM_WORLD, &mype);  
+% 
+%    // See units above.
+%    units_internal(1e-3, 1e-9, 1e-3, 1e-3, 1, 1e-9, 1); 
+%    units_external(1e-3, 1e-9, 1e-3, 1e-3, 1, 1e-9, 1); 
+%    
+%    profileInit();
+%    profileStart("Total");
+%    // heap_start moved to initializeSimulate so that the size can be set
+%    // in the input deck.
+% //   heap_start(500);
+% 
+%    if (mype == 0)
+%      printBanner();
+%    parseCommandLineAndReadInputFile(argc, argv, MPI_COMM_WORLD);
+%    
+%    timestampBarrier("Starting initializeSimulate", MPI_COMM_WORLD);
+%    Simulate sim;
+%    initializeSimulate("simulate", sim);
+%    timestampBarrier("Finished initializeSimulate", MPI_COMM_WORLD);
+% 
+% #ifdef HPM
+%   HPM_Start("Loop");
+% #endif
+%    timestampBarrier("Starting Simulation Loop", MPI_COMM_WORLD);
+%    profileStart_HW("Loop");
+%    switch (sim.loopType_)
+%    {
+%      case Simulate::omp:
+%       simulationLoop(sim);
+%       break;
+%      case Simulate::pdr:
+%      // printf("Cardioid pdr ptr=%p %p %p\n",sim.diffusion_->blockIndex(),sim.diffusion_->dVmBlock(),sim.diffusion_->VmBlock());  fflush(stdout); 
+%       simulationLoopParallelDiffusionReaction(sim);
+%       break;
+%      default:
+%       assert(false);
+%    }
+%    profileStop_HW("Loop");
+%    timestampBarrier("Finished Simulation Loop", MPI_COMM_WORLD);
+% #ifdef HPM
+%   HPM_Stop("Loop");
+% #endif
+% 
+%    profileStop("Total");
+%    profileSetRefTimer("00:Loop");
+% 
+%    profileSetPrintOrder("Total");
+%    profileSetPrintOrder("Assignment");
+%    profileSetPrintOrder("Loop");
+%    profileSetPrintOrder("parallelDiffReac");
+%    profileSetPrintOrder("DiffusionLoop");
+%    profileSetPrintOrder("ReactionLoop");
+%    profileSetPrintOrder("Dummy");
+%    profileSetPrintOrder("HaloExchMove2Buf");
+%    profileSetPrintOrder("Integrator");
+%    profileSetPrintOrder("ReactionWait");
+%    profileSetPrintOrder("reactionL2Arrive");
+%    profileSetPrintOrder("reactionL2Rest");
+%    profileSetPrintOrder("Reaction");
+%    profileSetPrintOrder("Reaction_nonGate");
+%    profileSetPrintOrder("GateNonGateBarrier");
+%    profileSetPrintOrder("Reaction_Gate");
+% 
+%    //profileSetPrintOrder("");
+%    if (mype == 0)
+%    {
+%       profileDumpTimes(cout);
+%       cout << "\n" << endl;
+%    }
+%    profileDumpStats(cout);
+%    stringstream dirname;
+%    dirname << "snapshot."<<setfill('0')<<setw(12)<<sim.loop_;
+%    profileDumpAll(dirname.str());
+%    heap_deallocate();
+%    MPI_Finalize();
+% 
+%    return 0;
+% }
+% \end{verbatim}}
+
+NOTE: The main() file in \verb!cardioid.cc!, after removing not important parts,
+e.g. \verb!profile...! (to do performance test
+Sect.\ref{sec:EP_performanceTest}).
+\begin{enumerate}
+  \item The program accepts maximum one argument, which is the name of the input
+  file (by default: \verb!object.data!), and read in, if presence,
+  \verb!restart! file as well using \verb!parseCommandLineAndReadInputFile()!
+  function. 
+  \item Read-in input files (Sect.\ref{sec:EP_input})
+  \item Initialize the simulation (Sect.\ref{sec:EP_initialize})
+  \item Run the loop (Sect.\ref{sec:EP_loop})
+\end{enumerate}
+
+{\small \begin{verbatim}
+int main(int argc, char** argv)
+{
+   int npes, mype;
+   MPI_Init(&argc,&argv);
+   MPI_Comm_size(MPI_COMM_WORLD, &npes);
+   MPI_Comm_rank(MPI_COMM_WORLD, &mype);  
+
+   // See units above.
+   units_internal(1e-3, 1e-9, 1e-3, 1e-3, 1, 1e-9, 1); 
+   units_external(1e-3, 1e-9, 1e-3, 1e-3, 1, 1e-9, 1); 
+   
+//read-in input (object.data, restart)
+   parseCommandLineAndReadInputFile(argc, argv, MPI_COMM_WORLD);
+   
+//initialize simulation   
+   Simulate sim;
+   initializeSimulate("simulate", sim);
+
+//the loop of the simulation
+   switch (sim.loopType_)
+   {
+     case Simulate::omp:
+      simulationLoop(sim);
+      break;
+     case Simulate::pdr:
+      simulationLoopParallelDiffusionReaction(sim);
+      break;
+     default:
+      assert(false);
+   }
+
+//free memory
+   heap_deallocate(); //ddcMD_files/src/heap.c
+   MPI_Finalize();
+
+   return 0;
+}
+\end{verbatim}}
+
+
+\subsection{Read-in Input}
+\label{sec:EP_input}
+
+Depending on the settings, it can read-in different types of files. However, the
+main one that it must read is the \verb!object.data! and, if presence,
+\verb!restart! file.
+
+Input file (\verb!object.data!): The input file \verb!object.data! has
+  the format as described in Sect.\ref{sec:EM}. Here, the primary or root object
+  is the SIMULATE object. There can be a \verb!restart! file that, if present,
+  is read after the \verb!object.data! file. The \verb!restart! file is not a
+  regular file, but a symbolic link (created by the command \verb!ln -s!) that
+  point to the actual files somewhere else, e.g. the location of the checkpoint
+  file, which is automatically updated when a new snapshort directory is
+  created. So, we can easily choose which checkpoint file to restart the
+  simulation by changing this symbolic link. This to guarantee that no actual
+  data will be deleted, only pointers to the data.
+\begin{verbatim}
+object.data 
+  // the main file tells the program what to do in 
+  // the SIMULATE object 
+  
+\end{verbatim}
+
+  \verb!ddcMD_files!: these are the files that read object.data file and
+  parse it, as well as do parallel io (PIO). In EM code, the files are moved
+  into \verb!./io! folder. The list of all I/O files are put in the macro of the
+  Makefile \verb!DDCMD_FILES! (both header and source codes). Thus, to extract
+  source code we use
+  \begin{verbatim}
+  DDCMDSRC = $(filter %.c, $(DDCMD_FILES)
+  \end{verbatim}
+  
+  The files were extracted from ddcMD (a domain decomposition molecular-dynamics
+  software package). The package is the first to run atomic-scale model of metal
+  solidfication from the liquid phase with results that were {\it independent of
+  system size}. The code runs on BlugeGene/L, BlueGene/P supercomputers. To
+  evaluate the performance of nuclear weapon systems, scientists must understand
+  how materials behave under extreme conditions (high pressures, temperatures),
+  at which experiments are often difficult or impossible to conduct.
+  Computational models to be used are those validated with experimental data
+  \citep{streitz2006}.
+  
+In order to run the simulation, it may need to read-in the anatomy structure,
+which is specified by the ANATOMY struture and \verb!anatomy! keywrod in the
+SIMULATE structure. By default, the filenames are 
+
+\begin{verbatim}
+snapshot.initial/anatomy#....  
+  //each file contain the anatomy information
+  // each line has
+  //
+  // global_cellID cellType  [x1 .. x8] 0
+  //
+  // with global_cellID is the grid-point 1D-index in the
+  // finite-difference mesh telling which grid-point contains the tissue, 
+  // and also the cell-type for that tissue (100 (Epi),101 (M-cell),102 (Endo))
+   
+\end{verbatim}
+
+
+
+{\small 
+\begin{verbatim}
+void usage_string_output()
+{
+  std::cout << "Usage: exec -t N [-b N2]" << std::endl;
+  std::cout << "N: 1 - fiber problem, 2 - ecg wedge problem, 3 - ecg torso problem" << std::endl;
+  std::cout << "4 - mechanics with pressure constraint, 5 - mechanics with volume constraint" << std::endl << "6 - mechanics test with bar" << std::endl;
+  std::cout << "7 - infarct" << std::endl;
+  std::cout << "8 - ecg wedge problem(parallel version), 9 - ecg torso problem(parallel version) " << std::endl;
+  std::cout << "10 - phase_singularities, 11 - mixed bar" << std::endl;
+  std::cout << "Default N = 5" << std::endl;
+  std::cout << "-b is the option for the bar test, N2: 0 - pressure, 1 - rotation, 2 - contraction" << std::endl << "3 - body force"
+            << std::endl;
+}
+\end{verbatim}
+}
+
+\begin{verbatim}
+parseCommandLineAndReadInput(argc, argv, MPI_COMM_WORLD);
+
+\end{verbatim}
+
+\subsection{Initialize}
+\label{sec:EP_initialize}
+
+Everything is saved in the object of  \verb!Simulate! class.
+\begin{verbatim}
+//initialize simulation   
+   Simulate sim;
+   initializeSimulate("simulate", sim);
+\end{verbatim}
+
+NOTE: Currently, the information is read-in into a global static variable
+\begin{verbatim}
+static int nobject=0, mobject=0;
+static niobject=0, miobject=0;
+static OBJECT* object=NULL;
+static OBJECT **object_list=NULL:
+\end{verbatim}
+GOAL: To remove this and put into regular class.
+
+
+TRICK: The program use a static heap data
+\begin{verbatim}
+static void* heapBuffer=NULL;
+\end{verbatim}
+We specify the amount of heap memory (in bytes) to use (default 500 bytes).
+
+The heap memory is supposed to be quad-aligned, i.e. the heap size should be a
+multiple of 16.
+\begin{verbatim}
+static const int alignOffset = 16;
+
+#define QUAD_WORD_ALIGN_HEAP
+  _heapCapcity = n;
+#if QUAD_WORD_ALIGN_HEAP
+  _heapCapacity = (alignOffset - (_heapCapacity % alignOffset)) % alignOffset;
+  ddcMallocAligned((void*) &heapBuffer, alignOffset, _heapCapacity);
+#else
+  _heapCapcity = ddcMalloc(_heapCapcity);
+#endif
+\end{verbatim}
+
+Here, we also interpret data read-in from object.data file, the
+\verb!object_cc.cc! file wraps the handling of read-in data written in
+\verb!object.cc! to free user from data allocation/free management.
+\begin{enumerate}
+  \item At first, we need to detect the object structure, using the given
+  classname, e.g. SIMULATE
+\begin{verbatim}
+OBJECT * obj = objectFind(name, "SIMULATE");
+\end{verbatim}
+  \item then we can check for the keyword=value[s]
+  
+The function
+\begin{verbatim}
+objectGet(obj, 'keyword-name', output-value, default-value, 
+\end{verbatim}
+can accepts [output-value, default-value] as
+\begin{itemize}
+  \item [string, string]
+  \item [double, string]
+  \item [bool, string]
+  \item [int, string]
+  \item [unsigned, string]
+  \item [uint64\_t, string]
+  \item [int64\_t, string]
+  \item [string, vector<string>]
+  \item [string, vector<int>]
+  \item [string, vector<unsigned>]
+  \item [string, vector<uint64\_t>]
+  \item [string, vector<double>]
+\end{itemize}
+
+For the case [double, string], it accepts one more parameter unitConvertTo 
+\begin{verbatim}
+   doble& value,
+   const string &defVal,
+   const string & unitConvertTo
+\end{verbatim}
+
+\end{enumerate}
+
+where the original function use
+\begin{verbatim}
+object(obj, 'keyword-name', output-value, type, 
+\end{verbatim}
+with \verb!type! can be \verb!WITH_UNITS!
+
+\subsection{Output}
+
+Output: The data are captured using PIO system in the form of  snapshots,
+written in different directories, named \verb!snapshot.xxxxxxxx! (8-digits  the
+simulation loop counter). Each folder contains the different checkpoint  files,
+corresponding to different kinds of data you want to output.   
+  
+
+
+\subsection{Loop}
+\label{sec:EP_loop}
+
+\subsection{Performance Test}
+\label{sec:EP_performanceTest}
+
+It uses 2 pairs of files: PerformanceTimers.cc/hh and
+\verb!PerformanceTimersBGQ.cc/hh!
+\begin{verbatim}
+PerformanceTimers.cc:void  profileInit()
+PerformanceTimers.hh:void profileInit();
+PerformanceTimersBGQ.hh:void profileInitBGQ(void)
+PerformanceTimersBGQ.hh:void (*machineSpecficInit)() = profileInitBGQ; 
+\end{verbatim}
+
+
+\section{EM}	
+\label{sec:EM}
+
+EM is the project for solving a number of problems. The type of problems are
+defined in the \verb!Params.cc/h! files.
+ 
+IMPORTANT MACROS: used in compliling the code
+\begin{verbatim}
+-DWITH_MPI  : to tell if MPI is enabled
+\end{verbatim}
+
+\begin{enumerate}
+  \item \verb!io!: 
+  \begin{enumerate}
+    \item  code for handling I/O in parallel (PIO), see
+  \verb!ddcMD_files! in EP code; and 
+    \item code for parsing input data in \verb!object.data!
+  file, or \verb!restart! file (Sect.\ref{sec:object.data}). 
+  \end{enumerate}
+PLAN: switch to using Boost.Spirit lexer.  
+  
+  \item \verb!mixed!: contain code using mixed solver
+  
+\end{enumerate}
+
+\subsection{Read-in Input}
+
+The expected command-line for running the program.
+{\small \begin{verbatim} 
+Usage: your_excutable [input file]
+\end{verbatim}}
+
+The main object
+\begin{verbatim}
+problem PROBLEM {
+	fiberProblem = fiber;
+	//ecgProblem = ecg;
+	//mechanicsProblem = mechanics;
+	//infarctProblem = infarct;
+	//psProblem = ps; //ps = phase singularities
+\end{verbatim}
+With
+\begin{enumerate}
+  \item fiberProblem (Sect.\ref{sec:fiber_generation})
+\end{enumerate}
+
+The subroutine is \verb!Params::read_input_file()! from \verb!Params.cc! file.
+The main.cc file
+\begin{verbatim}
+int main (int argc, char **argv) {
+   //oomph::CommandLineArgs is the namespace
+   // setup(int argc, char **argv)
+   oomph::CommandLineArgs::setup(argc, argv);
+	
+   MPI_Init (&argc, &argv);
+
+   Params myParam;
+   //each MPI task need to read in the same data
+   myParam.read_input_file(argc, argv, MPI_COMM_WORLD);
+   ....
+}
+\end{verbatim}
+
+
+At first, it check how many
+files passed to the program and read all of them.
+
+By default, if there is no argument, at least one file must be used as the input
+which is \verb!object.data! by default. We need to define 
+\begin{verbatim}
+Params.h / Params.cc
+ProblemParams.h / ProblemParams.cc
+\end{verbatim}
+they are put in the namespace \verb!cardiac_mechanics!.
+ {\small
+\begin{verbatim}
+#ifndef _PARAMS_H
+#define _PARAMS_H
+
+#include <string>
+
+#ifdef WITH_MPI
+#include <mpi.h>
+#endif
+
+namespace cardiac_mechanics
+{
+  class Params {
+  public:
+    enum ProblemType {FIBER = 0, ECG=1, MECHANICS=2, 
+           INFARCT=3, PHASE_SINGULARITIES=4};
+    Params(void);
+    void read_input_file(int argc, char** argv, MPI_Comm comm);
+    int get_problem_type(std::string &keyword, std::string &value);
+  private:
+    //a list of valid keywords in the PROBLEM class
+      static const char* const problemClass[];
+      ProblemType ptype_;
+  }; 
+}
+   
+#endif
+\end{verbatim}
+}
+
+Here, we define different problem we need to solve: FIBER, ECG, MECHANICS,
+INFARCT, etc. We can add more simulation type, for each type, we need to
+specify a proper configuration in the object.data file
+{\small
+\begin{verbatim}
+#include ``Params.h''
+namespace cardiac_mechanics
+{
+  const char* const Params::problemClass[] = {``fiberProblem'',
+  ``ecgProblem'', ``mechanicsProblem'', ``infarctProblem'', ``psProblem''} }
+\end{verbatim} 
+}
+NOTE: The order of what we define here must match order of \verb!ProblemType!
+enum. \textcolor{red}{What each problem does?}
+  
+
+The input to the simulation is always the \verb!object.data! file. To parse the
+data we use codes in \verb!io! folder: \verb!objects.c/h! which define
+functions like \verb!object_set()!, \verb!object_compile()!.
+
+{\small
+\begin{verbatim}
+int Params::read_input_file(argc, argv, MPI_Comm comm)
+{
+  int myRank;
+  std::string input_file(``object.data'');
+  
+  MPI_Comm_rank(comm, &myrank);
+  if (argc !=2 && argc != 1){
+    //to make sure only printing out on the root process
+    //we check with myRank == 0
+    if (myRank == 0){
+      std::cout << ``Usage: your_executable [input-file] << std::endl;
+    }
+  }
+  if (argc == 2) then {
+     std::string argFile(argv[2]);
+     input_file = argFile;
+  }
+  
+  //parse input file 
+  object_set(``files'', input_file.c_str());
+  object_compile();
+}
+\end{verbatim} } 
+  
+
+ Then, depending on the information we parse from the \verb!object.data! files,
+ i.e. the problem type, we choose a proper system setting through the
+ \verb!ProblemParam! class.
+\begin{verbatim}
+ ### main()
+ 
+ std::string obj_name;
+ std::string obj_class;
+ int ptype = myParams.get_problem_type(obj_class, obj_name);
+ 
+  ProblemParams pinput = ProblemParams(obj_class, obj_name);
+\end{verbatim}
+  
+
+The problem-type is read in
+  {\small \begin{verbatim}
+  ##main.cc
+  std::string obj_name;
+  std::string obj_class;
+  int ptype = myParams.get_problem_type(obj_class, obj_name)
+  
+  int Params::
+  get_problem_type(std::string &keyword, std::string &value)
+  {
+    if (!object_exists(``problem'', ``PROBLEM'')){
+       std::cout << ``Cannot find PROBLEM block \n'';
+       exit(-1);
+    }
+    OBJECT*obj = object_find(``problem'', ``PROBLEM'')
+    
+  }
+  \end{verbatim} }
+  
+\section{Parsing object.data file}
+\label{sec:object.data}
+  
+\subsection{Data format}
+
+An example of the \verb!object.data! file
+  {\small
+  \begin{verbatim}
+// An example of object.data
+  
+problem PROBLEM{
+  mechanicsProblem = mechanics;
+}
+  
+mechanics MECHANICSPROBLEM{
+  type = barTest; //volume, barTest 
+  mixed = 1; // choose solver:  0=SolidLinearSystem; 1=MixedLinearSystem 
+  barTestType = 1; 
+     //for barTest &  barMixedTest: choose either
+     // pressure(0), rotation(1), contraction(2) or body force(3)
+}
+\end{verbatim} 
+} 
+This file follow C-style and C++-style comments. All identifiers are 
+case-sensitive. 
+  
+The file is a number of 'object' blocks which is in the form
+{\small \begin{verbatim}
+ObjectName CLASSNAME{
+  keyword1 = value1;
+  keyword2 = value2;
+  keyword3 = value3.1 value3.2 value3.3;
+  ...
+}
+\end{verbatim}}
+By convention, the object name are mixed-case, while the class-name are ALL
+CAPS. 
+
+Information contained in a block is a number of lines. Each line completes
+with a semi-colon (;) and is in the form
+\begin{verbatim}
+keyword=value1 [ value2 [ value3]]; 
+\end{verbatim}
+So, a value here can be a string, float, integer, or a vector of scalar values.
+The name set of keywords are open and arbitrary, i.e. programmers need to take
+care how to interpret them. Unit can also be following the value
+\begin{verbatim}
+diffusionScale = 714 mm^3/mF;
+\end{verbatim}
+
+The order of these 'object' blocks are not important. If the two 'object' blocks
+with the same name and Classname, then the keyword value lists are concatenated. If a
+single keyword \verb!keywordX! appears multiple times in one block, the last
+\verb!keywordX=valueY! is accepted.
+
+In C code, to keep these information, we define OBJECT struct to keep one
+'object' block
+\begin{verbatim}
+typedef struct object_st {
+  char *name;
+  char *objclass;
+  char *value;
+  char *valueptr;
+  struct object_st *parent;
+} OBJECT;
+  \end{verbatim}
+  
+Eventually, all the read-in data are stored in a global static variable
+\begin{verbatim}
+static OBJECT *object = NULL;
+static OBJECT **object_list = NULL;
+
+static int nobject = 0, mobject = 0;
+static int niobject= 0, miobject = 0;
+\end{verbatim}
+
+\subsection{Utilities}
+
+Here is the code \verb!object.c/h!
+  
+{\small \begin{verbatim} 
+#ifndef _OBJECT_H
+#define _OBJECT_H
+
+#include <stdio.h>
+
+#ifdef __cplusplus
+extern ``C''
+{
+#endif
+
+void object_set(const char *get, ...)
+
+
+#ifdef __cplusplus
+}
+#endif
+\end{verbatim} }
+
+There can be one or more files containing the structure like \verb!object.data!,
+e.g. \verb!restart! file. The list of these files is read in by
+\verb!object_set()!. \verb!object_set()! reads in ether (1) a single string that
+contains one or more file names (separated by one or more white-spaces), or (2)
+a number of arguments (each argument is a string of file name). The array of
+filenames are saved into
+\begin{verbatim}
+static char *filenames[] = { "object.data", NULL, NULL, NULL, NULL, 
+        NULL, NULL, NULL, NULL };
+\end{verbatim}
+
+Example 1: approach 1st (use in EP) 
+\begin{verbatim}
+// parse input file
+string objectFile("object.data");
+string restartFile("restart");
+string inputFiles = objectFile;
+
+if (filetest(restartFile.c_str(), S_IFREG) == 0)
+   inputFiles += " " + restartFile;
+
+object_set("files", inputFiles.c_str());
+\end{verbatim}
+ 
+\verb!object_compile()! (to parse the contents in all these files, and save into
+appropriate data structure).
+\begin{verbatim}
+static OBJECT *object = NULL;
+static OBJECT **object_list = NULL;
+\end{verbatim}
+What \verb!object_compile()! does is to loop through the files, call
+\verb!object_compilefile(filename)! to read in the data from that file.
+\begin{verbatim}
+void object_compile(void){
+  int k;
+  ...
+  for (k=0; k<nfiles; k++){
+     object_compilefile(filename[k]);
+  }
+}
+\end{verbatim}
+
+\verb!object_compilefile()! then decide to read from which block to which block
+in the file, i.e. \verb!object_compilefilesubset(filename, first, last)!. By
+default, it reads from first block to the last block (by default). This is
+actually the {\bf parser}.
+\begin{verbatim}
+void object_compilefile(const char* filename)
+{
+  // 0x7fffffff = the maximum number in INT32
+  // NOTE: The min value (-,147,483,648) is 0x80000000
+  object_compilefilesubset(filename, 0, 0x7fffffff);
+}
+\end{verbatim}
+which save the opening file into the structure OBJECTFILE (filename and the
+pointer to file handle (FILE*).
+\begin{lstlisting}
+typedef struct {
+   FILE* file;
+   char* name;
+} OBJECTFILE
+
+void object_comilefilesubset(const char* filename, int first, int last)
+{ //read from line 'first' to line 'last' in the file
+  char*line; 
+  OBJECTFILE file;
+  
+  file = object_fopen(filename, "r");
+  n = 0;
+  
+  if (file.file != NULL) {
+  //here it doesn't read the single line
+  //but considered the whole object as a single line
+  //(as newline characters in between are removed)
+     while ((line = object_read(file)) != NULL) {
+   	   if (n >= first) { //read this line
+   	     object_compilestring(line);
+   	     if (++n > last) break; //exit the loop        
+   	   }  
+     }
+  }
+  object_fclose(file);
+}
+\end{lstlisting}
+
+NOTE: It may be confused that $n$ represent the line-number. Indeed, it
+represents the block-index. Here, each 'object' block is read-in using the
+function \verb!object_read()!, reads in from the current cursor position to
+the next '\}' character, and returns as a single string (i.e.
+\textcolor{red}{all new-line characters are converted to white-space}). When we
+have a presumably syntax-correct object block (NOTE: anything after // is
+considered comment and are ignored), we parse the information inside using
+\verb!object_compilestring(line)! which is actually the {\bf lexer}.
+{\small \begin{verbatim}
+char *object_read(OBJECTFILE ofile)
+{
+  FILE *file;
+  static char *line = NULL;
+  static int nline = 0; 
+  int n, c, len, nitems, offset;
+  file = ofile.file;
+  n = 0; 
+  c = getc(file);
+  while (!feof(file))
+  {  
+    while (nline < n + 5) 
+    {
+      nline += 256; 
+      line = (char*) Realloc(line, nline);
+    }
+    switch (c)
+    {
+    case '"': 
+      line[n++] = (char)c;
+      c = getc(file);
+      int quoteStart = n; 
+      while (c != '"') 
+      {
+        if (nline < n + 5 )
+        {
+          nline += 256; 
+          line = (char*) Realloc(line, nline);
+        }
+        line[n++] = (char)c;
+        c = getc(file);
+        if (c==EOF) 
+        {
+          int lEnd = MIN(quoteStart+1,n);
+          line[lEnd]='\0';
+          error_action("String termination  for string in line starting with:\n\n****" , line  ,"****\n\n not found in object file : ", ofile.name, ERROR_IN("object_read", ABORT));
+        }
+      }
+      break;
+    case '/':
+      c = getc(file);
+      int commentStart = n;
+      int m=n;
+      switch (c)
+      {
+        case '*':
+        c = getc(file);
+        char clast = c;
+        while (c != EOF)
+        {
+          if (c == '/'  && clast == '*') {c = ' '; break;}
+          clast = c;
+          c = getc(file);
+          m++;
+        }
+        if (c==EOF)
+        {
+          int lEnd = MIN(commentStart+2,m);
+          line[lEnd]='\0';
+          error_action("Comment termination of (/*) in line starting with:\n\n****",line,"****\n\n not found in object file : ", ofile.name, ERROR_IN("object_read", ABORT));
+        }
+        break;
+        case '/':
+        clast = c = getc(file);
+        while (c != EOF)
+        {
+          if (c == '\n'  && clast != '\\') {c = ' '; break;}
+          clast = c;
+          c = getc(file);
+          m++;
+        }
+        if (c==EOF)
+        {
+          int lEnd = MIN(commentStart+2,m);
+          line[lEnd]='\0';
+          error_action("Comment termination of (//) in line starting with:\n\n****",line,"****\n\n not found in object file : ", ofile.name, ERROR_IN("object_read", ABORT));
+        }
+        break;
+        default:
+        ungetc(c, file);
+        c = '/';
+        break;
+      }
+      break;
+    case '\n':
+      c = ' ';
+      break;
+    case '\t':
+      c = ' ';
+    case ' ':
+      break;
+    case '{':
+      break;
+    case '}':
+      break;
+    case '\\':
+      c = (char)getc(file);
+      switch (c)
+      {
+      case 'n':
+        c = '\n';
+        break;
+      case 't':
+        c = '\t';
+      }
+      break;
+    case '$':
+      c = (char)getc(file);
+      switch (c)
+      {
+      case 'S':
+        nitems = fscanf(file, "%d", &offset);
+        c = (char)getc(file);
+        while (!isgraph(c))
+        {
+           if (feof(file)) return NULL;
+          c = (char)getc(file);
+        }
+        long first = ftell(file) - 1;
+        if (nitems > 0) fseek(file, offset, SEEK_CUR);
+        while (c != ';' && c != '}')
+        {
+          if (feof(file)) return NULL;
+          c = (char)getc(file);
+        }
+        long last = ftell(file) - 1;
+        len = strlen(ofile.name);
+        while (nline < n + len + 1 + 2 + 64)
+        {
+          nline += 256;
+          line = (char*) Realloc(line, nline);
+        }
+        len = sprintf(line + n, "%s@%ld-%ld", ofile.name, first, last);
+        n += len;
+        break;
+      case 'B':
+        line[n++] = '$';
+        break;
+      }
+      break;
+    case ';':
+      break;
+    default:
+      break;
+    }
+    line[n++] = (char)c;
+    if (c == '}')
+    {
+      line[n++] = 0x0;
+      trim(line);
+      return line;
+    }
+    c = (char)getc(file);
+  }
+  return NULL;
+}
+\end{verbatim}}
+
+
+To interpret the block
+\begin{lstlisting}
+void object_compilestring(char *string)
+{
+  OBJECT obj;
+  char *line;
+  int rc, i, l;
+  
+  line = strdup(string);
+  rc = object_lineparse(line, &obj);
+  if (rc < 2) {
+    //do something
+  }
+}
+\end{lstlisting}
+
+Here, the work is done by \verb!object_lineparse()! function to
+extract the object value+classname, as well as keywords and the associated
+values.
+\begin{verbatim}
+typedef struct object_st {
+  char *name;
+  char *objclass;
+  char *value;
+  char *valueptr;
+  struct object_st *parent;
+} OBJECT;
+
+int object_lineparse(char *line, OBJECT *object)
+{
+  char *tok, *last, *end;
+  last = NULL;
+  int rc, l;
+  
+  rc = 0;
+  trim(line);
+  object_check(line);
+  end = line+strlen(line);
+  *tok = '\0';
+  tok++; 
+  l = strlen(tok);
+    if (tok[l-1] != '}' )  rc += 8;
+    tok[l-1] = '\0'; 
+    object->value = strdup(tok); 
+    tok = strtok_r(line, " ",&last);
+    object->name = strdup(tok);
+    tok = strtok_r(NULL, " ",&last);
+    object->objclass = strdup(tok);
+
+    trim(object->name);
+    trim(object->objclass);
+    trim(object->value);
+    if (object->value != NULL)
+    {
+        l = strlen(object->value);
+        if (l>0 && object->value[l - 1] != ';')
+        {         
+            object->value = (char*) Realloc(object->value, l + 2);
+            strcat(object->value, ";");
+        }
+    }
+    if (object->name == NULL) rc += 4; 
+    if (object->objclass == NULL) rc += 2;
+   if (object->value == NULL) rc += 1;
+    return rc;
+  
+}
+\end{verbatim}
+
+Eventually, all the read-in data are stored in a global static variable
+\begin{verbatim}
+static OBJECT *object = NULL;
+static OBJECT **object_list = NULL;
+
+static int nobject = 0, mobject = 0;
+static int niobject= 0, miobject = 0;
+\end{verbatim}
+
+
+then we compile it 
+\begin{verbatim}
+object_compile();
+\end{verbatim}
+
+  
+There are utilities function to deal with this data
+\begin{enumerate}
+  \item To check for the existence of an object, we look for ObjectName and
+  CLASSNAME. The list of objects are saved in the global array
+  \verb!object! with each element of type OBJECT
+  
+\begin{verbatim}
+int object_exist(const char* name, const char *objclass)
+{
+   int i;
+   for (i = 0; i < nobject; i++){
+   if (!strcmp(object[i].name, name) &&
+       !strcmp(object[i].objclass,objclass)) return 1; //found
+   }
+   return 0; //not found
+}
+\end{verbatim}
+    
+    \item 
+  \end{enumerate}
+  
+The content of all these files are parsed using
+\begin{verbatim}
+object_compile()
+\end{verbatim}
+Then, in an MPI application, we only want the root process (rank=0) to parse,
+and it will broadcast to all other process using \verb!object_Bcast()!
+\begin{verbatim}
+if (myRank == 0)
+{
+   object_set();
+   object_compile();
+}
+#ifdef WITH_MPI
+  object_Bcast();
+#endif
+\end{verbatim}
+To send a package to other process, we need to pack in into a structure called
+\verb!PACKBUF!, using \verb!object_pack()! where the child processes can read-in
+using \verb!object_unpack()!
+\begin{verbatim}
+typedef struct pack_buf_st
+{
+    int n, nobject,mobject;
+    char *buffer;
+} PACKBUF;
+
+void object_Bcast(int root, MPI_Comm comm)
+{
+    PACKBUF buf;
+    buf.buffer=NULL;
+    int myRank;
+    MPI_Comm_rank(comm, &myRank);
+    if (myRank==root) object_pack(&buf);
+    MPI_Bcast(&buf,3,MPI_INT,root,comm);
+    buf.buffer=Realloc(buf.buffer,buf.n);
+    MPI_Bcast(buf.buffer,buf.n,MPI_CHAR,root,comm);
+    if (myRank!=root) object_unpack(&buf);
+    Free(buf.buffer);
+}
+\end{verbatim}
+
+
+  
+\section{How to code a problem EM}
+  
+  
+There are two types of solvers that we can choose to solve: Solid-Linear and 
+Mixed-Linear. Let's notice the common theme for codes using the same solver to
+solve different problems.
+
+To know the which problem to solve
+\begin{verbatim}
+std::string obj_name;
+std::string obj_class;
+int ptype = myParams.get_problem_type(obj_class, obj_name);
+\end{verbatim} 
+
+The steps to define in the constructor of a problem of type oomph::Problem
+\begin{enumerate}
+  \item timestep (if required)
+\begin{verbatim}
+Problem::add_time_stepper_pt(new SomeTimeStepper());
+\end{verbatim}  
+
+  \item the Mesh (which may requires passing an element type)
+\begin{verbatim}
+Problem::mesh_pt() = new SomeMesh<SomeElement>(...); 
+\end{verbatim}  
+
+  \item The boundary condition (by default: all nodal values are free and
+  initial values are initialized to zeros, so we only need to 'pin' the values
+  at boundary)
+\begin{verbatim}
+// at a node, for a value of zero
+ Problem::mesh_pt()->node_pt(0)->pin(0); 
+ 
+// at a ode, for a particular
+val = 1.0
+//using zero-based index
+Problem::mesh_pt()->node_pt(0)->set_value(0,val); 
+\end{verbatim}
+  
+  \item Add any further information to mesh element. The reason is that the
+  constructor of mesh class accept no argument (to allow generic implementation
+  of the mesh creation process). Thus, to add like global variable to each mesh
+  element, we need to define a suitable access function to the mesh element, and
+  pass the global variable to this function call.
+  
+  \item Assign global and local equation
+\begin{verbatim}
+// a generic functioin
+Problem::assign_eqn_numbers(); 
+\end{verbatim}  
+
+  \item By default, the solver is assumed to solve a non-linear problem. With
+  linear problem, there are some steps that can be avoided. To save time, we
+  just set
+\begin{verbatim}
+bool oomph::Problem::Problem_is_nonlinear
+\end{verbatim}  
+to \verb!false! for solving a linear problem.
+
+  \item Call the proper solver
+\begin{verbatim}
+// Solve the problem, using oomph-lib's default Newton solver
+problem.newton_solve();
+\end{verbatim}  
+This is a black-box
+\footnote{\url{http://oomph-lib.maths.man.ac.uk/doc/order_of_action_functions/html/}}.
+During Newton iteration, sometimes we want to perform certain additional tasks,
+e.g. to analyze the convergence (or divergence) of the iteration. At key stages
+of this solving, \verb!oomph::Problem! already provides some \verb!virtual!
+empty member functions so that users can override them.
+
+The two pure virtual function need to be implemented, though they can be defined
+as empty
+\begin{verbatim}
+// often used to update boundary condition
+// when performing parameter studies
+Problem::actions_before_newton_solve() 
+
+
+// to perform post processing
+// when a solution has been obtained
+Problem::actions_after_newton_solve()
+\end{verbatim}
+
+  \item Synchronize
+\begin{verbatim}
+//synchronise the solution on different processors (on each submesh)
+problem.synchronise_all_dofs();
+\end{verbatim}
+
+
+\end{enumerate}
+
+
+
+\subsection{Volume Constraint}
+
+\begin{verbatim}
+void
+calculate_mechanics_volume_constraint(ProblemParams& pinput, CardiacActivationType read_calcium_from_file = CardiacActivationType_Regular, int readerArg = 0)
+{
+
+  // Set up the problem, we are using active anisotropic elelements
+  const bool read_tensors = false; 
+  VentricularProblem<MechanicsElementFactoryBasicModel<ArtsFilamentModel> > problem(read_tensors, read_calcium_from_file);
+  std::string sensor_file;
+  pinput.get_value("sensorFileName", sensor_file, "sensor.txt");
+  problem.volume_constraint_simulation(LumpedCirculatoryModel,
+                                       read_calcium_from_file, readerArg, sensor_file);
+
+}
+\end{verbatim}
+  
+\subsection{BarTest- ! Mixed}
+  
+\subsection{BarTest - Mixed}
+  
+Consider simulate \verb!barTest! with mixed-linear solver (mixed=1).
+  \begin{verbatim}
+void
+calculate_mechanics_test_with_bar_mixed(ProblemParams& pinput, BarTestType test)
+{
+  HBarProblem<HElementFactory<BasicActiveModel> > problem;
+  problem.set_simulation_type(test);
+  problem.initialize();
+  problem.simulation();
+}
+  \end{verbatim}
+with 'H' = hybrid.
+
+We need to define the HBarProblem class
+\begin{verbatim}
+template <class FACTORY>
+class HBarProblem :  public BlockMixedLinearProblem
+//public BlockSolidLinearSystemProblem
+{
+
+protected:
+  void rotation(double angle);
+  void shift(double shift);
+  virtual void initialize_const_law();
+  CardiacMechanicsMesh<FACTORY>* get_mesh();
+
+  double& get_pressure();
+  GravityFct get_gravity();
+
+public:
+
+  HBarProblem():
+    rotation_(false), smoothed_vectors_(false)
+  {};
+
+
+  void set_simulation_type(BarTestType test);
+
+  virtual void initialize();
+
+  void doc_solution(CardiacDocInfo& doc_info,
+                    bool need_only_node_value = false, unsigned n_variables = 4);
+
+  virtual void simulation();
+
+  void set_rotation_test(bool rotation);
+
+  void use_smooth_vectors() {
+    smoothed_vectors_ = true;
+  }
+\end{verbatim}
+with 
+\begin{verbatim}
+// mixed/BlockMixedLinearProblem.cc
+class BlockMixedLinearProblem : public BlockSolidLinearSystemProblem
+{
+
+}
+\end{verbatim}
+witth 
+\begin{verbatim}
+// BlockSolidLinearSystemProblem
+class BlockSolidLinearSystemProblem : public BlockLinearSystemProblem
+{
+public:
+}
+\end{verbatim}
+with
+\begin{verbatim}
+class BlockLinearSystemProblem: public DistributedProblem
+{
+public
+}
+\end{verbatim}
+with
+\begin{verbatim}
+class DistributedProblem: public oomph::Problem
+{
+public:
+  virtual unsigned long assign_eqn_numbers(const bool &assign_local_eqn_numbers = true);
+  
+  void add_mesh(CardiacDistributedMesh *mesh) {
+    submeshes_.push_back(mesh);
+    Problem::add_sub_mesh(mesh);
+  }
+
+  unsigned get_n_submeshes() {
+    return submeshes_.size();
+  }
+   
+  CardiacDistributedMesh* get_submesh(unsigned index) {
+    return submeshes_[index];
+  }
+    
+private:
+  std::vector<CardiacDistributedMesh*> submeshes_;
+};
+\end{verbatim}
+
+\subsection{Heart Infarct}
+  
+\begin{verbatim}
+void
+calculate_infarct(ProblemParams& pinput)
+{
+  const bool read_tensors = true;
+  ActiveModel::get_transverse_tension() = true;
+  VentricularProblem<MechanicsElementFactoryBasicModelOrt<ArtsFilamentModel> > problem(read_tensors, CardiacActivationType_ActivationTime);
+  std::string sensor_file;
+  pinput.get_value("sensorFileName", sensor_file, "sensor.txt");
+  problem.volume_constraint_simulation(LumpedCirculatoryModel,
+                                       CardiacActivationType_ActivationTime, 0, sensor_file);
+}
+\end{verbatim}   
+
+\subsection{Heart Infarct - Mixed}
+
+\begin{verbatim}
+void
+calculate_mixed_infarct(ProblemParams& pinput)
+{
+  const bool read_tensors = true;
+  ActiveModel::get_transverse_tension() = true;
+  HVentricularProblem<HElementFactoryOrt<ArtsFilamentModel> > problem(read_tensors, CardiacActivationType_ActivationTime);
+  std::string sensor_file;
+  pinput.get_value("sensorFileName", sensor_file, "sensor.txt");
+  problem.volume_constraint_simulation(LumpedCirculatoryModel,
+                                       CardiacActivationType_ActivationTime, 0, sensor_file);
+}
+\end{verbatim}
+  
+\subsection{VentricularProblem.cc}
+  
+This file contains the code to solve 
+\begin{verbatim}
+void 
+\end{verbatim}
+  
+\subsection{Generate Fibers (meshes + gradients)}
+\label{sec:fiber_generation}
+
+The class to deal with the problem is \verb!FiberGenerationProblem.cc/.h!. 
+This class uses information from a mesh and a Poission function
+\begin{verbatim}
+FiberGenerationMesh* Ventricular_mesh_pt;
+oomph::PoissonEquations<dimension>::PoissonSourceFctPt Source_fct_pt;
+\end{verbatim}
+
+Here is the main() code
+\begin{lstlisting}
+  Params myParams;
+  //Parse the input to firgure out the problem type
+  // Should call read_input_file exactly once for each MPI task
+  myParams.read_input_file(argc, argv, MPI_COMM_WORLD);
+  std::string obj_name;
+  std::string obj_class;
+  int ptype = myParams.get_problem_type(obj_class, obj_name);
+// pinput will contain all the related parameters for the ptype problem
+ProblemParams pinput = ProblemParams(obj_class, obj_name);
+
+  switch(ptype) {
+  
+  case Params::FIBER :
+    oomph::oomph_info << "Generating fibers ..."  << std::endl;
+    generate_fibers(pinput);
+    break;
+  }
+  
+//FiberGenerationProblem.cc/h
+void generate_fibers(ProblemParams& pinput );
+\end{lstlisting}
+
+The function uses \verb!FiberGenerationProblem! which is a child of
+\verb!DistributedProblem! which is a child of \verb!oomph::Problem!.
+\begin{verbatim}
+void generate_fibers(ProblemParams& pinput)
+{
+  FiberGenerationProblem fg(pinput); 
+  fg.fiber_generation();
+}
+\end{verbatim}
+IMPORTANT: Every problem is a derivative of \verb!oomph::Problem!.
+
+\begin{lstlisting}
+FiberGenerationProblem:: public DistributedProblem
+{
+private:
+
+  void setup_solver();
+
+  void clear_boundary();
+  void pin_boundary(unsigned boundary);
+  void set_boundary_value(unsigned boundary, double value);
+  void set_boundary(bool is_pin);
+
+  static const unsigned dimension = 3;
+
+  /// \short Tetgen ventricular mesh.
+  FiberGenerationMesh* Ventricular_mesh_pt;
+  oomph::PoissonEquations<dimension>::PoissonSourceFctPt Source_fct_pt;
+
+  unsigned generation_phase_;
+};
+
+class DistributedProblem: public oomph::Problem
+{ 
+  void add_mesh(CardiacDistributedMesh *mesh) {
+    submeshes_.push_back(mesh);
+    Problem::add_sub_mesh(mesh);
+  }
+  
+  unsigned get_n_submeshes() {
+    return submeshes_.size();
+  }
+  
+  CardiacDistributedMesh* get_submesh(unsigned index) {
+    return submeshes_[index];
+  }
+
+private:
+  std::vector<CardiacDistributedMesh*> submeshes_;
+};
+\end{lstlisting}
+Here, we use distributed approach so that each node can process a region of the
+mesh.
+
+At first, we need to modify the constructor to read-in the input information
+from the object file, and make necessary setup for the problem
+\begin{verbatim}
+//constructor
+void FiberGenerationProblem::
+FiberGenerationProblem(...) 
+{
+//Setup the solver
+  this->setup_solver() ; //check below
+  Newton_solver_tolerance = 1.0e-6;
+  //this is required for Poisson problem
+  Source_fct_pt = fiber_problem::source_function;
+
+{
+....//read in information from object.data
+}
+
+
+//Create the mesh from 3 files
+// these three files are generated using TetGen
+  this->Ventricular_mesh_pt = new FiberGenerationMesh('fiber.node', 
+            'fiber.ele', 'fiber.face');
+// Solid bulk mesh
+  this->add_mesh(Ventricular_mesh_pt);
+// oomph::Problem::build_global_mesh()
+// to build  global mesh by combining all the submeshes
+// which are passed as a vector of pointers to the submeshes
+  this->build_global_mesh();
+//NOTE: if one of the submesh has changed, we need to rebuild
+//using oomph::Problem::rebuild_global_mesh()
+}
+
+class FiberGenerationProblem : public DistributedProblem
+{
+private:
+  FiberGenerationMesh * Ventricular_mesh_pt;
+  oomph::PoissonEquation<dimension>::PoissonSourceFctPt Source_fct_pt;
+}
+\end{verbatim}
+
+The mesh to be generated is Tetgen which is defined in
+\verb!FiberGenerationMesh!
+\begin{verbatim}
+class FiberGenerationMesh: public virtual CardiacDistributedMesh,
+  public virtual AnisotropicMesh
+{
+ ...
+private:
+  unsigned phase_;
+}
+
+class CardiacDistributedMesh:
+  public virtual MeshWithEnumeratedNodes
+{ 
+
+protected:
+  oomph::TimeStepper *Time_stepper_pt;
+  static const unsigned number_of_tet_vertices_ = 4;
+  static const unsigned number_of_tet_edges_ = 6;
+  static const unsigned number_of_edge_vertices_ = 2;
+
+private:
+  bool quadratic_;
+}
+
+class MeshWithEnumeratedNodes: public virtual oomph::Mesh
+{  
+protected:
+  std::vector<std::pair<unsigned, oomph::Node*> > sorted_nodes;
+
+private:
+  unsigned n_vertex_nodes_;
+};
+
+class AnisotropicMesh : public virtual MeshWithDataAtIntegrationPoints
+{
+protected:
+  /// \short Action after data initialization in integration points for element.
+  ///
+  /// We precalculate transformation tensors in integration points of anisotropic elemenent
+  void after_initialization_data_at_integration_points(oomph::GeneralisedElement* const finite_element);
+
+private:
+  bool read_vectors_;
+};
+
+class MeshWithDataAtIntegrationPoints: public virtual MeshWithEnumeratedNodes
+{
+protected:
+  /// \short Action after data initialization in integration points for element.
+  virtual void after_initialization_data_at_integration_points(oomph::GeneralisedElement* const) = 0;
+};
+\end{verbatim}
+
+
+
+
+\begin{lstlisting}
+void FiberGenerationProblem::
+setup_solver() 
+{
+  oomph::HypreSolver* hypre_linear_solver_pt = new oomph::HypreSolver;
+
+  ...
+  this->linear_solver_pt() = hypre_linear_solver_pt;
+  this->Max_residuals = 100000; //the maximum desired residual (program exit if 
+  //the maximum residual exceeds this value.
+}
+\end{lstlisting}
+
+
+\textcolor{red}{\bf MAIN STAGE}: Here, a very important function
+\verb!FiberGenerationProblem::fiber_generation()! which goes through a number of
+steps
+\begin{enumerate}
+  \item Generate gradient from LV endo(0) to epi(1)
+
+  \item Generte gradient from RV endo(0) to epi(1)
+  
+  \item Generate gradient from LV endo(0), RV endo(1), to epi(2)
+  
+  \item Map ventricles
+  
+  \item Smoothing between LV and RV 
+  
+  \item Smoothing trabecular vs. the bulk
+  
+  \item Trabecular fiber vectors
+  
+  \item Final fiber generations
+  
+  \item M-cellgeneration
+  
+  \item Smoothing M-cells
+  
+  \item Generating mesh (the most important part)
+\end{enumerate}
+
+Let's take one phase as example
+\begin{verbatim}
+const bool is_pin = true;
+oomph::oomph_info << "################Gradient from endo (0) to epi (1) ##########" << std::endl;
+  {
+    // saving transmural gradeint magnitude
+    generation_phase_ = 0;
+    this->set_boundary(is_pin);
+    unsigned long eqn_number = this->assign_eqn_numbers();
+    oomph::oomph_info << "Phase 0, Number of equations: " << eqn_number << std::endl;
+
+    this->newton_solve();
+    this->doc_solution(doc_info, true);
+    doc_info.number()++;
+    this->synchronise_all_dofs();
+
+    Ventricular_mesh_pt->calculate_gradient();
+    const unsigned output_scalar_index = 3;
+    Ventricular_mesh_pt->save_gradient_magnitude_to_scalar(output_scalar_index, this);
+    Ventricular_mesh_pt->zero_node_values();
+  } 
+\end{verbatim}
+
+
+The object structure
+\begin{verbatim}
+fiber FIBERPROBLEM {
+
+}
+\end{verbatim}

@@ -1,0 +1,1196 @@
+\chapter{C++ Pointers}
+
+\section{::operator new, ::operator new[]}
+
+\subsection{C++: notice}
+
+In C++, we can allocate raw memory using the C-based functions (malloc(),
+calloc(), \ldots - Sect.\ref{sec:malloc()}) for backward compatibility.
+In C++ compiler, the header file to those functions is \verb!<cstdlib>!.
+
+
+However, these C-based functions return a generic pointer \verb!void*!. The lack
+of a specific pointer type returned is considered as type-unsafe by many
+programmers. Also, the allocation is based on number of bytes, not the number of
+objects or data elements, which is not straight forward convention in C++.  
+
+\begin{mdframed}
+
+For backward compatibility with C code, to dynamically allocate memory, in C++,
+we can use C functions,  \verb!malloc!, \verb!calloc!, \verb!realloc! and
+\verb!free! by including the <cstdlib> header file (Sect.\ref{sec:malloc()}).
+
+However, it is important to know that C++ does not allow implicit type-cast;
+instead, programmers need to call dynamic-cast function to cast from
+\verb!void*! to a specific type.
+
+\end{mdframed}
+
+
+As C++ is a strong-type language, so type-casting is always recommended.
+In C++, it's more convenient to think the number of dynamically objects, rather
+than the total number of bytes all these objects occupy.
+
+C++ languages thus provides a few new functions to allocate/free memory, e.g.
+new or new[], delete or delete[]. Sect.\ref{sec:operator-new-C++}).
+
+Also, C++ DOES NOT allow implicit casts from void * to other pointer types.
+This prevents most C code from compiling under a C++ compiler, particularly if
+the C code contains calls to malloc(). To resolve that issue, C++ introduced some
+new operators for dynamic type-casts (Sect.\ref{sec:type-cast-C++}) such as 
+\verb!reinterpret_cast! (Sect.\ref{sec:reinterpret_cast}).
+
+ 
+\subsection{C++11: new operator  vs. ::operator new(...) }
+\label{sec:new-operator}
+
+C++ supports dynamic allocation of objects using the \verb!new! operator. The \verb!new!
+operator allocate memory for objects from a pool called the free store. Behind the scene, the new
+operator calls the special function \verb!::operator new! (Sect.\ref{sec:operator-new-C++}).
+ 
+Example: \verb!new! operator allocate one object, which may takes a few number
+of bytes.
+The 'new' expression which knows how many bytes it needs, then pass that value
+to 'operator new' to allocate raw memory, then after that, it evokes the object's constructor next.
+
+\begin{verbatim}
+Apple * p = new Apple(); //new expression using the constructor Apple()
+ 
+Apple * p = new Apple("gala"); //new expression using the constructor Apple(std::string)
+
+\end{verbatim}
+
+  
+%\section{C++: 'new' operator}
+\subsection{::operator new (C++)}
+\label{sec:operator-new-C++}
+
+
+SYNTAX: We optionally can use \verb!::! at the front which explicitly referring to the global-scope operator 
+\verb!new!.
+\begin{verbatim}
+#include <new>
+
+[::] "new" ["(" expression-list ")"] {new-type-id | "(" type-id ")"} ["(" expression-list ")"]
+[::] "delete" ["[]"] cast-expression
+
+void *operator new (size_t);
+void operator delete (void *);
+void *operator new[] (size_t);      // for arays
+void operator delete[] (void *);
+\end{verbatim}
+
+\verb!::operator new! below just allocate raw memory, by telling it the number
+of bytes; and no object's constructor is called [which is evoked by the new
+operator] (Sect.\ref{sec:new-operator}).
+
+\begin{verbatim}
+void* mem = operator new(sizeof(apple)); //just like calling malloc()
+// or
+// void* mem = ::operator new(sizeof(apple)); //just like calling malloc()
+
+//now the constructor is next
+
+apple* p2 = new(mem) apple(1); //call construct here using placement new.
+
+ \end{verbatim}
+
+\url{https://stackoverflow.com/questions/1885849/difference-between-new-operator-and-operator-new} 
+
+
+\url{https://en.cppreference.com/w/cpp/header/new}
+
+
+\begin{verbatim}
+https://en.cppreference.com/w/cpp/memory/new/operator_new
+
+void* operator new  ( std::size_t count );
+void* operator new[]( std::size_t count );
+
+
+(since C++17)
+void* operator new  ( std::size_t count, std::align_val_t al);
+void* operator new[]( std::size_t count, std::align_val_t al);
+\end{verbatim}
+
+This is different from the \verb!new! operator.
+
+So, it is recommended to use the \verb!new! operator in C++ -
+
+
+\subsection{-- usecase 01}
+
+C++ provides a \verb!new! operator to create a pointer to an
+object, or an array of object. If the
+allocation fails, it throws an exception of type \verb!std::bad_alloc!, i.e. we
+don't need to check for the result.
+
+To avoid throwing exception, i.e. if it fails, return a NULL pointer and
+continue the execution, we use a special object called \verb!nothrow! declared
+in header file \verb!<new>!. 
+
+\begin{verbatim}
+#include <new>
+
+bobby = new (nothrow) int [5]; 
+if (bobby == 0) {
+  // error assigning memory. Take measures.
+  }; 
+\end{verbatim}
+
+NOTICE: \verb!nothrow! method requires more work than using exception method,
+since the value returned have to be checked by the programmer after each and
+every memory allocation. So, we're not recommended to use too often.
+
+
+\subsection{-- usecase 02: default constructor and default value}
+
+Syntax:
+\begin{verbatim}
+type_name *p_var;
+p_var = new typename;
+\end{verbatim}
+with \verb!typename! can be an intrinsic type, \verb!enum!, \verb!class! and
+\verb!struct!. 
+
+If \verb!typename! is a \verb!class! type, then the default constructor of the
+class is called, i.e. the constructor with no argument.
+
+
+We can also assign intial value to the data
+\begin{verbatim}
+p_var = new typename(initializer);
+\end{verbatim}
+with \verb!initializer! plays the role of input to the constructor in the case
+of \verb!class! object.
+
+Example: the integer to which intp points gets initialized to the value 7. 
+\begin{verbatim}
+int *intp = new int (7);
+
+  foo *foop = new foo;
+
+delete intp;
+  
+  
+  delete foop;
+
+\end{verbatim}
+
+\subsection{-- usecase 02: array}
+
+Arrays are allocated slightly differently, and must be deleted with delete[]
+
+
+We can create an array
+\begin{verbatim}
+p_var = new typename [size];
+\end{verbatim}
+
+Example:
+{\small 
+\begin{verbatim}
+int *p_scalar = new int(5); //allocates an integer, set to 5. (same syntax as constructors)
+delete p_var;
+p_var = 0;
+
+int *p_array = new int[5];  //allocates an array of 5 adjacent integers. (undefined values)
+delete[] p_var;
+p_var = 0;
+
+
+int *p_array = new int[5](5);  //allocates an array of 5 adjacent integers, and calling the constructor, accepting '5' as argument
+                           // which in this case, initialize the elements to value '5'
+delete[] p_var;
+p_var = 0;
+
+\end{verbatim}}
+
+
+\textcolor{red}{It's impossible to reallocate the memory with 'new[]' operator.
+Instead, we need to 'new[]' an array of bigger size, copy over the data, and
+remove the old object.}
+
+
+\begin{mdframed}
+Simple rules: every time you type 'new', type 'delete', and then put the working
+code in between them.
+
+\begin{verbatim}
+Foobar *foobar = new Foobar();
+.... //code here
+delete foobar; // TODO: Move this to the right place.
+\end{verbatim}
+\end{mdframed}
+
+\subsection{-- overload global operator new}
+
+The operator new function can be overloaded, provided that it always returns
+void * and has a first argument of type \verb!size_t!.
+
+\begin{verbatim}
+[::] "new" ["(" expression-list ")"] {new-type-id | "(" type-id ")"} ["(" expression-list ")"]
+[::] "delete" ["[]"] cast-expression
+\end{verbatim}
+\begin{itemize}
+  \item  The first optional 'expression-list':
+  
+  passes additional arguments to overloaded operator new functions.
+   
+  For instance, the standard C++ library's default new throws an exception when it runs out memory.
+   
+  
+  \item The second optional 'expression-list': 
+  
+   This is a list of arguments passed to the allocated object's constructor. 
+
+\end{itemize}
+Note, however, that operator delete cannot be overloaded. 
+
+
+NOTE: the standard C++ library's default new throws an exception when it runs
+out memory.
+
+
+Example: An overloaded version of new returns a NULL pointer instead. This overloaded new is defined as:
+\begin{verbatim}
+class foo {... };
+
+struct nothrow_t {};
+extern const nothrow_t nothrow;
+void *operator new throw() (size_t, const nothrow_t&);
+
+// use it
+foo *fp = new (nothrow) foo(5);  //it means '5' is passed to the object's constructor - class foo's constructor
+               // 'nothrow' is passed to the operator new
+
+  if (!fp) {
+    /* Deal with being out of memory */
+  }
+
+\end{verbatim}
+
+
+
+\subsection{-- operator new as part of a class}
+
+In addition to overloaded global new functions, each class can have its own set
+of operator new and delete functions.
+
+There is at most one operator delete and one operator delete[] per class.
+While the global ::operator delete and delete[] take one argument of type void
+*, per-class operators can optionally take a second argument of type \verb!size_t!.
+This second argument will contain the size of the deleted chunk of memory.
+
+
+
+It can be a member function or a global function
+\begin{verbatim}
+// member
+void* T::operator new(size_t x);
+void* T::operator new[](size_t x);
+void T::operator delete(void* x);
+void T::operator delete[](void* x);
+
+// global
+void* operator new(size_t x);
+void* operator new[](size_t x);
+void operator delete(void* x);
+void operator delete[](void* x);
+\end{verbatim}
+
+\subsection{-- placement new (using allocator)}
+
+Suppose you already allocate memory before, now you can use that region of
+memory for several 'placement-new' of smaller size.
+This ensures the memory region returned by the placement-new is contiguous from
+each other, for example.
+
+Another use case is consider an arena allocator that allocates objects from a
+large pool of memory by simply incrementing a pointer. All objects are freed at
+once by deleting the entire pool.
+ 
+
+The so-called "placement-new," doesn't allocate memory at all, but can be called
+to invoke an object's constructor on an arbitrary piece of memory. It is
+typically defined as:
+
+SYNTAX:
+\begin{lstlisting}
+inline void *
+operator new(size_t, void *p)
+{
+  return p;
+}
+
+\end{lstlisting}
+
+Example: 
+\begin{verbatim}
+int * p = new [10];
+
+int *x = new(p) int;
+int *y = new(p+1) int;
+\end{verbatim}
+
+Allocator - Sect.\ref{sec:Allocator}
+
+\begin{verbatim}
+class arena {
+  /* ... */
+  arena (const arena &);            // No copying
+  arena &operator= (const arena &); // No copying
+ public:
+  arena ();
+  ~arena ();
+  void *allocate (size_t bytes, size_t alignment) { /* ... */ }
+};
+
+inline void *
+operator new (arena &a, size_t bytes)
+{
+  return a.allocate (bytes, sizeof (double));
+}
+
+inline void *
+operator new[] (arena &a, size_t bytes) // This function is bad news
+{
+  return a.allocate (bytes, sizeof (double));
+}
+
+class foo { /* ... */ };
+
+void
+f ()
+{
+  arena a;
+
+  char *string = new (a) char[80]; // opreator new[] (arena &, size_t)
+  int *intp = new (a) int;         // opreator new (arena &, size_t)
+  foo *fp = new (a) foo;           // better hope foo::~foo() isn't useful
+
+  /* No need to free anything before returning */
+}
+
+\end{verbatim}
+
+Example:
+\begin{verbatim}
+class arena{
+
+}
+
+arena a;
+
+\end{verbatim}
+
+Consider what happens during 
+\begin{verbatim}
+foo *x = new (a) foo;
+\end{verbatim}
+
+Two functions are invoked: the arena allocator
+\begin{verbatim}
+operator new (arena &, size_t)
+\end{verbatim}
+and foo's default constructor, 
+\begin{verbatim}
+foo::foo()
+\end{verbatim}
+
+Operator new does not know what type is being allocated, while foo::foo() doesn't know what memory allocator is being used.
+So, it is important to ensure that  there is NO dynamically allocation inside foo::foo().
+
+If there is dynamic memory allocation inside foo::foo() constructor; then we need to explicitly call the destructor first; before 
+freeing the allocator 'arena'
+
+\begin{verbatim}
+  arena a;
+
+  // ...
+  foo *fp = new (a) foo;           // must be destroyed
+  // ...
+  fp->~foo ();
+  
+\end{verbatim}
+
+A BETTER CHOICE: If \verb!foo:~foo()! only needs to free memory (as opposed to other
+resources such as file descriptors or locks), foo could provide an overloaded
+constructor that takes an arena reference and ensures all further memory is
+allocated from that arena.
+
+\begin{verbatim}
+  arena a;
+
+  // ...
+  foo *fp = new (a) foo (a);       // Tell foo about our arena
+  // foo no longer needs its destructor invoked
+\end{verbatim}
+
+PITFALL: A user need to know the details of the implementation of the allocator
+arena and the implementation of foo.
+
+
+ANOTHER PITFALL:
+A potential problem may arise if the constructor for foo throws an exception.
+Because constructors have no return values in C++, exceptions are the simplest
+way for them to indicate failure. When constructors throw exceptions, the
+compiler will try to free the memory allocated by new. While this may ordinarily
+be a good thing, it would have disastrous consequences in the case of the arena
+allocator, where calling ::operator delete on a pointer in the middle of the
+arena would have unpredictable results.
+
+One can avoid this problem through so-called "placement-delete" functions that,
+after the first argument, match the argument types of particular placement new
+operators. For the arena type, we should therefore declare an empty placement
+delete:
+
+\begin{verbatim}
+inline void operator delete (void *, arena &) {}
+\end{verbatim}
+
+
+
+\subsection{delete vs. delete[]}
+\label{sec:delete-operator}
+
+
+To delete a pointer, allocated by \verb!new! for a scalar
+(Sect.\ref{sec:new()-operator}), we use \verb!delete! operator.
+\begin{verbatim}
+int * abc = new int();
+
+delete bc;
+\end{verbatim}
+
+
+To delete a pointer, allocated by \verb!new[]! for an array, we use
+\verb!delete[]! operator
+\begin{verbatim}
+int * abc = new int[4]();
+
+delete [] abc;
+\end{verbatim}
+
+
+C++ offers six variations for operator delete
+\begin{lstlisting}
+void operator delete  (void* ptr); 	
+void operator delete[](void* ptr);
+void operator delete  (void* ptr, const std::nothrow_t& tag);
+void operator delete[](void* ptr, const std::nothrow_t& tag);
+void operator delete  (void* ptr, std::size_t sz);
+void operator delete[](void* ptr, std::size_t sz);
+\end{lstlisting}
+The remaining 5 uses the first one, so we just need to override the first one.
+
+
+\section{Allocate large array}
+
+
+
+When you want to allocate 1Gb as a single contiguous array, then that can only
+happen if there is a contiguous block of memory available in the 2Gb of process
+memory. Chances for that happening aren't high, so it'll fail.
+
+\url{http://forums.codeguru.com/showthread.php?546231-Best-way-to-allocate-large-memory}
+
+If you are using a 64-bit operating system, then malloc should be able to
+allocate the large size with no problem.
+
+
+\url{https://baptiste-wicht.com/posts/2012/12/cpp-benchmark-vector-list-deque.html}
+
+
+
+\section{boost::shared\_ptr (Boost library)}
+
+\url{http://www.boost.org/doc/libs/1_46_1/libs/smart_ptr/shared_ptr.htm}
+
+
+\section{vtkSmartPointer}
+
+vtkSmartPointer is similar to \verb!shared_ptr! as it use internal reference
+counting of vtkObject. Check VTK chapter in ``Data Visualization'' book.
+
+
+\section{Smart pointer (C++11)}
+\label{sec:smart_pointer}
+
+A brief introduction of smart pointers was given in
+Sect.\ref{sec:c++11_smart_pointer}. 
+
+There are other types of smart pointers, and we discuss here when to use each
+one
+\begin{enumerate}
+  \item local variable: \verb!std::auto_ptr! - Sect.\ref{sec:auto_ptr}
+  \item class members: use copied pointer
+  \item STL containers: use garbage collected pointers 
+  \item explicit ownership transfer: owned pointer
+  \item big objects: copy on write
+\end{enumerate}
+
+\subsection{auto\_ptr (deprecated)}
+\label{sec:auto_ptr}
+
+NOTE: Using this is deprecated in C++11, see explanation below. It is completely
+removed from C++17. Use \verb!unique_ptr! instead (Sect.\ref{sec:unique_ptr}).
+
+\verb!std::auto_ptr<T>! is a class template that can be used to provide as a
+wrapper to a C++ raw pointer, and ensure automatic memory cleanup, i.e. RAII
+(Sect.\ref{sec:RAII}).
+
+
+The header file \verb!<memory>!
+\begin{verbatim}
+#include <memory>
+\end{verbatim}
+with the implementation
+\begin{lstlisting}
+template <class T> 
+class auto_ptr
+{
+    T* ptr;
+public:
+    explicit auto_ptr(T* p = 0) : ptr(p) {}
+    ~auto_ptr()                 {delete ptr;}
+    T& operator*()              {return *ptr;}
+    T* operator->()             {return ptr;}
+    // ...
+}
+\end{lstlisting}
+
+What \verb!auto_ptr! does is (1) own a dynamically allocated pointer,
+and (2) perform automatic cleanup when the object is no longer needed.
+\begin{multicols}{2}
+\begin{lstlisting}
+void f()
+{
+  T* pt( new T );
+
+  /*...more code...*/
+
+  delete pt;
+}
+\end{lstlisting}
+\columnbreak
+\begin{lstlisting}
+void f()
+{
+  std::auto_ptr<T> pt( new T );
+
+  /*...more code...*/
+
+} // no 'delete' is required
+\end{lstlisting}
+\end{multicols}
+
+USAGE:
+\begin{lstlisting}
+  T* pt1 = new T;  // regular pointer  
+  // pass ownership to an auto_ptr
+  auto_ptr<T> pt2( pt1 );
+  *pt2 = 12;       // same as "*pt1 = 12;"
+  pt2->SomeFunc(); // same as "pt1->SomeFunc();"      
+
+  // use get() to see the pointer value
+  assert( pt1 == pt2.get() );
+
+  // use release() to take back ownership
+   T* pt3 = pt2.release();
+                  
+  // delete the object ourselves, since now
+  // no auto_ptr owns it any more
+  delete pt3;
+
+
+    // by calling '.reset'
+    //  an auto_ptr can discard the current pointer it own (including delete it)
+    //  and own a new pointer
+  auto_ptr<T> pt (new T());
+  pt.reset( new T(2) );
+  // deletes the first T that was
+  // allocated with "new T(1)"
+\end{lstlisting}
+
+\textcolor{red}{\bf WEAKNESS}: The problem with \verb!auto_ptr! is that it can loose the
+ownership of the raw pointer, via copy constructor or copy assignment
+\begin{verbatim}
+ std::auto_ptr<int> x (new int);
+ *x = 12; 
+ printf(*x); //  print '12'
+ std::auto_ptr<int> y(x);   //copy constructor
+ 
+ printf(*x);  // fail, as 'x' raw pointer is NULL now
+ printf(*y);  // print '12'
+ 
+ 
+ // or 
+ std::auto_ptr<int> y(new int);
+ y = x;   //copy assignment 
+          // y's previous raw pointer is nolonger tracked
+          // y now hold the raw pointer that x previously hold [and 'x' loss this raw pointer]
+          // x's holding of a raw pointer is turned into NULL
+  
+\end{verbatim}
+
+EXPLAIN: Only one \verb!auto_ptr! can hold the ownership of a regular (raw)
+pointer at a time, so when we do a copy of an \verb!auto_ptr! pointer (both copy
+construction and copy assignment), the ownership is transferred to the new one,
+and the \verb!auto_ptr! on the right-hand-side no longer hold the pointer (i.e.
+set back to a null state), and also, if the \verb!auto_ptr! on the
+left-hand-side is holding another pointer; that pointer is discard so that the
+left-hand-side \verb!auto_ptr! can hold the new pointer.
+
+
+SO, due to this technical issue, \verb!auto_ptr! cannot be used to store objects
+in most containers. So, since C++11, \verb!std::auto_ptr! will be deprecated in
+favor of \verb!std::unique_ptr! (Sect.\ref{sec:unique_ptr}).
+
+% 
+% It's simply a wrapper around a regular pointer. Here, the destructor takes care
+% of deleting the pointer. How to use?
+% \begin{lstlisting}
+% void foo()
+% {
+%     auto_ptr<MyClass> p(new MyClass);
+%     p->DoSomething();
+%     
+%     /* we can avoid
+%     MyClass* p(new MyClass);
+%     p->DoSomething();
+%     delete p;
+%     */
+% }
+% \end{lstlisting}
+
+{\bf APPLICATIONS}:
+\begin{enumerate}
+  \item wrap data member as pointer
+
+Old way: the destructor needs to add code to destruct the data member as pointer
+\begin{verbatim}
+class C
+    {
+public:
+  C();
+  ~C();
+  /*...*/
+private:
+  class CImpl; // forward declaration
+  CImpl* pimpl_;
+};
+class C::CImpl { /*...*/ };
+
+C::C() : pimpl_( new CImpl ) { }
+C::~C() { delete pimpl_; }    
+\end{verbatim}
+
+New way: less code (no need to call delete in destructor)
+\begin{lstlisting}
+class C
+    {
+    public:
+      C();
+      /*...*/
+    private:
+      class CImpl; // forward declaration
+      std::auto_ptr<CImpl> pimpl_;
+    };
+
+    // file c.cpp
+    //
+    class C::CImpl { /*...*/ };
+
+    C::C() : pimpl_( new CImpl ) { }
+\end{lstlisting}
+
+  \item sole ownership to a raw pointer:
+
+\textcolor{red}{\bf const std::auto\_ptr}: never loose ownership
+\begin{lstlisting}
+const std::auto_ptr<T> pt1 (new T());
+   // making pt1 const guarantees that
+   // the pointer owned by pt1 never be
+   // transferred to another auto_ptr
+   // and also copy statement, assignment statement 
+   //     are illegal (i.e. never work) 
+
+   auto_ptr<T> pt2( pt1 ); // illegal
+   auto_ptr<T> pt3;
+   pt3 = pt1;              // illegal
+   pt1.release();          // illegal
+   pt1.reset( new T );     // illegal   
+\end{lstlisting}
+
+
+  \item exception-safe code: with the cost of extra dynamic memory allocation
+  
+A function dynamically returns an \verb!auto_ptr!  
+\begin{lstlisting}
+   auto_ptr<String> f()
+    {
+      auto_ptr<String> result = new String;
+      *result = "some value";
+      cout << "some output";
+      return result;  // rely on transfer of ownership;
+                      // this can't throw
+    }
+    
+  auto_ptr<String> theName;
+  theName = f();    
+\end{lstlisting}
+Here, \verb!result! is an \verb!auto_ptr! so there is no memory copy, it just
+takes the ownership of the existing memory. Also, once we call it, the ownership
+of the memory is again transferred to \verb!theName!, and of course, there is no
+memory copy here.
+
+\textcolor{red}{Problem with other codes}:
+{\bf Fail Approach 1}: static String object
+\begin{verbatim}
+    String f()
+    {
+      String result;
+      result = "some value";
+      cout << "some output";
+      return result;
+    }
+    String theName;
+    theName = f();    
+\end{verbatim}
+There are two pitfalls: the copy assignment inside the function, and the copy
+constructor is invoked when we call the function (as the result is returned by
+value). If either copy fails, \verb!f()! already completed all its work while
+the result is irretrievably lost.
+
+{\bf Fail Approach 2}: avoid copy, by passing a non-\verb!const! String
+reference parameter 
+\begin{verbatim}
+ void f( String& result )
+    {
+      cout << "some output";
+      result = "some value";
+    }
+\end{verbatim}
+There is still one assignment here which might still fail.
+
+
+\end{enumerate}
+
+References:
+\begin{enumerate}
+  \item \url{http://ootips.org/yonat/4dev/smart-pointers.html}
+  \item \url{http://www.gotw.ca/gotw/025.htm}
+  \item
+  \url{http://stackoverflow.com/questions/94227/smart-pointers-or-who-owns-you-baby}
+  \item 
+  \url{http://www.gotw.ca/publications/using_auto_ptr_effectively.htm}
+\end{enumerate}
+
+
+\subsection{unique\_ptr<type> template (move-only objects) C++11}
+\label{sec:unique_ptr}
+
+If you want to hold pointers data in a container
+(Chap.\ref{chap:C++_containers}), you should use this smart pointer.
+They work properly when containers are resized or moved, and will still be
+destroyed when the container is destroyed.
+
+Unlike \verb!std::auto_ptr<T>!, \verb!std::unique_ptr! explicitly prevents
+copying of its contained pointer, i.e. compiling error.
+You can not do copy or assignmet, as its copy constructor and assignment
+operators are explicitly deleted.
+ 
+If you really want to transfer the ownership of the raw pointer, then programmer
+has to explicitly call \verb!std::move()! function. This prevents no mistake.
+
+
+\verb!std::unique_ptr<T>! is a class template, and that you are declaring that
+the given pointer is uniquely owned by the given \verb!unique_ptr!.
+There is never any doubt about who owns it, so in any copy assignment or copy
+constructor, unless you use {\bf move semantic} to tell it to change the
+ownership using \verb!std::move()!.
+
+For C++14, we should also add usage of \verb!std::make_unique! where we use
+\verb!std::unique_ptr! (Sect.\ref{sec:make_unique}).
+
+
+Example:
+
+\begin{lstlisting}
+std::unique_ptr<Foo>  p (new Foo(41));
+
+std::vector<*Foo> v;
+
+v.push_back( p ); // this is illegal
+
+v.push_back( std::move(p) ); // you need to explicitly telling that
+         // the 'p' is giving up the ownership and 
+         // you are moving the pointer to the contaienr 'v'
+         // and 'p' is reset to null state
+ 
+ // when passing to a function, we pass by reference        
+void inc_baz( std::unique_ptr<foo> &p )
+{
+    p->baz++;
+}         
+\end{lstlisting}
+Like any other smart pointer, $p$ can be used pretty much like a raw pointer,
+i.e. using \verb!*! and \verb!->! operator work exactly like you would expect,
+and are very efficient (i.e. usually generating nearly the same assembly code as
+raw pointer access). 
+
+C++11 provide a way to define a unique object called {\bf move-only objects},
+i.e. the object cannot be copied, but can only be moved 
+
+% is an
+% excellent feature of C++11 that allows the programmer to manage dynamically created objects with simple ownership
+% semantics. 
+
+{\bf WEAKNESS}: The only location it can be is on the stack, and making it a
+member of a class is IMPOSSIBLE (or giving undefined behavior).
+
+{\bf APPLICATION}:
+\begin{itemize}
+  \item the cost of using \verb!unique_ptr! is minimal, i.e. almost the
+  same assembly code as using raw pointer!
+  
+%   automatic destruction of the contained
+%   pointer when the poitner goes out of scope (function exit normally or an exception occurs.)
+%   
+%   It means no need to track them and call \verb!delete! 
+  
+  \item We only use move-only objects for thoses with short-term life, i.e. the
+  pointer will be eventually being hold by something else, not the
+  \verb!unique_ptr!
+  
+  \item  Move semantics will be used automatically any place you create an rvalue
+reference. 
+
+\begin{verbatim}
+ # returning a unique_ptr from a function
+ return p;
+ 
+ 
+ # passing a newly constructed unique_ptr object
+ process (std::unique_ptr<Foo>(new Foo(41));
+\end{verbatim}
+
+  \item \verb!const unqiue_ptr<T>!
+  
+We use \verb!const unique_ptr!
+template.
+
+\begin{verbatim}
+const std::unique_ptr<T> myFunc();
+\end{verbatim}
+As we cannot call \verb!std::move! on a \verb!const! object, we need to use
+either \verb!const&! or \verb!const&&!.
+
+\begin{verbatim}
+const std::unique_ptr<T> &ptr = myFunc();
+\end{verbatim}
+  
+\end{itemize}
+
+
+Example: The usual case for one to have a \verb!unique_ptr! in a class is to be able to
+use inheritance (otherwise a plain object would often do as well, see RAII)
+
+\begin{verbatim}
+struct Base
+{
+    //some stuff
+};
+
+struct Derived : public Base
+{
+    //some stuff
+};
+
+struct Foo {
+    std::unique_ptr<Base> ptr;  //points to Derived or some other derived class
+};
+\end{verbatim}
+NOW: the goal is, as said, to make Foo copiable. $\rightarrow$ For this, one
+needs to do a deep copy of the contained pointer to ensure the derived class is
+copied correctly.
+
+
+Example: actual code
+\begin{verbatim}
+  StructType* st = lc->sim->getStructType("DimensionStruct");
+std::unique_ptr<Struct> dims;
+st->getStruct(dims);
+dims->initialize(dimList);
+StructDataItem* dimsDI = new StructDataItem(dims);
+
+\end{verbatim}
+which causes the following error
+\begin{verbatim}
+error: use of deleted function ‘std::unique_ptr<_Tp, _Dp>::unique_ptr(const std::unique_ptr<_Tp, _Dp>&) 
+    [with _Tp = Functor; _Dp = std::default_delete<Functor>]’
+           rvalue.reset(new FunctorDataItem(transfer));
+           
+rvalue.reset(new FunctorDataItem(transfer));
+
+\end{verbatim}
+
+The reason is that you're using
+\begin{verbatim}
+StructDataItem(std::unique_ptr<Struct> data);
+\end{verbatim}
+which pass a \verb!unique_ptr! by value, which is wrong as there is no copy-constructor semantics for a \verb!unique_ptr!.
+You cannot copy a \verb!unique_ptr!. You can only move it.
+A solution is to pass by reference
+\begin{verbatim}
+StructDataItem(std::unique_ptr<Struct>& data);
+\end{verbatim}
+
+
+\subsection{make\_unique (C++14)}
+\label{sec:make_unique}
+
+In C++11, to create a \verb!unique_ptr!
+\begin{verbatim}
+std::unique_ptr<SomeObject> a = new SomeObject(...)
+\end{verbatim}
+
+Since C++14, we can do, without using \verb!new! operator, but using
+\begin{verbatim}
+std::unique_ptr<SomeObject> a = std::make_unique(SomeObject(...))
+\end{verbatim}
+
+WHY THIS FEATURE
+\begin{enumerate}
+  \item teach uers not to use 'new/delete' or 'new[]/delete[]'
+  
+  \item can write shorter code using \verb!auto! keyword
+  
+   \verb!unique_ptr<LongTypeName> up(new LongTypeName(args))! must mention LongTypeName twice
+ 
+ BETTER with
+ \begin{verbatim}
+ auto up = make_unique<LongTypeName>(args);
+ \end{verbatim}
+  
+  \item carefully implemented for exception safety and is recommended over directly calling \verb!unique_ptr! constructors
+\end{enumerate}
+
+WHEN NOT TO USE: Don't use \verb!make_unique! if  you
+\begin{enumerate}
+  \item  need a custom deleter or 
+  
+  \item are adopting a raw pointer from elsewhere.
+  
+\end{enumerate}
+\url{https://stackoverflow.com/questions/37514509/advantages-of-using-stdmake-unique-over-new-operator}
+
+Constructs an object of type T and wraps it in a \verb!std::unique_ptr!.
+\url{https://en.cppreference.com/w/cpp/memory/unique_ptr/make_unique}
+
+\begin{lstlisting}
+struct Vec3
+{
+    int x, y, z;
+    Vec3() : x(0), y(0), z(0) { }
+    Vec3(int x, int y, int z) :x(x), y(y), z(z) { }
+    friend std::ostream& operator<<(std::ostream& os, Vec3& v) {
+        return os << '{' << "x:" << v.x << " y:" << v.y << " z:" << v.z  << '}';
+    }
+};
+
+
+{
+    // Use the default constructor.
+    std::unique_ptr<Vec3> v1 = std::make_unique<Vec3>();
+    
+    // Use the constructor that matches these arguments
+    std::unique_ptr<Vec3> v2 = std::make_unique<Vec3>(0, 1, 2);
+    // Create a unique_ptr to an array of 5 elements
+    std::unique_ptr<Vec3[]> v3 = std::make_unique<Vec3[]>(5);
+}
+\end{lstlisting}
+
+\subsection{make\_shared (C++14)}
+\label{sec:make_shared}
+
+
+NOTE: \verb!std::make_shared! (which has \verb!std::allocate_shared!), 
+
+
+\subsection{shared\_ptr (using a counter) C++11}
+\label{sec:shared_ptr_C++11}
+
+\verb!std::shared_ptr! allow more than one owner to manage the
+lifetime of the object in memory.
+
+\textcolor{red}{Initialize the pointer}: Prior to C++17, \verb!shared_ptr! could
+not be used to manage dynamically allocated arrays.
+\begin{enumerate}
+  
+  \item  Whenever possible, use the \verb!make_shared! function to create a
+  \verb!shared_ptr! when the memory resource is created for the first time.
+  
+  WHY: it is  exception-safe. It uses the same call to allocate the memory for
+  the control block and the resource, which reduces the construction overhead.
+  
+  IF NOT: you have to use an explicit new expression to create the object before
+  you pass it to the \verb!shared_ptr! constructor.
+  
+\end{enumerate}
+\begin{verbatim}
+// Use make_shared function when possible.
+auto sp1 = make_shared<Song>(L"The Beatles", L"Im Happy Just to Dance With You");
+
+// Ok, but slightly less efficient. 
+// Note: Using new expression as constructor argument
+// creates no named variable for other code to access.
+shared_ptr<Song> sp2(new Song(L"Lady Gaga", L"Just Dance"));
+
+// When initialization must be separate from declaration, e.g. class members, 
+// initialize with nullptr to make your programming intent explicit.
+shared_ptr<Song> sp5(nullptr);
+//Equivalent to: shared_ptr<Song> sp5;
+//...
+sp5 = make_shared<Song>(L"Elton John", L"I'm Still Standing");
+\end{verbatim}
+\url{https://docs.microsoft.com/en-us/cpp/cpp/how-to-create-and-use-shared-ptr-instances?view=vs-2019}
+
+\textcolor{red}{Usage}: you can copy it, pass it by value in function arguments,
+and assign it to other \verb!shared_ptr! instances.
+
+All the instances point to the same object, and share access to one "control
+block" that increments and decrements the reference count whenever a new
+\verb!shared_ptr! is added, goes out of scope, or is reset.
+
+\textcolor{red}{Destruct}: The pointer is automatically deallocated only when
+the counter reaches zero. When the reference count reaches zero, the control
+block deletes the memory resource and itself. By default, \verb!shared_ptr! will
+call delete on the managed object when no more references remain to it. From
+C++17, Sect.\ref{sec:shared_ptr_C++17}.
+
+
+
+
+\subsection{std::default\_delete (C++11)}
+\label{sec:std::defalut_delete}
+
+This is the default destruction policy used by std::unique_ptr when no deleter is specified.
+
+1) The non-specialized default_delete uses delete to deallocate memory for a single object.
+
+2) A partial specialization for array types that uses delete[] is also provided.
+
+\begin{lstlisting}
+    {
+        std::unique_ptr<int> ptr(new int(5));
+    } // unique_ptr<int> uses default_delete<int>
+ 
+    {
+        std::unique_ptr<int[]> ptr(new int[10]);
+    } // unique_ptr<int[]> uses default_delete<int[]>
+    
+ 
+     {
+        std::shared_ptr<int> shared_good(new int[10], std::default_delete<int[]>
+());
+    } // the destructor calls delete[], ok
+    
+\end{lstlisting}
+
+IMPORTANT:
+\begin{lstlisting}
+   // default_delete can be used anywhere a delete functor is needed
+   std::vector<int*> v;
+   for(int n = 0; n < 100; ++n)
+      v.push_back(new int(n));
+   std::for_each(v.begin(), v.end(), std::default_delete<int>());
+\end{lstlisting}
+
+\subsection{shared\_ptr (using a counter) C++17}
+\label{sec:shared_ptr_C++17}
+
+Since C++17, we can use \verb!std::shared_ptr! to manage a dynamically allocated array, i.e.
+when you allocate using new[] you need to call delete[], and not delete, to free the resource.
+
+In order to correctly use \verb!shared_ptr! with an array, you must supply a custom deleter.
+STL C++17 provides this default deleter \verb!std::default_delete!
+\url{https://en.cppreference.com/w/cpp/memory/default_delete}
+
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\begin{lstlisting}
+ // argument is 
+ //    T[N]
+ // or T[]
+std::shared_ptr< int[] > sp(new int[10]);
+
+
+std::shared_ptr<int> sp(new int[10], std::default_delete<int[]>());
+\end{lstlisting}
+
+\begin{lstlisting}
+template< typename T >
+struct array_deleter
+{
+  void operator ()( T const * p)
+  { 
+    delete[] p; 
+  }
+};
+
+std::shared_ptr<int> sp(new int[10], array_deleter<int>());
+\end{lstlisting}
+
+
+\url{https://stackoverflow.com/questions/13061979/shared-ptr-to-an-array-should-it-be-used}
+
+
+
+
+\subsection{operator: reset(), .release()}	
+\label{sec:reset()_smart_pointer}
+\label{sec:release()_smart_pointer}
+
+EXAMPLE 01: memory leak
+\begin{verbatim}
+auto v =  make_unique<int>(12);
+v.release();     // is this possible?
+\end{verbatim}
+NOTE: \verb!.release()! is used to release ownership of the managed object without deleting it. 
+
+This is how we use \verb!.release()!, must tracked the returned value [by a raw pointer, or passing it into another smart pointer]
+
+\begin{lstlisting}
+auto v = make_unique<int>(12);  // manages the object
+int * raw = v.release();        // pointer to no-longer-managed object
+delete raw;                     // needs manual deletion
+\end{lstlisting}
+
+We use \verb!reset()! 
+\begin{itemize}
+  \item to delete the internal raw pointer being hold by the smart pointer, and 
+  
+\begin{lstlisting}
+
+auto v = make_unique<int>(12);  // manages the object
+v.reset();                      // delete the object, leaving v empty
+
+\end{lstlisting}
+
+
+  \item potentially ask it to track a new one (if we pass the new one via argument)
+
+\begin{lstlisting}
+
+auto v = make_unique<int>(12);  // manages the object
+v.reset(new int(10));      // delete the object, 
+                     // and then ask v's internal raw pointer to track the new onw 
+\end{lstlisting}
+
+\url{https://stackoverflow.com/questions/25609457/does-unique-ptrrelease-call-the-destructor}
+
+\end{itemize}

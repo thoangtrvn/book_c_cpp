@@ -1,0 +1,1451 @@
+\chapter{Function and Procedures}
+
+\section{Function prototype}
+
+In header file, you only declare function prototype. YOu don't have to use the
+argument name there, but it's recommend to make the code easy to read
+\begin{verbatim}
+#.h
+void do_something(int, int)
+
+# the same as
+void do_something(int a, int b)
+\end{verbatim}
+
+\section{Optional parameters}
+
+NOTE: After the first optional argument, all the remaining should be optional.
+So, always put the optional argument the last.
+\begin{verbatim}
+int myfunction( int optional = 3);
+\end{verbatim}
+
+RECOMMEND: Your arguments must be placed in order, sorted by how often you will
+pass values to them.
+\begin{verbatim}
+int myfunction( int mandatory, int optional1 = 3, int optional2 = 5 );
+\end{verbatim}
+
+If we want to use function prototype, i.e. put the prototype in the header file,
+and the implementation in the code, then only put the optional argument with
+default value only in the header file, and declare as a normal argument in the
+source (.cpp) file
+\begin{verbatim}
+#.h
+void myfunc(char *blah, int mode = NULL);
+
+#.cpp
+void myfunc(char *blah, int mode)
+{
+if(mode == NULL)
+do_something();
+else
+do_something_else();
+}
+\end{verbatim}
+\footnote{\url{http://www.velocityreviews.com/forums/t268385-function-prototype-with-optional-parameters.html}}
+
+\section{Overloaded functions}
+\label{sec:overloaded-function}
+ 
+A second approach: a simple thing is to use overloaded function, i.e. define two
+different functions with the same name, but different number of arguments. Example: we
+want the default value of 'c' is 2.
+\begin{verbatim}
+foo (int a)  
+foo (char b)  
+foo (float c , int d)
+\end{verbatim} 
+
+
+ \subsection{C}
+
+However, overloaded function is not supported in C until C1X
+(Sect.\ref{sec:overloaded-function_C1X}). However, we can achieve this using
+different strategies
+
+It can use
+\begin{enumerate}  
+  \item One bad way is to use two arguments: one is \verb!void! pointer, and the second
+one is typeid, to indicate the first argument's type. 
+   
+  \item variadic function: use \verb!va_args! package (header file
+  \verb!<stdarg.h>!). It is \verb!printf! style functions, i.e. type as
+  argument (Sect.\ref{sec:variadic_function}).
+  
+\begin{verbatim}
+#include <stdarg.h>
+#include <stdio.h>
+
+void va_overload2(int p1, int p2);
+  
+  /* use this only when p2 == 7 */
+void va_overload3(int p1, int p2, int p3);
+
+static void va_overload(int p1, int p2, ...)
+{
+	if (p2 == 7)
+	{
+		va_list v;
+		va_start(v, p2);
+		
+		int p3 = va_arg(v, int);
+		va_end(v);
+		va_overload3(p1, p2, p3);
+		
+		return;
+	}
+
+	va_overload2(p1, p2);
+}
+\end{verbatim}
+
+  
+  \item tagging with the type: use a struct as argument, this struct contain a
+  typeid, and a union.
+\begin{verbatim}
+typedef struct {
+    int type;
+    union {
+    	int a; 
+    	float b; 
+    	char c;
+    } my_union;
+} my_struct;
+
+#define T_INT   1
+#define T_FLOAT 2
+#define T_CHAR  3
+
+void set_overload (my_struct *whatever) 
+{
+    switch (whatever->type) 
+    {
+    	case T_INT:
+    		whatever->my_union.a = 1;
+    		break;
+    	case T_FLOAT:
+    		whatever->my_union.b = 2.0;
+    		break;
+    	case T_CHAR:
+    		whatever->my_union.c = '3';
+    }
+}
+
+void printf_overload (my_struct *whatever) {
+    switch (whatever->type) 
+    {
+    	case T_INT:
+    		printf("%d\n", whatever->my_union.a);
+    		break;
+    	case T_FLOAT:
+    		printf("%f\n", whatever->my_union.b);
+    		break;
+    	case T_CHAR:
+    		printf("%c\n", whatever->my_union.c);
+    		break;
+    }
+
+}
+
+int main (int argc, char* argv[])
+{
+    my_struct s;
+
+    s.type=T_INT;
+    set_overload(&s);
+    printf_overload(&s);
+}
+\end{verbatim}
+  
+  \item \verb!opengl! style functions, i.e. type in function name. 
+\begin{verbatim}
+set_int(int*)
+
+set_float(float*)
+
+\end{verbatim}
+
+\url{http://www.glprogramming.com/red/chapter01.html\#name3}
+  
+  \item Use C++ compiler for C code.
+  
+  \item Use the function to determine if two types are the same. This function
+  ignores top level qualifiers (const, volatile, \ldots). It means \verb!int!
+  and \verb!const int! are considered the same. 
+\begin{verbatim}
+int __builtin_types_compatible_p (type1, type2);
+  // 1 => the two unqualified versions are the same
+  // 0 => otherwise (not-compatible)
+
+NOTE:
+int      ==    const int
+int[]    ==    int[5]
+
+long int <>    char*
+short*   <>    short**
+enum     ==    enum  
+\end{verbatim}   
+
+Example: 
+\begin{verbatim}
+#define foo(x)                                                  \
+  ({                                                            \
+    typeof (x) tmp;                                             \
+    if (__builtin_types_compatible_p (typeof (x), long double)) \
+      tmp = foo_long_double (tmp);                              \
+    else if (__builtin_types_compatible_p (typeof (x), double)) \
+      tmp = foo_double (tmp);                                   \
+    else if (__builtin_types_compatible_p (typeof (x), float))  \
+      tmp = foo_float (tmp);                                    \
+    else                                                        \
+      abort ();                                                 \
+    tmp;                                                        \
+  })
+
+#define foo(a) \
+((__builtin_types_compatible_p(int, a)?foo(a):(__builtin_types_compatible_p(float, a)?foo(a):)
+\end{verbatim}  
+
+
+\end{enumerate}
+
+\subsection{C1x}
+\label{sec:overloaded-function_C1X}
+
+C1X support type generic macro (type generic expression).
+
+\begin{verbatim}
+#define cbrt(X) _Generic((X), long double: cbrtl, \
+                              default: cbrt, \
+                              float: cbrtf)(X)
+\end{verbatim}
+
+
+
+
+\subsection{C++}
+ 
+C++ supports overloaded functions using ``name mangling''
+(Sect.\ref{sec:name_mangling})
+ 
+\begin{verbatim}
+int function(int a, int b, int c)
+{
+    return a*b*c;
+}
+
+int function(int a, int b)
+{
+    return a*b*2;
+}
+\end{verbatim}
+
+Actually, the second approach is recommend in many cases,
+e.g.\footnote{\url{http://stackoverflow.com/questions/703453/optional-function-parameters-use-default-arguments-null-or-overload-the-funct}}
+\begin{verbatim}
+
+\end{verbatim}
+
+\section{Restrictions on function declaration}
+
+
+You CAN'T have
+\begin{enumerate}
+  \item a function return a function: foo()()
+  \item a function return an array: foo()[]
+  \item an array hold function: arr[]()
+\end{enumerate}
+
+You CAN have
+\begin{enumerate}
+  \item a function returning a pointer to a function: int (*foo())()
+
+\verb!foo! is a function (no argument) and returns a pointer to a function
+that (1) accepts no argument, (2) returns an integer.  
+  
+  \item a function returning a pointer to an array: int (*foo())[]
+  
+\verb!foo! is a function (no argument) and returns a pointer to a an array
+of type 'int'.  
+  
+  \item an array holding pointers to functions: int (*arr[])()
+
+\verb!arr! is an array, each element is a pointer to a function that
+(1) accepts no argument, (2) returns an integer.  
+    
+  \item an array holding arrays : int arr[][];
+  
+  
+\end{enumerate}
+
+\section{Pass by reference vs. Pass by pointer vs. Pass by value}
+\label{sec:pass-by-reference}
+\label{sec:pass-by-pointer}
+\label{sec:pass-by-value}
+
+
+
+With the exception of array and functions, \textcolor{red}{C always pass
+argument 'by value'}, i.e. a copy of the data is pass to the function. So, in C,
+the only way to modify a data, at an existing location, inside the function that
+take the effect even after the function complete is to pass its address to the
+function, i.e. pass by pointer and then use the \verb!&! operator when calling.
+Passing an array is indeed passing a pointer
+(Sect.\ref{sec:function_pass-array}). 
+
+\begin{mdframed}
+When passing by value, parameters are passed to registers (for speed) where
+possible. So, it's not correct to say that parameters are always put on the
+stacks from right to left, which is an over simplification. A struct, no matter
+how simple it is, e.g. a single member, is passed to the stack.
+
+Passing a single \verb!int i! to a function can be put in the register. Passing
+a struct \verb!struct s_tag {int i;} s! always be put on the stack. 
+\end{mdframed}
+
+In C++, we can pass by reference.
+
+Example: pass by pointer vs. pass by reference
+
+\begin{minipage}[t]{0.5\textwidth}
+{\small \begin{verbatim}
+//pass by reference
+void swapnum(int &i, int &j) {
+  int temp = i;
+  i = j;
+  j = temp;
+}
+
+int a = 10;
+int b = 20;
+
+swapnum(a, b);
+\end{verbatim}}
+\end{minipage}
+\begin{minipage}[t]{0.5\textwidth}
+{\small \begin{verbatim}
+//pass by pointer
+void swapnum(int *i, int *j) {
+  int temp = *i;
+  *i = *j;
+  *j = temp;
+}
+
+int a = 10;
+int b = 20;
+
+swapnum(&a, &b);
+\end{verbatim}}
+\end{minipage}
+
+
+If we don't want the callee to modify the data, passing by value is acceptable
+for 'simple' types like primitives (int, long). For objects that are expensive
+to copy, we should use \verb!const! references.
+
+In C/C++, we can pass an argument in three forms
+\begin{verbatim}
+void f1(std::string const& s); // Pass by reference-to-const
+void f2(std::string const* sptr); // Pass by pointer-to-const
+void f3(std::string s); // Pass by value
+\end{verbatim}
+So, when we call
+\begin{verbatim}
+std::string str('helloworld!');
+
+f1(str); 
+f2(&str); 
+f2(NULL);
+\end{verbatim}
+
+IMPORTANT: A pointer can point to nothing, i.e. pointing to NULL. By a reference
+is always associated with an object. So, a pointer parameter can receive a NULL
+parameter, but a reference parameter CANNOT. If you define a code using pass by
+reference, it's pushing an implicit NULL-check at the caller before switching to
+control to the callee. In overall, use reference when you can, and use pointer if you
+have to
+\footnote{\url{http://www.parashift.com/c++-faq-lite/refs-vs-ptrs.html}}. It
+means you should use pass-by-pointer if there's ever a chance that you could 
+pass 'no object' where it can brings some meaning, e.g. .
+
+NEVER use references as outputs, use pointers.
+
+
+\subsection{TIPS: Passing pointer (* or **) with 'const' non-modified purpose}
+
+Just like assigning between pointer types, passing pointers requires the same
+2 rules
+\begin{enumerate}
+  \item both operands are pointers to qualified or unqualified versions of
+  compatible types
+  
+  \item the type pointed to by the left has all the qualifiers of the type
+  pointed to by the right
+\end{enumerate}
+
+Consider the example
+\begin{verbatim}
+ // C and C++ 
+void foo (const int & p)
+{
+  int a = p+1;
+  p = 2; // error
+}
+
+  // C++ only
+void foo (const int * p)
+{
+  int a = *p+1;
+  *p = 2 ;; // error
+}
+\end{verbatim}
+
+We can pass
+\begin{verbatim}
+int i;
+
+ // C and C++
+foo(i);
+
+  // C++ only
+foo(&i);
+\end{verbatim}
+NOTICE: \verb!int*! and \verb!const int *! are equivalent, as both are pointers
+to a qualified and unqualified version of \verb!int!, and the left side
+(\verb!const int! has all the qualifiers of \verb!int!)
+\begin{verbatim}
+
+int * = a pointer pointing to a type 'int'
+
+const int * = a pointer pointing to a type 'const int' 
+\end{verbatim}
+\verb!const! is the qualifier for the pointer type.
+
+
+However, this is an error
+\begin{verbatim}
+main (int argc, char ** argv) {
+
+   foo (argv);
+}
+
+void foo(const char ** p){} 
+\end{verbatim}
+The reason is that 
+\begin{verbatim}
+char ** = an array, each element is of type 'char*' (a string)
+  // a pointer pointing to 'char*' 
+ 
+const char** = an array, each element is of type 'const char*'
+  // a pointer pointing to 'const char*' 
+\end{verbatim}
+The \verb!const! qualifier for the pointer type \verb!char*! should be written
+as
+\begin{verbatim}
+char * const
+\end{verbatim}
+It means \verb!const char*! is not compatible with \verb!char*!.
+
+\url{https://groups.google.com/forum/#!topic/comp.lang.c/4vK-MYAHKEs}
+
+\section{Passing an array (i.e. a pointer)}
+\label{sec:function_pass-array}
+
+In C, passing an array to a function is actually passing a pointer
+(Sect.\ref{sec:pointer_array}). When passing to a function, an array decays
+immediately into a pointer; thus, an array is never actually passed to a
+function. Example:
+in both cases below, x is a pointer, not an array, even if it is declared as
+\verb!x[]!
+Example:
+\begin{verbatim}
+void foo(char x[]);
+  // is the same as
+void foo(char* x);
+\end{verbatim}
+Inside the function foo(), \verb!sizeof(x)! is the same as \verb!sizeof(char*)!
+which is the size of the memory to hold a pointer (Sect.\ref{sec:type_info}).
+
+The conversion from array-like declarator into pointers hold only within
+functional formal parameter declaration, nowhere else (Question 6.4
+\footnote{\url{http://c-faq.com/~scs/cgi-bin/faqcat.cgi?sec=aryptr}}). So arrays
+are passed by reference, even though the rest of C language uses pass by value.
+
+C++ does not allow to pass an entire array as an argument to a function.
+However, you can pass a pointer to an array by specifying the array's name
+without an index. If you don't wan to use C-style array (as we describe in this
+session), then you can use STL container, e.g. vector. 
+
+\subsection{array with minimum length}
+
+When passing an array, if the keyword \verb!static! appears in the array type
+derivation, then the value of the actual argument shall provide access to the
+first element of an array with at least as many elements as specified by the
+size expression (in this case is 100).
+\begin{verbatim}
+void someFunction(char someArray[static 100])
+{
+    // do something cool here
+}
+\end{verbatim}
+Simply, it means the function expects the size to be at least 100 elements.
+
+\subsection{passing an array that cannot be changed}
+
+\begin{Verbatim}
+void someFunction(char someArray[const])
+{
+    // do something cool here
+}
+\end{Verbatim}
+We can not do \verb!someArray=someOtherArray!.
+
+\subsection{1D-array}
+
+An array name is also the pointer to the first position in the array, so remeber
+that 
+\begin{verbatim}
+
+    t[i] = *(t+i)
+
+\end{verbatim}
+
+\begin{enumerate}
+  \item Use pure pointer
+\begin{verbatim}
+void myFunction(int *param)
+{  }
+\end{verbatim}
+
+  \item Use a sized array (array of fixed size)
+\begin{verbatim}
+void myFunction(int param[10])
+{}
+\end{verbatim}
+
+  \item Use an unsized array
+\begin{verbatim}
+void myFunction(int param[], int sizearray)
+{ }
+\end{verbatim}
+NOTE: We'd better pass the size of the array as well.
+
+\end{enumerate}
+
+\subsection{2D-array}
+
+Using 2D or 3D array is not recommend in C/C++ as they are not continuous in
+memory, you'd better use 1D array. 
+\begin{verbatim}
+void myFunction(double * arr, int R, int C)
+{
+    arr[x * C + y] = 5;
+    etc...
+}
+\end{verbatim}
+
+
+If you really need to use 2D array, then
+\begin{enumerate}
+  \item You pass along the array size information
+\begin{Verbatim}
+double maximum(int n, int m, double a[n][m]);
+double maximum(int n, int m, double a[*][*]);
+double maximum(int n, int m, double a[ ][*]);
+double maximum(int n, int m, double a[ ][m]);
+\end{Verbatim}
+
+or we use \verb!restrict! and \verb!static!
+\begin{Verbatim}
+void f(double (* restrict a)[5]);
+void f(double a[restrict][5]);
+void f(double a[restrict 3][5]);
+void f(double a[restrict static 3][5]);
+\end{Verbatim}
+We use \verb!restrict! (C99) to indicate strict-aliasing, as two dimensional
+arrays is indeed an array of pointers (row-major in C), each pointer pointing to
+a 1D array. The last one means that the actual argument must be a non-NULL
+pointer pointing to the first of at least 3 arrays of 5 doubles.
+
+  \item Use pointer to pointer
+\begin{verbatim}
+void someFunction(int** someArray)
+{
+  someArray[y][x] = example;
+}
+
+void someFunction(int **array, size_t rows, size_t cols)
+\end{verbatim}
+
+   \item An array containing pointer
+\begin{verbatim}
+void passFunc(int *a[10]) //array containing pointers
+{  }
+
+void passFunc(int (*array)[10], size_t rows)
+{  }
+\end{verbatim}
+
+  \item A 'real' 2D array, with the size of one dimension MUST be given
+\begin{verbatim}
+void someFunc(int someArray[][3])
+{
+}
+\end{verbatim}
+ 
+   \item Use template to allow dynamic size in the second dimension
+\begin{verbatim}
+template <size_t size_y>
+void func(double arr[][size_y])
+{
+    printf("%X\n", arr);
+}
+\end{verbatim}
+   \item Or even this is better
+\begin{verbatim}
+template<int R, int C>
+void myFunction(double (&myArray)[R][C])
+{
+    myArray[x][y] = 5;
+    etc...
+}
+\end{verbatim}
+
+\end{enumerate}
+
+\subsection{3D-array}
+
+NOT recommend at all. Use STL vector instead.
+
+\section{Passing a string as argument to a function}
+
+As a general rule of const correctness, when passing to/from functions, if
+you're not changing the string data, use \verb!const char*!.
+It's important to create a local string (using either \verb!strcpy()!,
+\verb!strncpy()!, or \verb!strdup()!) and work with this local string, so that
+it doesn't modify the global data.
+
+Example:
+\begin{verbatim}
+void do_something(const char *string)
+{
+   char* line;
+   line = strdup(string);
+   // work with 'line'
+   ...
+}
+\end{verbatim}
+See the discussion on how to copy a string in Sect.\ref{sec:C_string}.
+
+\verb!char*! should only be used if you're modifying it.
+Also, make sure to allocate the memory before passing the pointer and also pass
+the size of the data object.
+
+For C++ string we use
+\begin{verbatim}
+void do_something(const std::string &string)
+{ //no copy and make sure it is not modified
+
+}
+\end{verbatim}
+We can also define implicit value (optional argument)
+\begin{verbatim}
+//in the header
+void do_something(const std::string &str = std::string("default-value"));
+\end{verbatim}
+
+
+\section{Return by reference or const reference}
+
+In terms of speed, both are the same, as there is no data copy occur, only the
+reference is returned.
+
+Return by reference, i.e. you can modify the returned value
+\begin{lstlisting}
+class A {
+
+  public:
+    // non-const member function
+    int& getImem() { return imem;};
+  private:
+    int imem;
+}
+\end{lstlisting}
+NOTE: \verb!imem! is a short form of \verb!this->imem!. 
+In a non-const member,  \verb!this! is of type \verb!A* const!, i.e. the pointer
+is fixed, but not the instance it points to.
+
+Return by const reference, i.e. you cannot modify the returned value
+\begin{lstlisting}
+class A {
+
+  public:
+    int& getImem() const { return imem;};
+  private:
+    int imem;
+}
+\end{lstlisting}
+In a non-const member,  \verb!this! is of type \verb!const A* const!, i.e. the
+pointer is const, and also the instance it points to is const.
+
+
+\section{Return an array or a pointer}
+
+There is no way to return an array in C. Instead, it returns the pointer to the
+first element in the array. Example: 
+\begin{verbatim}
+char * foo(...)
+{
+
+}
+\end{verbatim}
+
+POTENTIAL BUGS: declare an automatic array, which is local to the function and
+return with the pointer to that array
+\begin{verbatim}
+char * foo()
+{
+   char buffer[120];
+   
+   /* do something */
+   
+   return buffer;
+}
+\end{verbatim}
+Automatic variables are allocated on the stack. Once the flow of control leaves
+the scope of the function, the automatic variables declared in that function are
+not guaranteed to exist, as the stack is available for reuse, and will
+certainly be overwritten by the next function to be called. Depending the
+location of the automatic variables declared in the stack, and the number of
+variables declared in the next function call, the next function call may or may
+not overwrite the automatic variables. Thus, the data for the automatic
+variable might be overwritten immediately (at the next function call), or later,
+leading to a hard-to-find bug problem.
+
+There are different strategies to overcome that automatic array issue:
+\begin{enumerate}
+  \item  (char* only) Return a pointer to the string literal
+\begin{verbatim}
+char * foo() 
+{
+  return "Some strings here";
+}
+\end{verbatim} 
+This is the simplest solution, and the literal string is stored in a read-only
+memory (Sect.\ref{sec:read-only_memory}). However, the returned string cannot be
+changed.
+
+  \item use globally declared array
+\begin{verbatim}
+#define BUF_SIZE 120
+char my_global_array[BUF_SIZE];
+
+char * foo()
+{
+  my_global_array[i] = 'a';  //update the string
+  return my_global_array;
+}
+\end{verbatim}
+However, it is not thread-safety and any functions can overwrite the data.
+
+  \item Use a static array
+\begin{verbatim}
+char * foo()
+{
+  static char buffer[20];
+  
+  return buffer;
+}
+\end{verbatim}
+The static data is stored in the {\bf static memory space}.  However, the data
+can be modified in the next call to this function. Also, the buffer size is
+fixed, and cannot be changed.
+
+  \item Explicit allocate the memory inside the function, and let the caller
+  handle the free
+\begin{verbatim}
+char * foo()
+{
+   char * buffer;
+   buffer = malloc(BUF_SIZE);
+   
+   return buffer;
+}
+\end{verbatim}
+There is a potential of memory leak (if the caller doesn't free the memory), or
+it can crash if the memory is freed while it is being used somewhere else.
+
+   \item [BEST] This is the best solution: let the caller allocate the memory,
+   and handle the memory free. Then, we need to pass the buffer size as well
+\begin{verbatim}
+void foo(char* buffer, int size) 
+{
+
+  // do something with buffer, within the 'size' limit
+}
+
+
+void main()
+{
+buffer = malloc(BUF_SIZE);
+
+foo(buffer, BUF_SIZE);
+
+free(buffer);
+}
+\end{verbatim}
+\end{enumerate}
+
+So, it's important to dynamically allocated the
+memory inside the array.
+\begin{verbatim}
+int * foo()
+{
+   int * a;
+   malloc(a, 8 * sizeof(int));
+   
+   /* do something with a */
+   return a;
+}
+\end{verbatim}
+IMPORTANT: In the caller, remember to free the returned array, as
+\verb!malloc()! is hidden in the callee. 
+
+However, it's better to pass the array as an argument. The advantage is that the
+caller can allocate the memory before passing it to the function.
+\begin{verbatim}
+/* Convert string of integers into int array. */
+void splitString( const char string[], int result[], int n) {
+    //....
+}
+\end{verbatim}
+rather than
+\begin{verbatim}
+int * splitString( char string[], int n )
+{
+    int newArray[n];
+
+    // CODE
+
+    return ( newArray );
+}
+\end{verbatim}
+\url{http://stackoverflow.com/questions/5378768/returning-arrays-pointers-from-a-function}
+
+
+\section{Nested function}
+
+Nested function is not allowed in standard C nor standard C++. So, depending on
+the compiler, you may or may not be able to use this. In GCC, nested function is
+available as a language extension in C. To turn-off this extension in GCC,
+compile the code with \verb!-ansi! flag (set standard to c89, and thus not able to use
+features incompatible with ISO C90). In Fortran 90, we use \verb!CONTAIN!
+keyword (one level of nested function).
+
+\begin{framed}
+In C++, we can use lambdas as inner functions.
+
+\begin{verbatim}
+double some_function( double x, double y)
+{
+   auto inner_function = [&]() { return x * x; }
+
+   double z;
+   z = inner_function ();
+   return z + y;
+}
+\end{verbatim}
+\end{framed}
+
+\begin{verbatim}
+double stuff(double a, double b)
+{
+  struct parameters
+  {
+    double a, b;
+  };
+
+  double f(double x, void * params)
+  {
+    struct parameters p = (struct parameters *) params;
+    double a = p->a, b = b->b;
+    return some_expression_involving(a,b,x);
+  }
+  struct parameters par = {a,b};
+
+  return integrate(&f, &par);     // return added!
+}
+\end{verbatim}
+
+\url{http://stackoverflow.com/questions/957592/functions-inside-functions-in-c}
+
+\section{Function pointer}
+\label{sec:function_pointer}
+
+Example: function pointer vs. normal function
+\begin{lstlisting}
+int f(), *f(), (*f)();
+\end{lstlisting}
+declare a function returning an integer, a function returning a pointer to an
+integer, a pointer to a function returning an integer; 
+
+
+The type of a function pointer is just like the function declaration, but with
+"(*)" in place of the function name. So a pointer to:
+\begin{verbatim}
+int foo( int )
+\end{verbatim}
+would be
+\begin{verbatim}
+int (*)( int )
+\end{verbatim}
+If we want to put a name instance, i.e. a variable, we put the name inside (*)
+\begin{verbatim}
+int (*foo_ptr)( int )
+\end{verbatim}
+which declares a variable called \verb!foo_ptr! that points to a function of this type.
+
+
+Example: function pointer vs. normal function
+\begin{lstlisting}
+int f(), *f(), (*f)();
+\end{lstlisting}
+declare a function returning an integer, a function returning a pointer to an
+integer, a pointer to a function returning an integer.
+
+\subsection{a pointer to a function}
+
+The syntax for declaring a function pointer might seem messy at first, but
+the key is to read inside-out. Based on the precedence rule in C and C++, the
+parentheses () has the highest precedence of all.
+\begin{verbatim}
+  // f is a function accepting an 'int' param
+  //     and returning a pointer of type 'int' 
+int *f(int)
+
+  // f is a function pointer pointing to a function that accepts a single
+  //  argument of type 'int' and return a value of type 'int' 
+int (*f)(int) 
+\end{verbatim}
+
+NOTE: \textcolor{red}{How to identify a function pointer?} A function pointer is
+preceded by an asterisk (*) and then enclosed by a parenthese ().
+
+\begin{verbatim}
+void (*foo)(int);  /* read inside-out: so (*foo) is a function
+                      or 'foo' as a pointer to a function that
+                      accept a single input of type 'int' and return 'void'
+                   */
+                   
+void *(*foo)(int *); /* read inside-out (*foo) is a function 
+                      so 'foo' as a pointer to a function that
+                      accept a single input of type 'int' and return 'void*'
+                   */                    
+void (*signal(int sig, void (*func)(int)))(int); 
+                    /* read inside-out (*func) is a function 
+                      so 'func' as a pointer to a function that
+                      accept a single input of type 'int' and return 'void'
+                      
+                             then (*signal) is a function
+                    so 'signal' is a pointer to a function that
+               	    accepts 2 inputs, an 'int' and a pointer to a function like
+               	                      (*func),
+               	    and returns a pointer to a function taking an 'int' param
+               	                                        and returning void
+               	     */                    
+\end{verbatim}
+
+Explain:
+\begin{verbatim}
+       signal                                     -- signal
+       signal(                          )         -- is a function
+       signal(    sig,                  )         -- with a parameter named sig
+       signal(int sig,                  )         --   of type int
+       signal(int sig,        func      )         -- and a parameter named func
+       signal(int sig,      (*func)     )         --   which is a pointer
+       signal(int sig,      (*func)(   ))         --   to a function
+       signal(int sig,      (*func)(int))         --     taking an int parameter
+       signal(int sig, void (*func)(int))         --     and returning void
+      *signal(int sig, void (*func)(int))         -- returning a pointer
+     (*signal(int sig, void (*func)(int)))(   )   -- to a function
+     (*signal(int sig, void (*func)(int)))(int)   --   taking an int parameter
+void (*signal(int sig, void (*func)(int)))(int);  --   and returning void
+\end{verbatim}
+\url{http://stackoverflow.com/questions/9500848/how-do-i-read-this-complex-declaration-in-c}
+
+
+The pointer to a function can be used as a regular variable, though it's not a
+traditional variable. This allows the use of {\it callback function} in Windows,
+i.e. a function that runs in response to a given event
+(Sect.\ref{sec:callback}).
+
+\subsection{typedef a function pointer}
+\label{sec:typedef-function-pointer}
+
+As we have a pointer to a data type, and we have a pointer to a function, and a
+function that can return a function pointer, can we make a function pointer as a
+data type?
+
+The answer is YES, using \verb!typedef! A function pointer is a user-defined
+data type.
+
+
+Example: equivalent statements
+\begin{verbatim}
+extern SignalHandler alt_signal(void);
+
+extern void (*alt_signal(void))(int signum);
+\end{verbatim}
+with
+\begin{verbatim}
+typedef void (*SignalHandler)(int signum);
+\end{verbatim}
+
+% 
+% The hard part is the type is a pointer to functions, where, unlike other data
+% type, the functions can have a return value or parameters. As a function pointer
+% store the address of a function, the syntax thus looks odd with the keyword is
+% surrounded by other things
+
+{\bf Example}: \verb!t_somefunc! is the name of the new data type
+\begin{verbatim}
+typedef int (*t_somefunc)(int,int);
+\end{verbatim}
+It means \verb!t_somefunc! is the keyword that represent a pointer to a function
+which accepts 2 parameters of type \verb!int! and returns the value of type
+\verb!int!.
+
+So we can use
+\begin{verbatim}
+int product(int u, int v) {
+  return u*v;
+}
+
+t_somefunc afunc = &product; /*  a pointer to a specific function of the same
+                                 signature
+                             */
+ ...
+int x2 = (*afunc)(123, 456); // call product() to calculate 123*456
+\end{verbatim}
+
+{\bf TIPS}: breaking down to small chunks is better
+\begin{verbatim}
+typedef int (*FUNC_TYPE_1)(void);
+typedef double (*FUNC_TYPE_2)(void);
+typedef FUNC_TYPE_1 (*FUNC_TYPE_3)(FUNC_TYPE_2);
+\end{verbatim}
+than (not we keep the innermost name which is \verb!FUNC_TYPE_3!)
+\begin{verbatim}
+typedef  int(*(*FUNC_TYPE_3)(double (*)(void)))(void);
+\end{verbatim}
+
+{\bf TIPS}: using the website cdecl to give you the explanation
+\url{http://cdecl.org} which makes use of the \verb!cdecl! utility
+\url{http://linuxcommand.org/man_pages/cdecl1.html}
+% which is a function that accepts 2 arguments: one type \verb!int!, and one is a
+% pointer to a function that ( accepts one argument type \verb!int! and returns
+% nothing), and returns a pointer to a function that (takes one argument of type
+% \verb!int! and returns nothing).
+% We can use typedef to simplify the above declaration
+% \begin{verbatim}
+% typedef void (*SignalHandler)(int signum);
+% 
+% extern  SignalHandler signal(int signum, SignalHandler handler);
+% \end{verbatim}
+
+% Example: the \verb!signal()! function is a system-call that accepts the first
+% argument as the SIGNAl type and the second argument as the pointer to the
+% function to be evoked to handle the signal. ANSI C standard for this system call
+% \begin{verbatim}
+% void (*signal(int sig, void (*func)(int))) (int);
+% \end{verbatim}
+% By using \verb!typedef!, we make the decleration simpler
+% \begin{verbatim}
+% typedef void (*ptr_to_func)(int);
+% 
+% ptr_to_func signal(int, ptr_to_func);
+% \end{verbatim}
+
+
+
+\subsection{Array of function pointer}
+\label{sec:function-pointer-array}
+
+Arrays follow the normal C syntax of putting the brackets near the variable's identifier
+\begin{verbatim}
+int (*foo_ptr_array[2])( int )
+\end{verbatim}
+declares a variable called \verb!foo_ptr_array! which is an array of 2 function pointers.
+
+
+The syntax can get pretty messy, so it's often easier to make a typedef to the
+function pointer and then declare an array of those instead
+\begin{verbatim}
+typedef int (*foo_ptr_t)( int );
+foo_ptr_t foo_ptr_array[2];
+
+
+//a pointer to a function with 'n' arguments, and return type 'R'
+typedef R (*fptr)(A1, A2... An);
+\end{verbatim}
+
+
+
+Dynamically allocated an array of function pointers
+\begin{verbatim}
+int (**a1)( int ) = calloc( 2, sizeof( int (*)( int ) ) );
+foo_ptr_t * a2 = calloc( 2, sizeof( foo_ptr_t ) );
+
+fptr* arr = calloc(num_of_elements,sizeof(fptr));
+
+//for some type T
+T (*afp[N])(); 
+
+T (**pfp)() = calloc(num_elements, sizeof *pfp);
+
+//or
+
+T (**pfp)() = malloc(num_elements * sizeof *pfp);
+\end{verbatim}
+then we use
+\begin{verbatim}
+T x = (*pfp[i])();
+
+//or
+
+T x = pfp[i](); // pfp[i] is implicitly dereferenced
+\end{verbatim}
+
+A different way:  you can declare a pointer to an array of pointers to functions, and then allocate that as follows:
+\begin{verbatim}
+T (*(*pafp)[N])() = malloc(sizeof *pafp);
+
+//here,  you would have to deference the array pointer when making the call:
+x = (*(*pafp)[i])();
+\end{verbatim}
+
+\url{https://stackoverflow.com/questions/5488608/how-define-an-array-of-function-pointers-in-c/5488718}
+
+\section{Applications of function pointer}
+
+A function pointer is used in 
+\begin{enumerate}
+  \item enable passing the function name as a parameter to another function  
+  
+  \item callback - Sect.\ref{sec:callback}
+  
+  \item signal - Sect.\ref{sec:signal}
+\end{enumerate}
+
+\subsection{modify function's body}
+
+
+When programming, you want to reduce the number of APIs to develop, by using the
+same API for related operations, e.g. you have to write two different function
+for a sorting procedure
+\begin{verbatim}
+result = sort_ascend(input)
+result = sort_descend(input)
+\end{verbatim}
+
+Typically, when you design a function whose processing can be customized, you
+use a parameter whose values can be used as a flag for choosing what method is
+used
+\begin{verbatim}
+result = sort(input, 'a') /* ascending */
+
+result = sort(input, 'd') /* descending */
+\end{verbatim}
+
+However, there are situations that you want a function whose processsing
+to be more flexible, i.e. user can pass a pointer to a function whose does the
+exact processing the want
+\begin{verbatim}
+
+ /* sort(int * arr[], (int*)(int*)) */
+result = sort(input, my_own_processing)
+
+int * sort_ascending(int* input)
+{
+
+
+}
+
+int * sort_descending(int* input)
+{
+
+
+}
+
+int * sort_ascending_and_keep_positive_values_only(int* input)
+{
+
+
+}
+
+\end{verbatim}
+
+\subsection{signal() function in C}
+\label{sec:signal}
+
+Read Sect.\ref{sec:signal()} for more information about signals.
+\begin{verbatim}
+extern void (*signal(int, void(*func)(int)))(int);
+\end{verbatim}
+\verb!signal! associates a signal handler function \verb!func! with a signal
+\verb!sig!, and returns the pointer to the old signal handler function.
+
+% {\bf Example}: the signal() function from C-standard
+% \begin{verbatim}
+% extern void (*signal(int, void(*)(int)))(int);
+% \end{verbatim}
+So, by defining a new data type
+\begin{verbatim}
+typedef void (*SignalHandler)(int signum);
+\end{verbatim}
+which is a type as a pointer to a function accepting an 'int' parameter and
+return 'void'. So, a simpler form for a signal() function is
+\begin{verbatim}
+extern  SignalHandler signal(int signum, SignalHandler handler);
+\end{verbatim}
+
+Example: the struct \verb!Handlers! keeps a pair of (signal-ID,
+its-associated-handler)
+\begin{lstlisting}
+static void alarm_catcher(int signum)
+{
+    fprintf(stderr, "%s() called (%d)\n", __func__, signum);
+}
+
+static void signal_catcher(int signum)
+{
+    fprintf(stderr, "%s() called (%d) - exiting\n", __func__, signum);
+    exit(1);
+}
+
+static struct Handlers
+{
+    int              signum;
+    SignalHandler    handler;
+} handler[] =
+{
+    { SIGALRM,   alarm_catcher  },
+    { SIGINT,    signal_catcher },
+    { SIGQUIT,   signal_catcher },
+};
+
+int main(void)
+{
+    size_t num_handlers = sizeof(handler) / sizeof(handler[0]);
+    size_t i;
+
+    for (i = 0; i < num_handlers; i++)
+    {
+        SignalHandler old_handler = signal(handler[i].signum, SIG_IGN);
+        if (old_handler != SIG_IGN)
+            old_handler = signal(handler[i].signum, handler[i].handler);
+        assert(old_handler == SIG_IGN);
+    }
+
+    ...continue with ordinary processing...
+
+    return(EXIT_SUCCESS);
+}
+\end{lstlisting}
+
+\url{http://stackoverflow.com/questions/1591361/understanding-typedefs-for-function-pointers-in-c-examples-hints-and-tips-ple}
+
+
+\subsection{callback}
+\label{sec:callback}
+
+Callbacks in C are usually implemented using function pointers and an associated
+data pointer. When an event happens, your function is called with your data and some
+event-specific data.
+
+You pass your function \verb!on_event()! and data pointers to a framework
+function \verb!watch_events()!.
+
+\begin{itemize}
+  \item define the type representing events
+
+An event need (1) user-data, (2)   
+\begin{verbatim}
+struct event_cb {
+    event_cb_t cb;
+    void *data;
+};
+\end{verbatim}
+
+  \item first, define the type of functions being used as callback
+\begin{verbatim}
+typedef void (*event_cb_t)(const struct event *evt, void *userdata);
+\end{verbatim}
+
+
+  \item define the register function that is used to register a particular
+  callback, to a particular event
+\begin{verbatim}
+int event_cb_register(event_cb_t cb, void *userdata);
+\end{verbatim}
+
+   \item register a callback
+ 
+ \begin{verbatim}
+ static void my_event_cb(const struct event *evt, void *data)
+{
+    /* do stuff and things with the event */
+}
+
+...
+   event_cb_register(my_event_cb, &my_custom_data);
+...
+ \end{verbatim} 
+\end{itemize}
+
+Example:
+\begin{verbatim}
+void populate_array(int *array, size_t arraySize, int (*getNextValue)(void))
+{
+    for (size_t i=0; i<arraySize; i++)
+        array[i] = getNextValue();
+}
+
+int getNextRandomValue(void)
+{
+    return rand();
+}
+
+int main(void)
+{
+    int myarray[10];
+    populate_array(myarray, 10, getNextRandomValue);
+    ...
+}
+\end{verbatim}
+
+\section{How to end a program}
+\label{sec:C_end-program}
+
+During the execution of a function, class's method, there is a chance that an
+error occur that require the process associated with that program to stop.
+
+It is advised that you should try to unwind as close to \verb!main()! as
+possible before terminating.
+
+
+\subsection{Failure/Success portable}
+
+When a program/subroutine exit, it passes an {\it exit status} to the parent
+process, which is a value between 0 to 255. The most common convention is 
+\begin{itemize}
+  \item 0 = success
+  \item 1 = failure
+  \item 1 = mismatch
+  \item 2 = inability to compare
+  \item 128-up = for special purpose, e.g. 128=failure to execute another
+  program in a subprocess.
+\end{itemize}
+However, all of the above conventions are not portable.
+
+C/C++ defines some macros that can be used as the exit code. 
+\begin{itemize}
+  \item  \verb!EXIT_FAILURE! is the only portable way to indicate failure in
+  C/C++ program
+  
+   \item \verb!EXIT_SUCCESS! or 0 to indicate a success exit  (zero is
+   guaranteed to signal successfull completion). 
+\end{itemize}
+by passing it either to \verb!return! or \verb!exit()!
+(Sect.\ref{sec:return_exit}).
+
+To use either \verb!EXIT_FAILURE! or \verb!EXIT_SUCCESS! we need to include
+\begin{verbatim}
+#include <stdlib.h>  // C or
+#include <cstdlib>  // C++
+
+exit(EXIT_SUCCESS); 
+return EXIT_SUCCESS;
+\end{verbatim}
+
+Since C99 standard and all version of C++, by reaching the end of a main()
+routine, it does an implicit running of \verb!return 0!.  
+
+\subsection{exit(), return}
+\label{sec_return_exit}
+
+When \verb!return! is called in main(), the destructor for the locally scoped
+objects will be called. When \verb!exit()! is called in main(), until C++03,
+\textcolor{red}{no} destructors for the locally scoped objects will be called.
+Since C++11, objects associated with the current thread with thread storage
+duration are destroyed. 
+\begin{verbatim}
+// C
+void exit (int status);
+
+// C++
+[[noreturn]] void exit (int status);
+\end{verbatim}
+NOTE: 
+\begin{itemize}
+  \item exit(0) means 'successful' which is portable
+  
+Better to use \verb!exit(EXIT_SUCCESS)! from <cstdlib>.
+
+  \item exit(1) means 'unsucessful' but it is non-portable. 
+
+Better to use \verb!exit(EXIT_FAILURE)! from <cstdlib>.
+\end{itemize}
+NOTE: C99 only defines the meaning of exit(0), and those two macros with
+<cstdlib>.
+\footnote{\url{http://stackoverflow.com/questions/9944785/what-is-the-difference-between-exit0-and-exit1-in-c}}
+\url{http://en.cppreference.com/w/cpp/utility/program/EXIT_status}
+
+NOTE: \verb!static! objects (Sect.\ref{sec:static_C}) always be cleaned up either
+using \verb!return! or \verb!exit! 
+
+\subsection{abnormal termination}
+\label{sec:abnormal_termination}
+
+We use \verb!abort()! to cause abnormal termination, i.e. without cleaning up
+the allocated data. When \verb!abort()! is used, no objects (i.e. global
+objects, local objects, static objects) will have their destructors called. 
+
+\subsection{Register some functions to be called on exit()}
+
+We register one or more functions to be called at \verb!exit()!
+(Sect.\ref{sec:normal_termination}) using \verb!std::atexit()!.
+
+\subsection{normal termination}
+\label{sec:normal_termination}
+
+\begin{verbatim}
+#include <cstdlib>
+
+// Until C++11, 
+void exit( int exit_code );
+
+// Since C++11, there is no return
+void exit( int exit_code );
+\end{verbatim}
+with the return value \verb!exit_code! which indicates a successful termination
+(if 0 or \verb!EXIT_SUCCESS!) and an unsuccessful termination (if
+\verb!EXIT_FAILURE!). \verb!exit()! is called to cause normal program
+termination. What it does is
+\begin{enumerate}
+  \item All C streams (open with functions in <cstdio>) are flushed and closed.
+  \item All files created with \verb!std::tmpfile! are removed.
+  \item Destructors of objects (static storage duration) are called (C++). Since
+  C++11, destructors of objects with thread local storage duration are also destroyed. 
+  
+  However, destructors of those with automatic storage duration not called. HOW TO RESOLVE THIS???
+  
+  \item Functions register with \verb!std::atexit()! are called. If an exception
+  occurs with any of these functions, \verb!std::terminate()! is called.
+  \item Finally, control is returned to the host environment, with one exit code
+  which can be either \verb!EXIT_SUCCESS! or \verb!EXIT_FAILURE!.
+\end{enumerate}
+
+Since C++11, a new function \verb!quick_exit()! is supported to do quick normal
+termination, without completely cleaning up the code.

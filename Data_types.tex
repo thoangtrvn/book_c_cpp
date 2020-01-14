@@ -1,0 +1,3408 @@
+\chapter{Data types}
+
+When you use data, it's important to know about data alignment
+(Sect.\ref{sec:data-alignm-gran} and Sect.\ref{sec:memory_alignment}),
+especially in struct or class. It's important to know about (1) declaration
+specifiers and (2) declarator-id.
+\begin{verbatim}
+static unsigned long int *x[N];
+\______________________/  \___/
+     /                     \
+    /                       \
+ declaration specifiers   declarator-id   
+\end{verbatim}
+
+\begin{itemize}
+  \item  A {\bf declarator-id} (id) is the name being declared, here is \verb!x!, possibly
+surrounded by {\it operators} such as *, [], (), and (in the case of C++)
+\verb!&!.  A declarator may not contain any operator at all, e.g.
+\begin{verbatim}
+int x;
+\end{verbatim}
+
+   \item In a {\bf declaration specifiers}, there are two groups: (1) type specifiers which
+contribute to the type of the declarator-id, (2) non-type information that
+applies directly to the declarator-id. Here, \verb!unsigned long int! is the
+type-specifier, and \verb!static! is the non-type information that tell \verb!x!
+has statically allocated storage (Sect.\ref{sec:static_C}).
+\end{itemize}
+
+
+\section{Introduction}
+
+\subsection{aggregate (a special type of class): C++98/03}
+\label{sec:aggregate-class}
+\label{sec:aggregate-class-C++98-C++03}
+
+Definition in C++98/03 for \textcolor{red}{aggregate}: An aggregate is an array
+or a class (clause 9) with no user-declared constructors (12.1), no private or
+protected non-static data members (clause 11), no base classes (clause 10), and
+no virtual functions (10.3).
+
+First of all, any array is an aggregate. An array is an aggregate even if it is
+an array of non-aggregate class type.
+
+In C++, the term \verb!class! refers to all classes, structs, and unions A class
+(or struct, or union) is an aggregate if and only if it satisfies the criteria
+from the above definitions.
+\begin{enumerate}
+  \item This does not mean an aggregate class cannot have constructors, in
+  fact it can have a default constructor and/or a copy constructor as long as
+  they are implicitly declared by the compiler, and not explicitly by the user  
+  
+  \item No private or protected non-static data members. 
+  
+  You can have as many private and protected member functions (but not
+  constructors) as you like and not violate the rules for aggregate classes
+  
+  You can have as many private or protected static data members and member
+  functions as you like and not violate the rules for aggregate classes
+  
+  \item An aggregate class CAN have a user-declared/user-defined copy-assignment
+  operator and/or destructor
+  
+  \item 
+\end{enumerate}
+
+Below are example of VIOLATION, i.e. NOT an aggregate.
+\begin{lstlisting}
+class NotAggregate1
+{// No virtual function
+  virtual void f() {} //remember? no virtual functions
+};
+
+class NotAggregate2
+{// data MUST be public 
+  int x; //x is private by default and non-static 
+};
+
+class NotAggregate3
+{// No user-defined constructor
+public:
+  NotAggregate3(int) {} //oops, user-defined constructor
+};
+
+class Aggregate1
+{
+public:
+  NotAggregate1 member1;   //ok, public member
+  Aggregate1& operator=(Aggregate1 const & rhs) {/* */} //ok, copy-assignment  
+private:
+  void f() {} // ok, just a private function
+};
+\end{lstlisting}
+
+
+\subsection{aggregate in C++11}
+\label{sec:aggregate-class-C++11}
+
+
+The standard definition of an aggregate has changed slightly, but it's still
+pretty much the same: 
+{\it An aggregate is an array or a class (Clause 9) with no {\bf user-provided
+constructors} (12.1), {\bf no brace-or-equal-initializers for non-static data
+members (9.2)}, no private or protected non-static data members (Clause 11), no
+base classes (Clause 10), and no virtual functions (10.3).  
+}  (the bold text is the new part).
+\begin{enumerate}
+  \item  Previously, an aggregate could have no user-declared constructors, but
+  now it can't have user-provided constructors. Is there a difference? Yes,
+  there is, because now you can declare constructors and default them:  
+  
+\begin{verbatim}
+struct Aggregate {
+    Aggregate() = default; // though declared by user, it asks the compiler to
+                          // generate the default implementation
+};
+\end{verbatim}  
+
+With C++11, this is still an aggregate because a constructor (or any special
+member function) that is defaulted on the first declaration is not
+user-provided.
+  
+  \item  with this new standard, we can initialize members directly in the class
+  like this:
+  
+\begin{verbatim}
+struct NotAggregate {
+    int x = 5; // valid in C++11
+    std::vector<int> s{1,2,3}; // also valid
+};
+\end{verbatim}
+Using this feature makes the class no longer an aggregate because it's basically
+equivalent to providing your own default constructor.
+
+\end{enumerate}
+
+ 
+
+\subsection{Why we use aggregate data type}
+\label{sec:aggregate-class-wht-we-use-it}
+
+Unlike non-aggregate classes, can be initialized with curly braces
+\verb!{}!. This initialization syntax is commonly known for arrays,
+
+\begin{verbatim}
+// notice the different name 'm' and 'n'
+// which mean we can initialize an array of size 'n'
+//   with less values
+
+Type array_name[n] = {a1, a2, ..., am};
+\end{verbatim}
+It means that
+\begin{itemize}
+  \item if 'm < n': he first m elements of the array are initialized with a1,
+  a2, ..., am and the other $(n - m)$ elements are, if possible,
+  value-initialized (Sect.\ref{sec:value-initialized}). 
+  
+  \item if 'm = n': ith element of the array is initialized with ai
+  
+  \item if 'm > n':  compiler will issue an error
+\end{itemize}
+
+Example:
+\begin{lstlisting}
+class A
+{
+public:
+  A(int) {} //no default constructor
+};
+class B
+{
+public:
+  B() {} //default constructor available
+};
+
+
+int main()
+{
+  A a1[3] = {A(2), A(1), A(14)}; //OK n == m
+  A a2[3] = {A(2)}; //ERROR A has no default constructor. Unable to value-initialize a2[1] and a2[2]
+  B b1[3] = {B()}; //OK b1[1] and b1[2] are value initialized, in this case with the default-ctor
+  int Array1[1000] = {0}; //All elements are initialized with 0;
+  int Array2[1000] = {1}; //Attention: only the first element is 1, the rest are 0;
+  bool Array3[1000] = {}; //the braces can be empty too. All elements initialized with false
+  int Array4[1000]; //no initializer. This is different from an empty {} initializer in that
+  //the elements in this case are not value-initialized, but have indeterminate values 
+  //(unless, of course, Array4 is a global array)
+  int array[2] = {1, 2, 3, 4}; //ERROR, too many initializers
+}
+\end{lstlisting}
+
+\subsection{Initialize data}
+
+In C++1998 there are 2 types of initialization: zero and default.
+\begin{verbatim}
+new A - indeterminate value
+new A() - zero-initialize
+
+new B - default construct (B::m is uninitialized)
+
+new B() - default construct (B::m is uninitialized)
+
+new C - default construct (C::m is zero-initialized)
+
+new C() - default construct (C::m is zero-initialized)
+\end{verbatim}
+
+In C++2003 a 3rd type of initialization, value initialization was added.
+\begin{verbatim}
+new A - indeterminate value
+
+new A() - value-initialize A, 
+          which is zero-initialization if A is a POD.
+
+new B - default-initializes (leaves B::m uninitialized)
+
+new B() - value-initializes B which zero-initializes all fields since its default ctor is compiler generated as opposed to user-defined.
+
+new C - default-initializes C, which calls the default ctor.
+
+new C() - value-initializes C, which calls the default ctor.
+\end{verbatim}
+
+\subsection{zero-initialized}
+
+\subsection{default-initialized}
+
+\subsection{value-initialized (since C++2003)}
+\label{sec:value-initialized}	
+
+
+The definition below is imprecise and a bit incorrect but it should give you the
+basic idea.
+\begin{itemize}
+  \item When an object of scalar type (bool, int, char, double, pointers, etc.) is
+{\bf value-initialized} it means it is initialized with 0 for that type (false
+for bool, 0.0 for double, etc.). When an object of class type with a user-declared
+default constructor is value-initialized its default constructor is called.
+
+  \item If the default constructor (of a class) is implicitly defined (i.e. by
+  the compiler, NOT by the user) then all nonstatic members are recursively
+value-initialized.
+\end{itemize}
+
+A reference cannot be value-initialized. Value-initialization for a
+non-aggregate class can fail if, for example, the class has no appropriate
+default constructor. 
+
+
+
+
+\subsection{POD type (Plain-Old Data type)}
+\label{sec:POD-plain-old-datatype}
+
+POD stands for Plain Old Data - that is, a class (whether defined with the
+keyword \verb!struct! or the keyword \verb!class!) without constructors,
+destructors and \verb!virtual! members functions
+(Sect.\ref{sec:virtual_member-function}).
+
+\textcolor{red}{Why POD}: Compiling a POD in C++ gives you the same memory
+layout as a struct compiled in C.
+
+
+POD is all built-in data types (e.g. int, char, float, long, unsigned char,
+double, etc.) and all aggregation (Sect.\ref{sec:aggregate-class}) of POD data. 
+
+How to check if something is a POD? Well, there is a struct for that called
+\verb!std::is_pod!
+\begin{verbatim}
+namespace std {
+// Could use is_standard_layout && is_trivial instead of the builtin.
+template<typename _Tp>
+  struct is_pod
+  : public integral_constant<bool, __is_pod(_Tp)>
+  { };
+}
+\end{verbatim}
+
+In C++ 98/03, a Plain Old Data Structure in C++ is an aggregate class that
+contains only PODS as members, has no user-defined destructor, no user-defined copy
+assignment operator, and no nonstatic members of pointer-to-member type.
+\url{https://stackoverflow.com/questions/4178175/what-are-aggregates-and-pods-and-how-why-are-they-special/4178176#4178176}
+
+In C++11, 
+
+
+\subsection{non-POD data types}
+\label{sec:non-POD-class}
+
+
+A POD type is a C++ type that has an equivalent in C, and that uses the same
+rules as C uses for initialization, copying, layout, and addressing.
+
+
+A non-POD class is a class that contains a user-defined constructor, or
+destructor, or virtual functions, or derived from a base class, or contains
+members that are one of the ones I mentioned.
+
+In other words, if the type is not 'C' compatible, it is non-POD.
+
+\url{http://www.parashift.com/c++-faq-lite/pod-types.html}
+
+
+
+\subsection{Name lookup}
+
+C++ classifies names in different ways, i.e. different terminologies. 
+
+\begin{itemize}
+  \item identifier : a name consisting of an uninterupted sequence of letters,
+  underscotre (\verb!_!) and digits. CONSTRAINTS: it cannot start with a digit,
+  and some are reserved as keywords. NOTE: The concept of letters should be
+  taken broadly and includes universal character names (UCN)
+  
+  \item operator-function-id: 
+\begin{verbatim}
+operator new
+operator []
+operator &
+\end{verbatim}
+
+   \item conversion-function-id: denote a user-defined implicit conversion
+   operator
+\begin{verbatim}
+operator int&
+\end{verbatim}
+
+   \item template-id: 
+\begin{verbatim}
+List<T, int, 0>
+\end{verbatim}
+
+   \item unqualified-id: it can be any of the (identifier,
+   operator-function-id, conversion-function-id, template-id) or a destructor
+   name 
+\begin{verbatim}
+~Data
+~List<T, T, N>
+\end{verbatim}
+
+   \item qualified-id: an unqualified-id becomes a qualified-id when it comes
+   with namespace or class information, or just the global scope resolution
+   operator
+\begin{verbatim}
+::X			// NOTE: ::X refer to the type
+S::x
+Array<T>::y
+::N::A<T>::z
+\end{verbatim}
+\end{itemize}
+
+There are two non-standard terms:
+\begin{itemize}
+  
+   \item \verb!qualified name!: a name that undergoes a qualified lookup, in
+   which the scope to which the name belongs is explicitly mentioned using a
+   scope operator (::) or a member access operator (\verb!->! or \verb!.!).
+   
+\begin{verbatim}
+this->count 	;// qualified name
+
+count 			// unqualified name
+\end{verbatim}
+   
+  
+%   \item \verb!unqualified name!:
+
+  \item a {\bf dependent name} : a name that depends in some way to a
+  template parameter
+\begin{verbatim}
+std::vector<T>::iterator      // an dependent name if T is a template parameter
+
+std::vector<int>::iterator      // a nondependent name
+
+ident(x,y,z)      // 'ident' is a dependent name if and only if
+                  // any of its argument has a type that depends on 
+                  // a template parameter
+\end{verbatim}
+      
+\end{itemize}
+
+% However, there are two major naming concepts:
+% \begin{enumerate}
+%   \item a {\bf qualified name} : 
+% \end{enumerate}
+
+Name lookup attempts to find all names available at the point of usage. 
+\begin{enumerate}
+  \item  If the
+qualified name has the scope is a class, then the base class is also searched,
+before any other enclosing scopes, i.e. wrapped by \verb!{ ... }!
+\begin{verbatim}
+int x;
+class B{ int i;};
+class D::public B{};
+void foo(D* pd) {
+  pd->i = 3; // find B::i
+  D::x = 1 ; // error, do not find ::x in the enclosing scope
+}
+\end{verbatim}
+  
+   \item The unqualified name go through (1) ordinary lookup, i.e. is looked up
+   in a successively manner from the inner nost scope to the outer scope via
+   enclosing scopes, (2) or sometimes undergoes {\it argument-dependent lookup}
+   (ADL or Koenig lookup, extended Koenig lookup - named after Andrew Koenig).
+   
+\begin{verbatim}
+extern int count ;; // (1)
+
+int lookup_(int count) // (2)
+{
+   if (count < 0) {
+       int count = 1;  // (3)
+       lookup_(count)  // use 'count' in (3)
+   }
+   
+   return count +  ::count; 
+      // the first and unqualified 'count' is from (2)
+      // the second and qualified 'count' is from (1)
+}
+\end{verbatim}
+\end{enumerate}
+
+\subsection{Qualified and unqualified types}
+
+In computer programming, a fully qualified name is an unambiguous name that
+specifies which object, function or variable the name refer to without regarding
+to the context of using it. 
+\begin{itemize}
+  \item In Unix pathname, the full pathname should start with \verb!/!, e.g.
+  /home/user/this/folder/file.txt
+  
+  \item In URL: wikipedia.com/thisfile
+  \item In C++, Tcl, Perl, Ruby: So, the namespace should be explicit, and the two
+colons (::) is used to distinguish a fully qualified name from a regular name.
+
+\begin{verbatim}
+ // Perl
+$package2::scalar
+ 
+  // C++
+std::vector  
+\end{verbatim}
+  
+\end{itemize}
+
+
+
+
+A {\bf qualified} name is the one that has some sort of indication of where it
+belong, e.g. class specification, namespace specification. 
+
+
+ A {\bf qualified} data type is a built-in data type that has information
+about the storage size, range of values, or precision of the type.  
+
+
+From C99 standard,
+the intrinsic data type are {\it unqualified}
+\begin{verbatim}
+Any type so far mentioned is an unqualified type. Each unqualified type has
+several qualified versions of its type, corresponding to the combinations of
+one, two, or   all three of the const, volatile, and restrict qualifiers.
+
+The qualified or unqualified versions of a type are distinct types that belong
+to the same type category and have the same representation and alignment
+requirements.   
+\end{verbatim}
+
+To make a type qualified, we use a type qualifier which was introduced in ANSI
+C. NOTE: The qualifier not part of the ANSI C89/90 has two leading underscores,
+as the extension, and become normal in C99
+\begin{enumerate}
+  \item \verb!const!: Sect.\ref{sec:const_C} and Sect.\ref{sec:const_C++}.
+  
+prohibit writing access, i.e. eliminate potential side-effects across function
+calls involving the single object. Notice the difference in {\bf down
+qualification} between C and C++. C++ being more type restrictive, will not
+allow implicit down qualification. However, C++ allows implicit up
+qualification.
+
+  \item \verb!volatile!: Sect.\ref{sec:volatile_C}
+  
+disable optimization on object's storage, i.e. allowing an object to reside on
+the global memory that is accessible by other processes or hardware.
+   
+  \item \verb!__unaligned! :
+  
+Typically, the memory address of an allocator-id is the multiple of the size of
+the type. This is known as {\it aligned memory}. However, when using packed
+structures, unaligned memory can occur. A pointer pointing to non-aligned memory
+can cause alignment error. To tell the compiler to generate additional code, we
+declare the pointer as \verb!__unaligned!
+  
+  \item \verb!__restrict! (apply to pointer type only),
+  or \verb!restrict! (from C99):  Sect.\ref{sec:pointer_restrict}
+  
+\end{enumerate}
+Using type qualifier, it gives greater control over compiler's optimizations.
+
+
+
+
+\section{Macro values}
+
+
+The maximum value for a floating-point is represented as
+\begin{itemize}
+  \item in C: use \verb!FLT_MAX! (defined in \verb!<float.h>!)
+  \item in C++: use \verb!FLT_MAX! (defined in \verb!<cfloat>!)
+  \item in pure C++: use \verb!std::numeric_limits<float>::max! (defined in
+  \verb!<climits>!)
+\end{itemize}
+NOTE: \verb!MAXFLOAT! is a non-standard macro name.
+
+Many other macros are defined in header files 
+\begin{itemize}
+  \item  \verb!<climits>! (limits.h):  defines constants with the limits of
+  fundamental integral types
+  
+Example: \verb!LONG_MIN!, \verb!INT_MIN!  
+  
+  \item \verb!<cfloat>! (float.h): define the limits for fundamental
+  floating-point type
+  
+  \item \verb!<cstdint! (stdint.h): define the  limits for width-specific
+  integral types and other typedef types
+\end{itemize}
+\url{http://www.cplusplus.com/reference/climits/}
+
+
+\section{Header files}
+
+\subsection{stddef.h (cstddef)}
+\label{sec:stddef.h}
+
+
+The header file \verb!stddef.h! defines certain types.  This file must be
+included in all kinds of programs as it defines essential macros: NULL (which
+is can also be found in other header files: stdio.h, stdlib.h, string.h,
+time.h, wchar.h)
+
+\begin{verbatim}
+ptrdiff_t            a signed integer type that represents 
+                     the result of pointer subtraction
+                      
+size_t               unsigned integral type that represents
+                     the result of sizeof() operations
+                     (found in <stddef.h>, stdlib.h, wchar.h, 
+                     stdio.h, string.h) 
+                     
+max_align_t  [C11/C++11] (type with widest scalar alignment)
+nullptr_t    [C11/C++11] (null-pointer type)
+
+wchar_t              wide-character type
+                     (found in <stddef.h>, <stdlib.h>, <wchar.h>
+                      <cwchar>(C++), 
+\end{verbatim}
+
+In C++, their namespace is \verb!std!, e.g. \verb!std::ptrdiff_t!. 
+The macros representing the range of values for the above types are defined in
+the header file \verb!stdint.h!
+\begin{verbatim}
+  TYPE        MIN/MAX
+ptrdiff_t    PTRDIFF_T_MIN    PTRDIFF_T_MAX
+             -65535           +65535
+
+size_t       N/A                SIZE_MAX
+                                65535
+                                
+wchar_t         WCHAR_MIN       WCHAR_MAX
+
+\end{verbatim}
+
+
+\begin{enumerate}
+  \item \verb!ptrdiff_t! : an alias of signed integer type, to represent the
+  result of any valid pointer-subtraction operation. This is only used in the
+  case of pointers to element of an array.
+  
+  \item \verb!size_t! : an alias of the unsigned integer type, which is used to
+  represent the size of any objects in bytes; i.e. this is the type of the value
+  returned by \verb!sizeof()! operator.
+  
+NOTE: \verb!size_t! is used as the type of the parameters (typically to
+represent the length (count in bytes) of a string or a specific buffer) in some
+functions from \verb!<cstdlib>! header-file, e.g \verb!bsearch, qsort, calloc!,
+\verb!malloc!, \verb!realloc!, \verb!mblen, mbtowc, mbstowc, wcstombs!.
+
+  \item \verb!max_align_t! :  Sect.\ref{sec:memory_alignment}
+  
+\end{enumerate}
+
+The file \verb!stddef.h! (or cstddef) also defines some macros
+\begin{verbatim}
+NULL                   (null-pointer)
+offsetof(...)          (return the member offset)
+\end{verbatim}
+
+\section{Type check}
+
+
+\subsection{typeof()}
+\label{sec:typeof}
+
+In C, GCC provides as an extension, while in C++, we need to use Boost library. 
+However, it only gives the type of any expression at compile time.
+
+Then we can use
+\begin{lstlisting}
+  #define max(a,b) \
+       ({ typeof (a) _a = (a); \
+           typeof (b) _b = (b); \
+         _a > _b ? _a : _b; })
+\end{lstlisting}
+
+C++ Boost: use \verb!demangle()!
+\begin{lstlisting}
+#include <boost/units/detail/utility.hpp>
+
+To_main_msg_evt ev("Failed to initialize cards in " + boost::units::detail::demangle(typeid(*_IO_card.get()).name()) + ".\n", true, this);
+\end{lstlisting}
+\url{http://stackoverflow.com/questions/1986418/typeid-versus-typeof-in-c}
+
+Since C++11, the standard is \verb!decltype()! (Sect.\ref{sec:decltype}).
+Also, for runtime type detection, use \verb!typeid! (Sect.\ref{sec:typeid})
+
+\subsection{name demangle}
+\label{sec:name_mangling}
+
+Transforming C++ ABI identifiers (like RTTI symbols) into the original C++
+source identifiers is called 'demangling.'
+
+\begin{lstlisting}
+// https://gcc.gnu.org/onlinedocs/libstdc++/manual/ext_demangling.html
+
+
+\end{lstlisting}
+
+
+\subsection{decltype (C++11)}
+\label{sec:decltype}
+
+C++11 introduces \verb!decltype()! as a way to return the type of the argument
+which can be an object or a function at {\it compile-time} 
+
+\begin{lstlisting}
+vector<int> v;
+decltype(v)::value_type i = 0; // int i = 0;
+
+const int&& foo();
+const int bar();
+int i;
+struct A { double x; };
+const A* a = new A();
+decltype(foo()) x1; // type is const int&&
+decltype(bar()) x2; // type is int
+decltype(i) x3; // type is int
+decltype(a->x) x4; // type is double
+decltype((a->x)) x5; // type is const double&
+\end{lstlisting} 
+
+\subsection{typeid: <typeinfo> (C++11) - RTTI}
+\label{sec:type_info}
+\label{sec:typeid}
+\label{sec:RTTI}
+
+C++11 provides a feature called RTTI ({\bf Runtime Type Identification}) that
+allows the code to detect the type (e.g. class-name) of an object at runtime.
+We use header file \verb!<typeinfo>! and the function \verb!typeid()!.
+
+Example: inside the class method
+\begin{verbatim}
+std::cout << typeinfo(*this).name() ;
+
+
+// if we already know the class-name
+// we can use macro
+
+#define quote(x) #x
+std::cout << quote(classA);
+
+\end{verbatim}
+
+Example: on an object
+\begin{verbatim}
+ClassA obj;
+
+std::cout << typeinfo(obj).name();
+\end{verbatim}
+
+
+\verb!typeid()! operator returns an object of the class \verb!type_info! operator (as a const-qualified lvalue). 
+Then we can use \verb!names()! function on that object.
+The syntax is: \verb!typeid(x).name()! with \verb!x! is  any type or any
+expression (array or pointer) that has a type, to obtain the string
+representation of the type.
+
+The compilers have much freedom in implementing \verb!std::typeinfo! functions'
+behavior. 
+
+
+Example: \url{http://www.panix.com/~elflord/cpp/gotchas/index.shtml}
+\begin{verbatim}
+#include <typeinfo>
+#include <iostream>
+
+void foo(int a[])
+{
+	int *c;
+	a++; // legal: type of a is int*
+
+	std::cout << "sizeof int[] passed to function: "  <<
+		sizeof(a) << std::endl; // same as sizeof(int*)
+	std::cout << "typeid of int*: " << typeid(c).name() << std::endl;
+	std::cout << "typeid of int[] passed to function: " << typeid(a).name() 
+		<< std::endl; // pointer
+}
+
+void bar ( char a[][5] )
+{
+	char (*c)[5];
+	std::cout << "sizeof char a[][5] passed to function: "  <<
+		sizeof(a) << std::endl; // same as sizeof(char(*)[5])
+	std::cout << "sizeof char a[][5] passed to function: "  <<
+		sizeof(a[0]) << std::endl; // same as sizeof( char[5])
+
+	std::cout << "typeid of char(*)[5]: " << typeid(c).name() << std::endl;
+	std::cout << "typeid of char[][5] passed to function: " << typeid(a).name() 
+		<< std::endl; // pointer
+	std::cout << "sizeof a[0]: "<< sizeof(a[0]) << std::endl;
+
+
+}
+
+int main()
+{
+	int a[] = {2,3,4};
+	std::cout << "Sizeof int[3]: " << sizeof(a) << std::endl; // 3*sizeof(int)
+	std::cout << "typeid(int[]): " << typeid(a).name() << std::endl; 
+	foo(a);
+	std::cout << "---------------------------------" << std::endl;
+
+	char b[3][5]; 
+	std::cout << "size: char b[3][5]: " << sizeof(b) << std::endl; // 3*5*sizeof(char)
+	std::cout << "sizeof b[0]:  " << sizeof(b[0]) << std::endl; // 5*sizeof(char)
+	bar (b);
+}
+\end{verbatim}
+
+
+Result
+\begin{verbatim}
+Sizeof int[3]: 12
+typeid(int[]): A3_i
+sizeof int[] passed to function: 4
+typeid of int*: Pi
+typeid of int[] passed to function: Pi
+---------------------------------
+size: char b[3][5]: 15
+sizeof b[0]:  5
+sizeof char a[][5] passed to function: 4
+sizeof char a[][5] passed to function: 5
+typeid of char(*)[5]: PA5_c
+typeid of char[][5] passed to function: PA5_c
+sizeof a[0]: 5
+\end{verbatim}
+
+\subsection{<type\_traits> (C++11)}
+\label{sec:type_trait}
+\label{sec:type_traits-header}
+
+Many intrinsic data types are \textcolor{red}{fundamental}
+\textcolor{blue}{arithmetic} types, which can be groupped into
+\textcolor{red}{integral} types or \textcolor{red}{floating point} types.
+\begin{verbatim}
+// integral types
+bool
+char, char16_t, char32_t, wchar_t, signed char
+short int, int, ...
+
+// floating-point types
+float
+double
+long double
+\end{verbatim}
+
+Since C++11, a new header is provided \verb!<type_traits>! that allows us to
+check of a variable is of arithmetic type, we use \verb!std::is_arithmetic!
+Other functions: \verb!is_floating_point()!, \verb!is_fundamental()!,
+\verb!is_signed()!, \verb!is_unsigned!.
+
+Example: \url{http://www.cplusplus.com/reference/type_traits/is_arithmetic/}
+\begin{verbatim}
+#include <iostream>
+#include <type_traits>
+#include <complex>
+
+int main() {
+  std::cout << std::boolalpha;
+  std::cout << "is_arithmetic:" << std::endl;
+  std::cout << "char: " << std::is_arithmetic<char>::value << std::endl;
+  std::cout << "float: " << std::is_arithmetic<float>::value << std::endl;
+  std::cout << "float*: " << std::is_arithmetic<float*>::value << std::endl;
+  std::cout << "complex<double>: " << std::is_arithmetic<std::complex<double>>::value << std::endl;
+  return 0;
+}
+\end{verbatim}
+
+
+\section{Integer: int vs. size\_t vs ptrdiff\_t}
+\label{sec:size_t}
+
+There is also \verb!size_type! - Sect.\ref{sec:size_type}.
+
+You should not forget that replacing \verb!int! (or POD type) to \verb!size_t!
+or \verb!ptrdiff_t!, though increase portability, the memory size needed for the
+program will greatly increase as well. And increase of the necessary memory size
+will slow down the application's work for cache will store fewer objects being
+dealt with.
+
+"64-bit machine" can mean many things, but typically means that the CPU has
+registers that big. The sizeof a type is determined by the compiler, which
+doesn't have to have anything to do with the actual hardware (though it
+typically does); in fact, different compilers on the same machine can have
+different values for these. Size of a pointer should be 8 byte on any 64-bit
+C/C++ compiler, but not necessarily size of int.
+
+
+It had been assumed for a long time that the size of \verb!int! coincides with the size
+of a computer word (microprocessor's capacity).  \verb!int! is also used to indicate the size of pointers.
+Correspondingly, address arithmetic was built with the use of \verb!int! and \verb!unsigned! types as well.
+The following table list type's size as defined in different operating system and microprocessors, \ref{tab:type-size-C++}.
+
+\begin{table}[hbt]
+\begin{center}
+\caption{Type's sizes} 
+\begin{tabular}{ccccccc} 
+  \hline
+short & int & long & ptr & long long & Label & Examples \\
+  \hline\hline
+ & 16 &  & 16 & IP16 & PDP-11 UNIX (1973) \\
+ 16 & 16 & 32 & 16 & & IP16L32 & PDP-11 UNIX (1977), multiple instructions for long type being used \\
+ 16 & 16 & 32 & 32 & & I16LP32 & MC6800 processor (1980); Apply MacIntosh 68K; Microsoft O/S (plus extras for x86 segments) \\
+ 16 & 32 & 32 & 32 & & ILP32  & IBM 370; VAX UNIX; many workstations \\
+ 16 & 32 & 32 & 32 & 64 & ILP32LL, ILP32LL64 & Win32; Amdahl; Convex; 1990 UNIX systems (IP16L32); multiple instructions for long long type being used \\
+ 16 & 32 & 32 & 64 & 64 & LLP64, IL32LLP64, P64 & 64-bit systems: Win64 (X64, IA64) \\
+ 16 & 32 & 64 & 64 & 64 & LP64, I32LP64 & 64-bit systems: Most UNIX systems (Linux, Solaris, DEC OSF/1 Alpha, SGI Irix, HP UX11) \\
+ 16 & 64 & 64 & 64 & 64 & ILP64  & 64-bit systems: HAL, logical analog of ILP32 \\
+ 64 & 32 & 32 & 64 & 64 & SILP64 & 64-bit systems: UNICOS 
+\end{tabular}
+\end{center}
+\label{tab:type-size-C++}
+\end{table}
+
+However, with the evolution of computer architecture, their capacity increased,
+it became irrational to further increase \verb!int! type's sizes. To avoid such
+change, new types have been added to C/C++ languages:
+\begin{enumerate}
+  \item \verb!ptrdiff_t!: the base signed integer type for C/C++ language
+  
+  The type's size is chosen so that it could store the maximum size of a theoretically possible array of any type
+  
+\begin{lstlisting}
+for (ptrdiff_t i = 0; i < n; i++)
+  a[i] = 0;
+\end{lstlisting}
+
+The code provide safety, portability and good performance. 
+ 
+Like in \verb!size_t!, \verb!ptrdiff_t! can safely store a pointer except for a pointer to a class function. 
+\verb!ptrdiff_t! type has its synonym \verb!intptr_t! whose name indicates more clearly that it can store a pointer.
+
+
+\verb!ptrdiff_t! type is usually used for loop counters, array indexing, size storage and address arithmetic
+
+ 
+  \item \verb!size_t!: the base unsigned integer type of C/C++ language
+  
+  the type of the result returned by sizeof operator. A
+  variable of \verb!size_t! type can safely store a pointer.
+  The exception is pointers to class functions but this is a special case.
+   
+The type's size is chosen so that it could store the maximum size of a
+theoretically possible array of any type On a 32-bit system \verb!size_t! will
+take 32 bits, on a 64-bit one 64 bits.
+
+The types \verb!size_t! and \verb!uintptr_t! are synonyms. \verb!size_t! type is
+usually used for loop counters, array indexing and address arithmetic.
+
+The maximum possible value of \verb!size_t! type is constant \verb!SIZE_MAX!.
+
+\end{enumerate}
+
+
+
+\section{Portable primitive integer data types}
+\label{sec:integer}
+
+The ISO/IEC 9899:1990 standard specified that C should have four signed and
+unsigned integer types: \verb!char! (yes, char is an integer type), short, int,
+and long. In 1999, \verb!_Bool! was added as a single bit integer type
+(Sect.\ref{sec:Boolean}). However, the standard doesn't specify the size of the
+integer types, other than saying \verb!int! and \verb!short! should be at least 16-bits;
+and \verb!long! at least the size of \verb!int! and not smaller than 32-bits;
+and \verb!long long! at least the size of \verb!long!.
+\footnote{\url{http://code.jasonbhill.com/c/portable-integer-types/}}
+
+The main difference as we see below is because Visual C++ use LLP64 model, while
+most UNIX system use LP64, and UNICOS use
+SILP64.\footnote{\url{http://en.wikipedia.org/wiki/64-bit}}
+\begin{itemize}
+  \item On 32-bit or 64-bit using Visual C++ on Windows machines: 
+\begin{verbatim}
+short                    2 bytes
+int                      4 bytes
+long                     4 bytes
+long long                8 bytes
+\end{verbatim}
+  \item On 64-bit machines Xubuntu O/S
+\begin{verbatim}
+short                    2 bytes
+int                      4 bytes
+long                     8 bytes
+long long                8 bytes
+\end{verbatim}
+
+   \item On 64-bit UNICOS-based systems (CRAY T3E)
+\begin{verbatim}
+short                    8 bytes
+int                      8 bytes
+long                     8 bytes
+long long                8 bytes
+\end{verbatim}
+\end{itemize}
+With LP64 for 64-bit systems (i.e. long and pointer are 64-bit), 'int' are
+32-bit, while long and pointers are 64-bit. With ILP64 for 64-bit systems, the
+three  types \verb!int!, \verb!long!,  and pointers are all 64-bit. With SILP64
+for 64-bit system, even \verb!short!  is also 64-bit. \textcolor{red}{Most
+64-bit platforms use LP64; while Windows still use LLP64}
+
+Unlike Java or C\#, the primitive integer data types in C++ can vary in size
+(bytes) depending on the platforms (32-bit or 64-bit, Windows or Linux). An
+example is that \verb!int! is not always a 32-bit integer. Thus, different names
+were given, by different compilers, to indicate 32-bit integer, e.g.
+\verb!uint32! or \verb!dword!. Microsoft uses \verb!__int16, __int32, __int64!,
+instead of \verb!short, int, long long!.
+
+The extended integer types is not provided by the compiler, 
+\verb!<stdint.h>! (from GCC 4.5), which defines the following primitive types.
+
+\begin{verbatim}
+  TYPE          RANGES of VALUES                 MAX-unsigned-value
+int8_t          [-2^7, 2^7-1]                       UINT8_MAX
+uint8_t         [  0, 2^8-1]
+
+int16_t         [-2^{15}, 2^{15}-1]
+uint16_t        [   0,  2^{16}-1]
+
+int32_t         [-2^{31}, 2^{31}-1]
+uint32_t        [   0, 2^{32}-1]
+
+int64_t         [-2^{63}, 2^{63}-1]
+uint64_t        [   0, 2^{64}-1]
+
+int_least8_t    [INT_LEAST8_MIN, INT_LEAST8_MAX]  UINT_LEAST8_MAX
+int_least16_t
+int_least32_t
+uint_least8_t
+uint_least16_t
+uint_least32_t
+
+int_fast8_t    [INT_FAST8_MIN, INT_FAST8_MAX]
+int_fast16_t
+int_fast32_t
+uint_fast8_t
+uint_fast16_t
+uint_fast32_t
+
+int_fast64_t
+uint_fast64_t
+
+intmax_t
+uintmax_t
+
+intptr_t
+\end{verbatim}
+Explain 'LEAST' and 'FAST': we use \verb!LEAST! to indicate a type that has the
+number of bits at least equal to the preceding number; we use \verb!FAST! to get
+the fastest integer type with the width at least equal to the preceding number
+value.
+
+We can convert a constant number to one of the above type using the given macros
+by including \verb!stdint.h! (which defines \verb!__STDC_CONSTANT_MACROS!)
+\begin{enumerate}
+  \item \verb!int_least!N\verb!_t! : two function-like macros which accept
+  constants in decimal, octal or hexadecimal
+\begin{verbatim}
+INTN_C(value)
+UINTN_C(value)
+\end{verbatim}
+Example: \verb!UINT32_C(123)! expands to \verb!123UL!.
+
+   \item \verb!intmax_t, uintmax_t! :
+\begin{verbatim}
+INTMAX_C(value)
+UINTMAX_C(value)
+\end{verbatim} 
+\end{enumerate}
+
+
+Other options to use fixed-size integer type for portable code
+\begin{enumerate}
+  \item On Microsoft Visual Studio: Use
+  \url{https://code.google.com/p/msinttypes/}
+  
+  \item \verb!#include <boost/cstdint.h>! from Boost library, which use
+  \verb!stdint.h! (C99)
+  
+\begin{verbatim}
+#include <boost/cstdint.h>  /* C language */
+boost::int16_t
+boost::int32_t
+boost::int64_t
+
+#include <boost/cstdint.hpp> /* C++ */
+\end{verbatim}  
+NOTE: It's recommended to use \verb!inttypes.h!. 
+\url{http://www.boost.org/doc/libs/1_46_1/libs/integer/doc/html/boost_integer/cstdint.html}
+
+NO use of macro \verb!BOOST_NO_INT64_T!
+\begin{verbatim}
+#include <boost/cstdint.hpp> 
+int_least64_t
+uint_least64_t
+\end{verbatim}
+
+  \item Use C99 standard (from ISO/IEC 9899:1999) with \verb!#include!
+  \verb!<stdint.h>!, and use types ending with \verb!_t!, e.g. \verb!uint32_t!
+  (or use C++0x with \verb!<cstdint>!).
+  Make sure the compiler supports this newer standards.
+  
+NOTE: We use \verb!stdint.h! for minimal set of definitions. If we want to
+extend code portability in functions like \verb!scanf, printf!, then we need to
+use \verb!inttypes.h! (see next)
+  
+  \item Use \verb!#include <inttypes.h>! which
+  comprises \verb!stdint.h!, and facilities for handling \verb!printf, scanf!
+
+\begin{verbatim}
+int8_t                    1 bytes
+int16_t                   2 bytes
+int32_t                   4 bytes
+int64_t                   8 bytes
+
+uint8_t
+uint16_t
+uint32_t
+uint64_t
+               32-bit machines         64-bit machines
+intptr_t     32-bit signed integer          64-bit
+uintptr_t    32-bit unsigned integer        64-bit
+\end{verbatim}
+To deal with printing out the value of the corresponding type, the file also
+provide the macros for \verb!printf! and \verb!scanf!
+\url{http://pubs.opengroup.org/onlinepubs/009695399/basedefs/inttypes.h.html}
+
+We need to replace the left with the right
+\begin{verbatim}
+ DON'T USE               USE
+short                 int16_t
+unsigned short        uint16_t
+int                   int32_t
+unsigned int          uint32_t
+long                  int32_t or int64_t
+unsigned long         uint32_t or unint64_t
+long long             int64_t
+unsigned long long    uint64_t
+\end{verbatim}
+
+\url{http://stackoverflow.com/questions/7597025/difference-between-stdint-h-and-inttypes-h}
+
+Example: instead of using \verb!%ld! or \verb!%lld! we use PRIx8 to indicate 
+8-bit, and PRId32 to indicate 32-bit.
+\begin{Verbatim}
+#include <inttypes.h>
+
+uint8_t smallval;
+int32_t longval;
+...
+printf("The hexadecimal value of smallval is %" PRIx8
+       ", the decimal value of longval is %" PRId32 ".\n",
+       smallval, longval);
+
+    // Only requires stdint.h to compile:
+    uint16_t myvar = 65535;
+
+    // Requires inttypes.h to compile:
+    printf("myvar=%" PRIu16 "\n", myvar);  
+\end{Verbatim}
+
+
+\begin{verbatim}
+                 printf         scanf
+int8_t          PRId8          SCNd8
+uint8_t         PRIu8          SCNu8
+
+int16_t         PRId16         SCNd16
+uint16_t        PRIu16         SCNu16
+
+int32_t         PRId32         SCNd32
+uint32_t        PRIu32         SCNu32
+
+int64_t         PRId64         SCNd64
+uint64_t        PRIu64         SCNu64
+
+\end{verbatim}
+
+  \item Use \url{http://www.azillionmonkeys.com/qed/pstdint.h}
+  
+  \item Use \url{http://sourceforge.net/projects/ptypes/} (C++ portable types)
+\end{enumerate}
+\url{http://www.qnx.com/developers/docs/6.4.1/dinkum_en/c99/inttypes.html#PRId8}
+
+Macro conventions: 
+\begin{enumerate}
+  \item first three letter: PRI (use with printf), and SCN (use with scanf)
+  \item fourth letter: 'x' = hexadecimal, 'u' = unsigned, 'o' = octal, 'i' =
+  integer, 'd' = decimal
+  \item extra letters: '8' = 8-bit, '16' = 16-bit, '32' = 32-bit, '64' = 64-bit,
+  'FAST8' = fast eight bit, (FAST16, FAST32, FAST64), 'LEAST8' = least eight-bit
+  (LEAST16, LEAST32, LEAST64), PTR = pointer, MAX = maximum supported bit size
+\end{enumerate}
+
+\url{http://h21007.www2.hp.com/portal/site/dspp/menuitem.863c3e4cbcdc3f3515b49c108973a801/?jumpid=reg_R1002_USEN&ciid=a868e67018695110VgnVCM100000275d6e10RCRD}
+
+\subsection{unsigned long long}
+
+
+\verb!unsigned long long! is guaranteed to be at least 64 bits, regardless of the platform.
+\begin{verbatim}
+// the same
+unsigned long long
+unsigned long long int
+\end{verbatim}
+
+\verb!unsigned long! is guaranteed to be at least 32 bits.
+\begin{verbatim}
+unsigned long int
+unsigned long 
+\end{verbatim}
+
+\verb!init! is NOT guarantee to be 32 bits. On some systems, int is 16 bits. 
+\url{https://stackoverflow.com/questions/2550345/whats-the-difference-between-unsigned-long-long-int-in-c-c}
+
+
+With regards to the formatting, with printf, you should use \verb!"%llu"! (since
+it is unsigned); \verb!"%lld"! is for 
+\verb!signed long long!.
+
+
+
+\url{https://stackoverflow.com/questions/10631600/unsigned-long-long-vs-unsigned-longportability-point-of-view}
+
+
+
+\subsection{Avoid using pre-defined data type}
+
+\begin{Verbatim}
+// Instead of:
+   long int time;
+   short int mouseX;
+   char* menuName;
+   
+   // Use (for example):
+   typedef long int TimeStamp;
+   typedef short int Coordinate;
+   class String { /* ... */ };
+   
+   // and:
+   TimeStamp time;
+   Coordinate mouseX;
+   String menuName;
+\end{Verbatim}
+\url{https://www.doc.ic.ac.uk/lab/cplus/c++.rules/chap18.html}
+
+\subsection{Avoid using unsigned type}
+
+As given in Sect.\ref{sec:math_comparison}, a potential bug can occur if we
+compared a negative signed integer vs. an unsigned integer.
+
+It's recommended to avoid unnecessary complexity by using \verb!int! if we can. 
+
+Only use \verb!unsigned! for bitfields and binary masks. Use explicit cast
+operation at any comparison with signed or unsigned.
+
+\subsection{std::vector<int>::size\_type vs. std::size\_t}
+\label{sec:size_type}
+
+\verb!std::vector<int>::size_type! is {\bf unsigned} as in the C++ standard
+\begin{verbatim}
+    unsigned integral type  |  
+    a type that can represent the size of the largest
+         object in the allocation model
+\end{verbatim}
+while \verb!int! it NOT necessarily unsigned. 
+
+The primary time to use \verb!size_type! is in a template
+(Chap.\ref{chap:containers}). Although \verb!std::vector<T>::size-type! is
+usually \verb!size_t!, \verb!some_other_container<T>::size_type! might be some
+other type instead.
+
+Using \verb!std::vector<int>::size_type! as the datatype in indexing is
+recommended as it can represent the largest index (as it is unsigned).
+Only the type
+\begin{verbatim}
+vector<int>::size_type
+\end{verbatim}
+guarantees that its type can be used to index all vector elements.
+
+Using \verb!size_t! is discussed in Sect.\ref{sec:size_t}.
+
+
+\subsection{short, int, long, long long}
+
+There is nothing in the C++ standard that dictates that a long should be bigger
+than int (it certainly isn't on most 32-bit systems). All the standard says is
+that the size of \verb!short <= int <= long! - and that \verb!short! is at least
+16 bits, if memory serves [not necessarily expressed as "should be at least 16
+bits"].
+
+In Windows, the reason that MS choose to make \verb!long! 32 bits even on a
+64-bit system is that the existing Windows API, for historical reasons use a mixture of
+\verb!int! and \verb!long! for similar things, and the expectation is that this
+is a 32-bit value (some of this goes back to times when Windows was a 16-bit
+system). So to make the conversion of old code to the new 64-bit architecture, they choose to
+keep \verb!long! at 32 bits, so that applications mixing int and long in various
+places would still compile.
+
+NOTE:
+\begin{verbatim}
+sizeof(char) <= sizeof(short) <= sizeof(int) <= sizeof(long) <= sizeof(long long)
+\end{verbatim}
+
+On 16 bit platforms, it is usual for both short and int to be 16 bits.
+
+On 32 bit platforms (and the 36 and 48 bit platforms that still exist), int and
+long are almost always the same size. 
+
+On modern 64 bit platforms (with byte addressing), the rational solution would
+be to make all four types have different sizes (although one could argue that
+according to the standard, int should be 64 bits, which would mean that int,
+long and long long all had the same size.
+
+\url{http://stackoverflow.com/questions/18353168/why-long-int-has-same-size-as-int-are-this-modifier-works-at-all}
+
+\section{Data of fixed size (C++11)}
+
+\begin{verbatim}
+sizeof(char) <= sizeof(short) <= sizeof(int) <= sizeof(long) <= sizeof(long long)
+
+sizeof(char) == 1 (note: a char could still be more than 8 bits!)
+
+SHRT_MIN <= -32767 and SHRT_MAX >= 32767 (implies short is at least 16 bits)
+
+INT_MIN <= -32767 and INT_MAX >= 32767 (implies int is at least 16 bits)
+
+LONG_MIN <= -2147483647 and LONG_MAX >= 2147483647 (implies long is at least 32 bits)
+
+LLONG_MIN <= -9223372036854775807 and LLONG_MAX >= 9223372036854775807 (implies long long is at least 64 bits)
+\end{verbatim}
+
+Header file: \verb!<cstdin>! 
+\url{http://en.cppreference.com/w/cpp/types/integer}
+
+\subsection{8-bit type}
+
+\begin{verbatim}
+int8_t
+\end{verbatim}
+
+
+\subsection{16-bit type}
+
+\begin{verbatim}
+int16_t
+\end{verbatim}
+\subsection{32-bit type}
+
+
+\section{Boolean (BOOL, BOOLEAN, VARIANT\_BOOL)}
+\label{sec:Boolean}
+
+The C programming language uses "int" as its boolean type (Sect.\ref{sec:integer}).
+\url{http://blogs.msdn.com/b/oldnewthing/archive/2004/12/22/329884.aspx}
+
+In C89, \verb!bool! is the common macro (with \verb!true, false!) to be used as boolean
+type. However, using it needs to be carefully in logical comparison, and passing
+to function.
+
+In C99, \verb!_Bool! is the new intrinsic data type as single-bit integer type.
+A standard header file \verb!<stdbool.h>!
+
+\subsection{in Windows (Visual C++, C++/CLI)}
+
+Since Windows 1.0, \verb!BOOL! is defined of type \verb!int!.
+\begin{verbatim}
+typedef int BOOL;
+\end{verbatim}
+
+Since OS/2 NT, BOOLEAN was created, when they decided to write a new operating
+system from scratch
+\begin{verbatim}
+typedef BYTE  BOOLEAN;
+\end{verbatim}
+
+Visual Basic folks came up with \verb!VARIANT_BOOL!.  Basic uses -1 to represent
+"true" and 0 to represent "false", and \verb!VARIANT_BOOL! was designed to
+preserve this behavior.
+\begin{verbatim}
+typedef short VARIANT_BOOL;
+#define VARIANT_TRUE ((VARIANT_BOOL)-1)
+#define VARIANT_FALSE ((VARIANT_BOOL)0)
+\end{verbatim}
+
+
+\verb!bool! is a C++ data type that has value \verb!true! and \verb!false!. You
+won't see this used much (if at all) in Win32 because Win32 tries to remain
+C-compatible.
+\url{http://blogs.msdn.com/b/oldnewthing/archive/2004/12/22/329884.aspx}
+\begin{verbatim}
+bool drinkingUnderAge = true;
+\end{verbatim}
+
+To retrieve a value typed in by user (True, False) into a bool value, we use
+\verb!bool::Parse()! static method.
+\begin{verbatim}
+bool drivingUnderAge = false;
+
+Console::WriteLine(L"Were you driving under age?");
+Console::Write(L"If Yes, enter True. Otherwise enter False: ");
+drivingUnderAge = bool::Parse(Console::ReadLine());
+\end{verbatim}
+
+
+C++/CLI can use System.Boolean managed data type.  You can pass an argument of
+type bool or Boolean to a function. Such an argument would be treating as
+holding a \verb!true! or \verb!false! value.
+\begin{verbatim}
+protected: void Dispose(bool disposing);
+\end{verbatim} 
+\url{http://www.functionx.com/cppcli/conditions/Lesson16.htm}
+
+
+For more information on using Visual C++, read Sect.\ref{sec:VC++_Windows}.
+
+
+\section{Union}
+\label{sec:union_C}
+
+Defining a union is similar to defining a struct, except the keyword
+\verb!union! is used, instead of \verb!struct!.
+\begin{verbatim}
+union [optional_tag] {
+   type_1 id_1;
+   type_2 id_2;
+   ...
+} [optional_variable_definitions]; 
+\end{verbatim}
+
+The MAIN difference between \verb!union! and \verb!struct! is that only one
+field in \verb!union! should be used at a time. All data members of a
+\verb!union! type start from the same memory address. It's mainly used in C, not
+in C++; and are almost exclusively used for type-safe polymorphism.
+\textcolor{red}{'union' only works with POD (plain-old data) for the members}.
+In C++, boost library feature a union-like class \verb!boost::variant!.
+\begin{verbatim}
+boost::variant<std::string, Foo, Bar>
+\end{verbatim}
+which allows (1) use non-POD data types (Sect.\ref{sec:non-POD-class}), (2) static type safety.
+
+Using \verb!union! is important where memory
+is more scarce, e.g. embedded system.
+\footnote{\url{http://stackoverflow.com/questions/4788965/c-c-when-would-anyone-use-a-union-is-it-basically-a-remnant-from-the-c-only}}
+
+Another usage is to access individual byte fields, by putting a \verb!struct!
+inside a \verb!union!.
+\begin{verbatim}
+union bits32_tag {
+  int whole;
+  struct {char c0, c1, c2, c3;} byte; /* four 8-bit bytes */
+} ;
+
+union bits32_tag value;
+\end{verbatim}
+
+
+ This is mainly used: one single data type that can handle
+all event types without using unnecessary memory. 
+
+Example:
+\url{http://hg.libsdl.org/SDL/file/b4b0e9f1669c/include/SDL_events.h#l420}
+\begin{Verbatim}
+struct my_variant_t {
+    int type;
+    union {
+        char char_value;
+        short short_value;
+        int int_value;
+        long long_value;
+        float float_value;
+        double double_value;
+        void* ptr_value;
+    };
+};
+
+/* construct a new float variant instance */
+void init_float(struct my_variant_t* v, float initial_value) {
+    v->type = VAR_FLOAT;
+    v->float_value = initial_value;
+}
+
+/* Increments the value of the variant by the given int */
+void inc_variant_by_int(struct my_variant_t* v, int n) {
+    switch (v->type) {
+    case VAR_FLOAT:
+        v->float_value += n;
+        break;
+
+    case VAR_INT:
+        v->int_value += n;
+        break;
+    ...
+    }
+}
+\end{Verbatim}
+
+Example:
+\begin{lstlisting}
+union foo {
+  int a;   // can't use both a and b at once
+  char b;
+} foo;
+
+typedef union
+{
+  unsigned char color[4];
+  int       new_color;
+}       u_color;
+\end{lstlisting}
+i.e. 'a' and 'b' starts at the same memory address
+\begin{verbatim}
++----+----+----+----+----+----+
+|    |    |    |    |    |    |
++----+----+----+----+----+----+
+\__________________/
+       |
+       a
+\___/
+  |
+  b       
+\end{verbatim}
+
+Example: in C++, this allows us to access the coordinate as an array or the
+elements.
+\begin{Verbatim}
+class Vector
+{
+        union 
+        {
+            double _coord[3];
+            struct 
+            {
+                double _x;
+                double _y; 
+                double _z;
+            };
+
+        };
+...
+}
+\end{Verbatim}
+
+Example: in image processing
+\begin{Verbatim}
+   union {   // dimension from left to right   // union for the left to right dimension
+        uint32_t            m_width;
+        uint32_t            m_sizeX;
+        uint32_t            m_columns;
+    };
+
+    union {   // dimension from top to bottom   // union for the top to bottom dimension
+        uint32_t            m_height;
+        uint32_t            m_sizeY;
+        uint32_t            m_rows;
+    };
+\end{Verbatim}
+
+\subsection{Initialize data}
+
+To initialize a union data, in C89, we have to do it explicitly
+\begin{lstlisting}
+typedef union {
+  int x;
+  float y;
+  void *z;
+} thing_t;
+
+thing_t foo;
+foo.x = 2;
+\end{lstlisting}
+
+In C99 we can use
+\begin{lstlisting}
+union {
+      char birthday[9];
+      int age;
+      float weight;
+      } people = { .age = 14 };
+\end{lstlisting}
+
+In C++, unions can have constructors.
+\begin{lstlisting}
+union U 
+{
+   A a;
+   B b;
+
+   U() { memset( this, 0, sizeof( U ) ); }
+};
+\end{lstlisting}
+
+
+\subsection{Usage}
+Assigning values to more than one data members may give unexpected results,
+\begin{verbatim}
+union foo;
+foo.a = 5;
+foo.b = 'c';   //DON'T DO THIS
+\end{verbatim}
+i.e. the goal is to use only one member, depending on some situation. When
+assigning data to one member, and print out the value from the other member,
+technically, the result is undefined behavior in C standard; yet in most
+compiler implementation, the result is well-defined.
+
+USAGE 1: Unions are particularly useful in {\it Embedded Programming} or direct
+memory access is needed.
+\begin{lstlisting}
+typedef union
+{
+    struct {
+        unsigned char byte1;
+        unsigned char byte2;
+        unsigned char byte3;
+        unsigned char byte4;
+    } bytes;
+    unsigned int dword;
+} HW_Register;
+HW_Register reg;
+\end{lstlisting}
+then we do
+\begin{lstlisting}
+reg.dword = 0x12345678;
+reg.bytes.byte3 = 4;
+\end{lstlisting}
+
+Example: To be able to a single bit in the register/memory address
+\begin{lstlisting}
+typedef union
+{
+    struct {
+        unsigned char b1:1;
+        unsigned char b2:1;
+        unsigned char b3:1;
+        unsigned char b4:1;
+        unsigned char reserved:4;
+    } bits;
+    unsigned char byte;
+} HW_RegisterB;
+HW_RegisterB reg;
+
+x = reg.bits.b2;
+\end{lstlisting}
+
+Example:
+\begin{lstlisting}
+typedef union {
+    unsigned char control_byte;
+    struct {
+        unsigned int nibble  : 4;
+        unsigned int nmi     : 1;
+        unsigned int enabled : 1;
+        unsigned int fired   : 1;
+        unsigned int control : 1;
+    }
+} ControlRegister;
+\end{lstlisting}
+
+Example: C int that is 16-bit long, so that we can retrieve the higher 8-bits or
+lower 8-bits easily
+\begin{lstlisting}
+union data {
+    int data;
+    struct {
+        unsigned char higher;
+        unsigned char lower;
+    } parts;
+};
+\end{lstlisting}
+
+USAGE 2: As a replacement for object-oriented inheritance, where we don't know
+for example which connection to use
+\begin{lstlisting}
+        Connection
+     /       |       \
+  Network   USB     VirtualConnection
+\end{lstlisting}
+then we declare
+\begin{lstlisting}
+struct Connection
+{
+    int type;
+    union
+    {
+        struct Network network;
+        struct USB usb;
+        struct Virtual virtual;
+    }
+};
+\end{lstlisting}
+
+
+
+% USAGE: It's used to convert between the binary operations of integers and floats
+% \begin{lstlisting}
+% union
+% {
+%   int i;
+%   float f;
+% } u;
+% 
+% // Convert floating-point bits to integer:
+% u.f = 3.14159f;
+% printf("As integer: %08x\n", u.i);
+% \end{lstlisting}
+
+
+References:
+\begin{enumerate}
+  \item \url{http://stackoverflow.com/questions/252552/why-do-we-need-c-unions}
+  \item
+  \url{http://www.edn.com/design/integrated-circuit-design/4394915/Managing-the-8--to-32-bit-processor-migration}
+\end{enumerate}
+
+\section{Struct}
+\label{sec:struct}
+
+\verb!struct! is a way to create a new data type, which is composed from one or
+many components, each components has its own type (simple, or more complicated).
+We can use in C (Sect.\ref{sec:struct-C}) and C++ (Sect.\ref{sec:struct-C++}).
+
+It is important to know the memory layout, i.e. how to best order the data components so that least memory footprint.
+
+\subsection{C}
+\label{sec:struct-C}
+
+Data structure are stored sequentially in memory, so depending on the order of
+declaration, \verb!id_1! always precede \verb!id_1! in memory. An important
+aspect that will be covered is data alignment (Sect.\ref{sec:struct_padding}). 
+
+SYNTAX:
+\begin{verbatim}
+struct [optional_tag] {
+   type_1 id_1;
+   type_2 id_2;
+   ...
+} [optional_variable_definitions]; 
+\end{verbatim}
+
+SUGGESTIONS:
+\begin{enumerate}
+  \item Add the tag to the struct definition so that we can use it to define new
+  variable of that struct easily
+\begin{Verbatim}
+struct date_tag { 
+   short mm;
+   short dd;
+   short yy;
+}  var_1;
+
+struct data_tag var_2, var_3;
+
+// another option is to use typedef
+typedef struct  { 
+   short mm;
+   short dd;
+   short yy;
+} data_type;
+
+data_type var_1, var_2, var_3; 
+\end{Verbatim}
+
+  \item Don't mix struct definition with variable definition, i.e. put the
+  variable definition on a separate line, not on the same line with struct
+  definition. Example: put \verb!var_1! on the same line with \verb!var_2!,
+  \verb!var_3!.
+  
+  \item Variables of identical types can be put on the same definition
+\begin{verbatim}
+struct data_tag {
+   short mm,dd,yy;
+}
+\end{verbatim}
+\end{enumerate}
+
+IMPORTANT: A struct can have bitfields, unnamed fields, and word-aligned fields.
+These are obtained by following the field declaration with a colon (:), and a
+number representing a field length in bit (Sect.\ref{sec:struct_bitfield}). 
+\begin{verbatim}
+/* keep Process ID information */
+
+struct pid_tag {
+  unsigned int inactive : 1;  /*  bitfield, with 1 bit length */
+  unsigned int          : 1; /*  unnamed field, with 1 bit length */
+  unsigned int refcount : 6; 
+  unsigned int          : 0; /* padding */
+  short pid_id;
+  struct pid_tag *link; /* to child processes */
+}
+
+struct CELL {   // Declare CELL bitfield
+    unsigned short character  : 8;  // 00000000 ????????
+    unsigned short foreground : 3;  // 00000??? 00000000
+    unsigned short intensity  : 1;  // 0000?000 00000000
+    unsigned short background : 3;  // 0???0000 00000000
+    unsigned short blink      : 1;  // ?0000000 00000000
+} screen[25][80];       // Array of bitfields 
+\end{verbatim}
+
+
+A struct can wrap an entire array to do entire array copy using a single
+struct assignment (Sect.\ref{sec:copy_C-array}).
+
+A struct can be used as a single node in different dynamic data structures, e.g.
+lists, trees.
+\begin{verbatim}
+struct node_tag;
+
+struct node_tag {
+  int datum;
+  struct node_tag * next;
+}
+
+struct node_tag a,b;
+a.next = &b;
+a.next.next = NULL;
+\end{verbatim}
+
+\subsection{C++}
+\label{sec:struct-C++}
+
+In C, to be able to use a struct as a type, we need to use \verb!typedef!. In
+C++, we don't need to to \verb!typedef!. Another important feature of a
+\verb!struct! in C++ is that we can have member function, just like we can do
+for class. However, a struct is considered as a POD (plain-old-data), i.e. it
+lacks many features of an object-oriented paradigm.
+Example: there is no inheritance; there is no privacy setting, i.e. all member
+functions and data members are in \verb!public! mode
+(Sect.\ref{sec:struct_class}).
+
+
+Example: If the data member is \verb!std:string!
+(Sect.\ref{sec:string_C++}), the internal data of \verb!std:string! hold the
+reference to the memory where the actual data stored, but not the data itself.
+So, a \verb!std::string! object always have the same size, not matter how long
+the string is for the object. So using \verb!new! operator, the size of the
+struct object is always known as compile-time. For the data member, initially, it only set the char
+pointer to 0. 
+\begin{verbatim}
+struct Airline {
+    string Name;
+    int diameter;
+    int weight;
+};
+
+Airline* myPlane = new Airline;
+\end{verbatim}
+
+\subsection{access specifier(s): public, private, protected}
+\label{sec:access-specifier}
+
+\begin{mdframed}
+
+In CUDA, we have the following access specifiers:
+\begin{verbatim}
+__global__ 
+
+__device__
+\end{verbatim}
+\end{mdframed}
+
+\subsection{std::tuple}
+\label{sec:tuple}
+
+\subsection{std::pair<T, U>}
+\label{sec:pair}
+\label{sec:std::pair}
+
+\begin{verbatim}
+template <class T, class U>
+struct pair
+{
+  T first;
+  U second;
+}
+\end{verbatim}
+
+So to make a pair, we have two options
+\begin{enumerate}
+  \item explicit writing the type with \verb!pair!
+  
+\begin{verbatim}
+// if 'y' and 'z' are int
+auto x = std::pair<int, int>(y, z);
+\end{verbatim}
+  
+  \item just use \verb!std::make_pair!
+  
+\begin{verbatim}
+auto x = std::make_pair(y, z);
+\end{verbatim}
+\end{enumerate}
+
+
+\section{memory layout in struct in C++ and class }
+\label{sec:memory-layout-data-members-in-struct-C++}
+\label{sec:memory-layout-data-members-in-class-C++}
+
+Note that the class-keys \verb!struct! and \verb!class! have no difference
+regarding layout whatsoever: Their only difference are access-rights which only
+exist at compile-time. All members before the first access specifier (Sect.\ref{sec:access-specifier}) in a class are considered private,
+while in a struct they are public.
+ 
+
+It's important to know if the class is an inherited class or not, as it may have data members from the parent class(s)
+
+
+
+\begin{verbatim}
+struct A
+{
+    int i, j;
+    std::string str;
+
+private:
+
+    float f;
+
+protected:
+
+    double d;
+};
+\end{verbatim}
+
+C++11 standard ([class.mem]/14)
+\begin{verbatim}
+
+Nonstatic data members of a (non-union) class with the same access control
+(Clause 11) are allocated so that later members have higher addresses within a
+class object. The order of allocation of non-static data members with different
+access control is unspecified (11).
+
+\end{verbatim}
+It guarantess
+\begin{verbatim}
+i has a smaller address than j and
+
+j has a smaller address than str
+
+\end{verbatim}
+
+It only says the order, but not that the first variable actually start at the
+"first address"? Lets assume a class without inheritance.
+
+\url{https://stackoverflow.com/questions/26939609/how-is-the-memory-layout-of-a-class-vs-a-struct}
+
+\subsection{standard layout class (C++)}
+\label{sec:memory-layout-standard-layout-class}
+
+C++11 [class]/7: A standard-layout class is a class that:
+
+\begin{verbatim}
+
+has no non-static data members of type non-standard-layout class (or array of such types) or reference,
+
+has no virtual functions (10.3) and no virtual base classes (10.1),
+
+has the same access control (Clause 11) for all non-static data members,
+
+has no non-standard-layout base classes,
+either has no non-static data members in the most derived class and at most one
+base class with non-static data members, or has no base classes with non-static
+data members, and
+
+has no base classes of the same type as the first non-static data member.[110]
+
+110) This ensures that two subobjects that have the same class type and that
+belong to the same most derived object are not allocated at the same address
+(5.10).
+\end{verbatim}
+
+\section{Struct vs. Class}
+\label{sec:struct_class}
+
+In C++, compare between {\it struct} and {\it class}, they are capable of doing
+the same things, except in struct, everything is public by default, while in
+class, everything is default to private and can be made public. In C++, for
+C-compatibility, {\it struct} is still being used.
+
+Some people use {\it struct} to indicate that the class is POD (plain old data)
+object. POD doesn't mean no methods; it means no inheritance (i.e. no virtual
+functions, no constructors, destructors), or \verb!operator =!.
+
+
+\textcolor{red}{If you want to write a library, then you may want to use {\it
+class} so that users cannot mess with the data.}
+
+Example: The two usages below
+are the same \footnote{\url{http://www.cplusplus.com/forum/beginner/5980/}}
+{\small
+\begin{verbatim}
+struct null_stream: std::ostream       class null_stream: public std::ostream
+  {                                      {
+  struct nullbuf: std::streambuf         public:
+    {                                      class nullbuf: public std::streambuf
+    int overflow( int c )                    {
+      {                                      public:
+      return traits_type::not_eof( c );        int overflow( int c )
+      }                                          {
+    }                                            return traits_type::not_eof( c );
+    m_sbuf;                                      }
+                                             }
+  null_stream():                             m_sbuf;
+    std::ios(     &m_sbuf ),
+    std::ostream( &m_sbuf )                null_stream():
+    { }                                      std::ios(     &m_sbuf ),
+  };                                         std::ostream( &m_sbuf )
+                                             { }
+                                         };
+\end{verbatim}
+}
+% \begin{minipage}[t]{0.5\textwidth}
+% 
+% \end{minipage}
+% \begin{minipage}[t]{0.5\textwidth}	
+% \end{minipage}
+
+It's important to know how the compiler layout data elements in a struct
+(Sect.\ref{sec:memory_alignment}). Also, \verb!sizeof()! doesn't return the
+value equal to the total size of the struct's members. The reason is that the
+compiler automatically insert the unused memory into a structure so that data
+members are optimally aligned for better performance. In other words: (1) the
+struct's starting address align with the widest data elements in the struct, (2)
+the data member's starting address is aligned with the multiple of the data
+member's size. 
+
+\textcolor{red}{Both C and C++ standard say that structure alignment is
+implementation defined}. For this reason, when dealing with libraries that will
+be used by different compilers, it is important to understand how the compilers
+align data. Some compilers have command-line settings and/or special
+\verb!#pragma! statements to change the structure alignment settings
+(Sect.\ref{sec:pragma}). Most RISC architectures (e.g. ARM, MIPS, PowerPC,
+Cell), in particular, will throw an exception and stop the execution of
+a program on an unaligned access. However, the x86 chips are rather unique as it
+allows unaligned access. Unaligned access is a feature often found in CISC architectures.
+
+SUGGESTION: \textcolor{red}{One can minimize the size of structures by putting
+the largest data types at the beginning of the structure and the smallest data types
+at the end of the structure.}
+\begin{Verbatim}
+struct X  /* align 4-byte */
+{
+    short s; /* 2 bytes */
+             /* 2 padding bytes */
+    int   i; /* 4 bytes */
+    char  c; /* 1 byte */
+             /* 3 padding bytes */
+};
+
+struct Z
+{
+    int   i; /* 4 bytes */
+    short s; /* 2 bytes */
+    char  c; /* 1 byte */
+             /* 1 padding byte */
+};
+\end{Verbatim}
+
+To know the offset (number of bytes) between the beginning of a given structure
+\verb!structure_type! and the data member \verb!member!, we use the function
+defined in \verb!<stddef.h>!
+\begin{verbatim}
+#include <stddef.h>
+
+size_t offsetof ( structure_type, member)
+\end{verbatim}
+
+\section{Bit shift}
+\label{sec:bit-shift}
+
+
+To create a value that form by bit shift of two different values, e.g.
+\begin{itemize}
+  \item val1 is stored at lower 16-bits
+  \item val2 is stored at higher 16-bits 
+\end{itemize}
+of bitcombined variable.
+\begin{verbatim}
+ ...................  = bitcombined
+\________/\_______/
+   val2      val1
+\end{verbatim}
+So we do
+
+\begin{lstlisting}
+short val1 = 43;
+short val2 = 6;
+
+int bitcombined = val2 << 16; //shift-left 16-bits
+bitcombined |= val1;        //or-operator the lower 16-bit value
+\end{lstlisting}
+\textcolor{red}{or}
+\begin{verbatim}
+bitcombined=low | (high<<8)
+
+bitcombined=low | (high<<16)
+
+\end{verbatim}
+
+
+Now, to get 
+\begin{verbatim}
+ //the lower-byte
+low=input & 0xff ;
+
+ // the lower-2-bytes
+low=input & 0xffff ;
+ 
+\end{verbatim}
+
+and to get the 
+\begin{verbatim}
+ //the upper-byte (suppose 2-byte value)
+low= (input >> 8) & 0xff ;
+
+ // the lower-2-bytes (suppose 4-byte value)
+low= (input >> 16) & 0xffff ;
+ 
+
+\end{verbatim}
+
+\section{Bitfields}
+\label{sec:bitfields}
+
+\subsection{C}
+\label{sec:struct_bitfield}
+
+\subsection{-- define a bitfield using struct}
+
+The traditional bitfields use \verb!struct! to define bitfields, and the colon
+(:) to define how many bits per each field. 
+
+\textcolor{red}{\bf IMPORTANT}: when using bitfields, the type must be either
+\verb!int, unsigned int!, or \verb!signed int! (or qualified version of one of
+these). It is implementation-dependent whether \verb!int! bitfields can be
+negative or not.
+
+Example: 3 fields, each with 10-bit is organized into a single 32-bit value
+\begin{verbatim}
+high                                              low
+0|0|................|.................|..............|
+      10 bits           10 bits           10 bits
+      writers          waitToRead        readers
+\end{verbatim}
+REMEMBER: the order above (low bit to hight bit) is just an example, it is
+compiler implementation-dependent and O/S dependent
+(Sect.\ref{sec:bitfield-not-portable}).
+
+\begin{lstlisting}
+struct {
+   // the field using lower bits first
+   uint32_t  readers:10;
+   uint32_t  waitToRead:10;
+   uint32_t  writers:10;
+}
+\end{lstlisting}
+
+\subsection{-- define a bitfield using macros}
+
+This is better than using \verb!struct! as it provides a safe bitfield, i.e.
+it performs safety checks to ensure that every operation on the bitfield fits
+within the available number of bits.
+
+\begin{lstlisting}
+BEGIN_BITFIELD_TYPE(Status, uint32_t)           // type name, storage size
+    ADD_BITFIELD_MEMBER(readers, 0, 10)         // member name, offset, number of bits
+    ADD_BITFIELD_MEMBER(waitToRead, 10, 10)
+    ADD_BITFIELD_MEMBER(writers, 20, 10)
+END_BITFIELD_TYPE()
+\end{lstlisting}
+\url{http://preshing.com/20150324/safe-bitfields-in-cpp/}
+
+The above set of macros defines a new bitfield type \verb!Status! with three
+members. The second argument to \verb!BEGIN_BITFIELD_TYPE()! must be an unsigned
+integer type. The second argument to \verb!ADD_BITFIELD_MEMBER()! specifies each
+member's offset, while the third argument specifies the number of bits.
+
+\subsection{-- bitfield not portable}
+\label{sec:bitfield-not-portable}
+
+Example:
+\begin{verbatim}
+struct ParsedInt {
+    unsigned int f1:1;
+    unsigned int f2:3;
+    unsigned int f3:4;
+};
+uint8_t i;
+struct ParsedInt *d = &i;
+\end{verbatim}
+
+{\bf Code with bitfields it not portable}: C doesn't specify the layout of
+bitfields which can be little-endian or big-endian (Sect.\ref{sec:byte-order}).
+In the above declaration, different scenarios can happen at memory level, the
+padding byte (Sect.\ref{sec:bitfield-padding}) can be added any where (the
+beginning, the end or in the middle).
+
+\begin{minipage}[t]{0.5\textwidth}
+\begin{verbatim}
+PADDING : 8
+f1 : 1
+f2 : 3
+f3 : 4
+
+or
+
+PADDING : 8
+f3 : 4
+f2 : 3
+f1 : 1
+
+or
+\end{verbatim}
+\end{minipage}
+\begin{minipage}[t]{0.5\textwidth}
+\begin{verbatim}
+f1 : 1
+f2 : 3
+f3 : 4
+PADDING : 8
+
+or
+
+f3 : 4
+f2 : 3
+f1 : 1
+PADDING : 8
+\end{verbatim}
+\end{minipage}
+
+The specific implementation is compiler-dependent: (1) whether a bitfield can
+straddle a storage-unit boundary, (2) the order of the bitfields within a unit
+(6.7.2.1); and the alignment of the addressable storage unit allocated to hold
+bitfield is unspecified. So, we don't assume the exact location of the bitfield.
+As a matter of fact, it is not a good idea to use bitfield when you want to
+control the resulting layout.
+{\small 
+\begin{verbatim}
+ISO/IEC 9899: 6.7.2.1/10
+
+An implementation may allocate any addressable storage unit large enough to hold
+a bit-field. If enough space remains, a bit-field that immediately follows
+another bit-field in a structure shall be packed into adjacent bits of the same
+unit. If insufficient space remains, whether a bit-field that does not fit is
+put into the next unit or overlaps adjacent units is implementation-defined. The
+order of allocation of bit-fields within a unit (high-order to low-order or
+low-order to high-order) is implementation-defined. The alignment of the
+addressable storage unit is unspecified.     
+\end{verbatim}
+}
+\begin{enumerate}
+  \item In Windows: The ordering of data declared as bit fields is from low to
+  high bit.
+  
+\end{enumerate}
+
+A better approach is using \verb!#pragma! which is compiler-specific means.
+
+The only portable solution is to use bitwise operators. The generated code
+machine is exactly the same, but it is deterministic when using bitwise
+operators. The only thing with bitfields that can be trusted is when using
+byte-packed, i.e. a chunk of boolean values (not bit values). In C++, use
+\verb!std::bitset<N>!
+
+
+\subsection{-- bitfield padding (alignment): unnamed bitfield}
+\label{sec:bitfield-padding} 
+\label{sec:bitfield-unnamed-bitfield}
+
+\textcolor{red}{Each bitfield must fit within the boundary of the declared
+type}.
+
+In the example below, the declared type is \verb!unsigned short!, i.e. the
+boundary is every 16-bits. As the fourth bitfield with 8-bit, instead of
+starting at bit 14, it starts at bit 16, i.e. there are two bits skipped.
+
+Example:
+\begin{lstlisting}
+// bit_fields1.cpp
+// compile with: /LD
+struct Date {
+   unsigned short nWeekDay  : 3;    // 0..7   (3 bits)
+   unsigned short nMonthDay : 6;    // 0..31  (6 bits)
+   unsigned short nMonth    : 5;    // 0..12  (5 bits)
+   unsigned short nYear     : 8;    // 0..100 (8 bits)
+};
+\end{lstlisting}
+explains
+\begin{verbatim}
+high                                                  low
+x|x|x|x|x|x|x|x|...........|x|x|........|...........|....|
+                  8 bits         5 bits   6 bits    3bits
+                  nYear          nMonth   nMonthDay  nWeekDay
+\end{verbatim}
+
+Example: here, the declared type is \verb!unsigned!, i.e. the boundary is every
+32-bit. Also, using {\bf unnamed bitfield of zero-length} force the alignment to
+the next boundary
+\begin{lstlisting}
+struct Date {
+   unsigned nWeekDay  : 3;    // 0..7   (3 bits)
+   unsigned nMonthDay : 6;    // 0..31  (6 bits)
+   unsigned           : 0;    // Force alignment to next boundary.
+   unsigned nMonth    : 5;    // 0..12  (5 bits)
+   unsigned nYear     : 8;    // 0..100 (8 bits)
+};
+\end{lstlisting}
+explains (here in Windows, little-endian byte-order)
+\begin{verbatim}
+Windows-specific:
+  lower byte                |     higher-byte
+xxxxxx|............|........|xxxxxxxxxx|.........|.....|
+           nYear    nMonth         nMonthDay nWeekDay
+
+
+Linux-specific:
+  lower byte                |     higher-byte
+ xxxxxxxxxxx|.........|.....|xxxxxx|............|........|
+             nMonthDay nWeekDay        nYear      nMonth
+             
+xx = skipped bits           
+\end{verbatim}
+\url{https://msdn.microsoft.com/en-us/library/ewwyfdbe.aspx}
+
+
+
+\subsection{-- bit twiddling: combine bitfields}
+
+\textcolor{red}{\bf HOW TO GENERATE THE VALUES}: How to combine the bitfields
+into a single value? - we use bit twiddling. Consider the first example above
+with 3 bitfields, each of 10 bits:
+
+\begin{lstlisting}
+  // the bitfield with lowest bit no need to shift
+  // the next bitfield here shift 10 bits
+  // the third bitfield here shift 20 bits
+uint32_t status = readers | (waitToRead << 10) | (writers << 20);
+\end{lstlisting}
+
+\subsection{-- extract bitfield}
+
+To extract single-byte, we do
+\begin{lstlisting}
+unsigned char bytes[4];
+int x = 0x0000101D;
+bytes[0] = (x >> 24) & 0xFF;
+bytes[1] = (x >> 16) & 0xFF;
+bytes[2] = (x >>  8) & 0xFF;
+bytes[3] =  x        & 0xFF;
+\end{lstlisting}
+
+
+\subsection{C++}
+\label{sec:bitset}
+
+Classes and structures can contain members that occupy less storage than an
+integral type. These members are specified as bit fields
+
+
+ In C++, we use \verb!std::bitset<N>!.
+
+\section{Enum}
+\label{sec:enum}
+
+The goal is to create a set of descriptive names that can be used
+as values for integer-typed variable. 
+
+From the early days of C language, it provides the \verb!#define! approach
+(Sect.\ref{sec:macros-define}) which has a major limitation.
+\begin{verbatim}
+#define mon 0
+#deine tue 1
+#define wed 2
+\end{verbatim}
+
+A better choice is using \verb!enum!, which allows us to access these names via a type.
+
+An \verb!enum! type can be named or unnnamed. If named, then we can use that name at different place.
+\begin{verbatim}
+enum { mon, tue, wed } my_day;
+
+  // named enum type 'day_t'
+enum day_t { mon, tue, wed } my_day;
+
+enum day_t work_day;  //either this
+
+day_t work_day; // or we can obmit 'enum'
+\end{verbatim}
+
+IMPORTANT: The size of an element of \verb!enum! type is not fixed. 
+
+The C language standard does not say what size it should be; only that it should
+be big enough to fit any enumerator. However, we can force the size using \verb!: type!
+\begin{verbatim}
+enum day_t : char { mon, tue, wed };
+
+  // 
+enum day_t : char { mon, tue, wed } my_day;
+\end{verbatim}
+
+IMPORTANT: We can use the value of an \verb!enum! type in a \verb!case! statement
+\begin{verbatim}
+day_t some_var;
+....//do some stuff with some_var
+switch (some_var)
+{
+case mon:
+break;
+case tue:
+break;
+}
+\end{verbatim}
+
+
+Since C++11, \verb!enum class! or \verb!enum struct! keywords are added 
+(Sect.\ref{sec:enum_class-C++11}).
+
+
+\subsection{using \#define}
+\label{sec:macro-define}
+
+\verb!#define! enables programmers to create a set of descriptive
+names that can be used as values for integer-typed variable.
+
+\begin{verbatim}
+#define NORTH_WIND        0
+#define SOUTH_WIND        1
+#define EAST_WIND         2
+#define WEST_WIND         3     
+#define NO_WIND           4       
+
+int wind_direction = NO_WIND;
+\end{verbatim}
+
+The problem with this approach is that it doesn't prevent users/programmers
+accidently assign non-sense value to the variable \verb!wind_direction! 
+
+Example:
+\begin{verbatim}
+wind_direction = 10 ; // unexpected, but accept by the compiler
+\end{verbatim}
+as the variable is an \verb!int! type and thus any assignment with an integer
+value cannot be detected during compilation. 
+
+\verb!enum! was added to solve this problem (Sect.\ref{sec:enum-C}).
+
+\subsection{old-style enum (in C)}
+\label{sec:enum-C}
+
+\verb!enum! keyword defines a list of descriptive names, and variables defined
+as of this enum-type can only get values from the list
+
+\begin{verbatim}
+// SYNTAX: enum optional_tag { value1, value2, value3 } var_1, var_2;
+
+enum { MON, TUE, WED, THUR, FRI, SAT, SUN} day;
+  // MON = 0, TUE = 1, ...
+
+//By defining the optional tag: WEEKDAYS, we can reuse the enum
+//    without having to redefine the full list
+enum WEEKDAYS { MON, TUE, WED, THUR, FRI, SAT, SUN} day;
+
+enum WEEKDAYS day2; 
+\end{verbatim}
+IMPORTANT: in C, we need to have \verb!enum! before the optional tag. Another
+way is to combine it with \verb!typedef! (Sect.\ref{sec:enum-typedef-C}).
+
+The idea behind \verb!enum! is to design a user-defined type that only accept a
+restricted few number of values
+\footnote{\url{http://www.cprogramming.com/tutorial/enum.html}}.
+\textcolor{red}{By default}, the first descriptive name, i.e. \verb!value1! is a
+descriptive name representing the value 0, and \verb!value2! is a descriptive
+name representing the value one unit increment to the previous value, i.e. 1.
+An optional equal sign (=) can be used to break this default value assignment
+Also, multiple enum members may share the same associated value.
+
+\begin{verbatim}
+enum WEEKDAYS { MON = 2, TUE, WED = 5, THUR, FRI, SAT, SUN} day;
+  // TUE = 3
+  // THUR = 6, FRI = 7, SAT = 8, SUN=9
+
+day = MON; // okay
+day = 2 ; // okay (as mapping to 2
+day = 10; // compile-time error, as no name mapping to 10
+\end{verbatim}
+
+\verb!enum! is designed as a type-safe to pass a value in a set to a function,
+without using \verb!int!, and to be more descriptive as an enum of one type is
+not implicitly convertible to another type, and integers are not implicitly
+convertible to enum types.
+
+\begin{verbatim}
+enum day_tag { mon, tue=2, wed, thu=7, fri} ;
+  // so   mon <- 0,
+  //      wed <- 3,
+  //      fri <- 8
+
+enum day_tag { mon, tue=0, wed, thu, fri=0} ;
+  // so   mon <- 0,
+  //      tue <- 0
+  //      web <- 1
+  //      thu <- 2
+  //      fri <- 0
+\end{verbatim}
+
+\textcolor{red}{Be aware} if  your enum has multiple descriptive names mapping
+to the same integer value, you may get unexpected results when you use
+\verb!Enum.Parse()! in C\# which will arbitrarily return the first element that
+has the requested value.
+
+
+Example:
+\begin{verbatim}
+enum Color { Red,Green,Blue };
+enum Size { Big,Little };
+
+void f( Color c ) {
+}
+
+void f( Size s ) {
+}
+
+int main() {
+    f( Red );
+    f( Big );
+}
+\end{verbatim}
+% Another reason to use \verb!enum! is that we can use the descriptive name in
+% checking the value (rather than using the associated integer values) in
+% debugging. 
+
+Example: we can use the descriptive name in checking the value (rather than
+using the associated integer values) in debugging. 
+\begin{verbatim}
+  // the optional tag 'wind_directions_t' 
+  //   serve as the the type name
+enum wind_directions_t {NO_WIND, NORTH_WIND, SOUTH_WIND, EAST_WIND, WEST_WIND};
+
+// in C++
+wind_directions_t wind_direction = NO_WIND;
+// in C (add 'enum')
+enum wind_directions_t wind_direction = NO_WIND;
+
+wind_direction = 453; // doesn't work, we get a compiler error!
+\end{verbatim}
+
+
+
+\textcolor{red}{Be aware} when using sentinal value as a descriptive name
+\begin{verbatim}
+enum Color 
+{
+    Red,
+    Green,
+    Blue,
+    Max = Blue
+}  
+\end{verbatim}
+Max is an example of a sentinal value. This is not recommended per the MSDN
+design guidelines for enumerations because it violates the separation of
+concerns between the raw value and it's state.
+
+\subsection{--- major limitation of enum in C}
+\label{sec:enum-limitations}
+
+\textcolor{red}{LIMITATION}: One major limitation is that enum values were
+unscoped--in other words, you couldn't have two enumerations that shared the
+same name:
+\begin{verbatim}
+enum E1 { C1=45, C2=453, C3=77};
+
+//Error - this second enum is at the same scope as E1
+//and contains a value of the same name C3
+enum E2 { C3=36, C4=73, C5=384 };
+\end{verbatim}
+\url{http://www.cprogramming.com/c++11/c++11-nullptr-strongly-typed-enum-class.html}
+
+There are two solutions:
+\begin{enumerate}
+  \item put them into different classes - Sect.\ref{sec:enum-inside-class}
+  
+  \item put them into different namespaces - Sect.\ref{sec:enum-inside-namespace}
+  
+  \item (C++11) using strongly typed enum, i.e. \verb!enum class!
+  (Sect.\ref{sec:enum_class-C++11})
+\end{enumerate}
+\url{http://www.cplusplus.com/forum/general/21893/}
+
+\subsection{ * enum inside namespace}
+\label{sec:enum-inside-namespace}
+
+To limit the scope of enum, we can put into a namespace.
+
+Example: put in different namespaces
+\begin{verbatim}
+namespace E1
+{
+          enum E {C1=45, C2=453, C3=77};
+}
+
+namespace E2
+{
+          enum E {C1=36, C2=73, C3=384};
+}
+
+    E1::E e1=E1::C3;
+    E2::E e2=E2::C3;
+\end{verbatim}
+
+Example:
+\begin{verbatim}
+enum MyType { Type1 = 1, Type2};
+ 
+enum YourType {Type1, Type2};  // error: Type1 has already been declared in the
+                           //current scope
+\end{verbatim} 
+The solution is to put them into 2 different namespaces
+\begin{verbatim}
+namespace MyType 
+{
+  type { Type1 = 1, Type2};
+}
+
+namespace YourType 
+{
+  type { Type1, Type2};
+}
+
+// then we can use
+MyType::type  a;
+YourType::type b;
+
+a = MyType::Type1;
+b = YourType::Type1;
+\end{verbatim}
+
+\subsection{ * enum inside class}
+\label{sec:enum-inside-class}
+
+A better control of the scope when using enums than putting in the namespace is
+putting in a class.
+
+Example: put in different classes
+\begin{verbatim}
+class MyClass
+{
+    //This enum is in a different  scope from E1 - so C3 here is ok
+public:
+    enum E3 {C3=36, C4=73, C5=384};
+};
+
+    MyClass::E3 enum_var2 = C3;//Error- these are from different enums 
+
+    MyClass::E3 enum_var3 = MyClass::C3; //OK
+\end{verbatim}
+
+Here, we access the enum value directly using the class name, i.e.
+ClassName::EnumValue. So, still, we cannot have two enums of the same
+EnumValue in one class. C++11 provides a more intuitive access using
+ClassName::EnumName::EnumValue.
+
+\subsection{typdef enum (in C)}
+\label{sec:enum-typedef-C}
+\label{sec:typedef-enum-C}
+
+We can use \verb!typedef! (Sect.\ref{sec:typedef}) to help defining a new
+type name that map to an \verb!enum!. This is considered as using a data type
+more intuitive in C.
+
+If you don't use \verb!typedef!, in C (not C++) you were required to use
+\verb!enum EnumName! to refer to a data element of the enumerated type.
+
+\textcolor{red}{C code}
+\begin{lstlisting}
+// two ways
+typedef enum e_TokenType
+{
+    blah1   = 0x00000000,
+    blah2   = 0X01000000,
+    blah3   = 0X02000000
+} TokenType;
+
+TokenType variable;
+void f( TokenType x );
+
+// otherwise
+enum TokenType
+{
+    blah1 = 0x00000000,
+    blah2=0x01000000,
+    blah3=0x02000000
+};
+
+enum TokenType my_type;
+void f( enum TokenType x )
+\end{lstlisting}
+
+\subsection{old-style enum in C++}
+\label{sec:enum-C++}
+
+There are a few main different of \verb!enum! in C++ vs. C language
+\begin{enumerate}
+  \item enumeration constants are of the enumerated type, not int
+  
+  An example of enumerated type is 
+\begin{verbatim}
+enum day_t {mon, tue, wed};
+ // then 
+ //   mon
+ // is of type 'enum day_t' or 'day_t'   
+ // (which is compatible with some integer type, not necessarily int).
+\end{verbatim}
+  
+  \item we don't have to re-use \verb!enum! keyword
+\end{enumerate}
+
+SYNTAX:
+\begin{verbatim}
+enum [identifier] [: type] { enum-list}; *
+
+// identifier = optional tag name
+\end{verbatim}
+
+Using \verb!enum! in C++ is similar to that in C, except in \textcolor{red}{C++
+code}: we don't have to re-use \verb!enum! keyword on the tag name
+\begin{lstlisting}
+enum TokenType
+{
+    blah1 = 0x00000000,
+    blah2=0x01000000,
+    blah3=0x02000000
+};
+
+void f( TokenType x ); // Correct C++, Error in C
+\end{lstlisting}
+
+Of course, we can also use \verb!typedef! (Sect.\ref{sec:typedef-enum-C}).
+Based on the limitations as described in Sect.\ref{sec:enum-limitations}, we
+should considered using \verb!enum class! - a new feature from C++11
+(Sect.\ref{sec:enum_class-C++11}).
+
+\subsection{enum class (C++11)}
+\label{sec:enum_class-C++11}
+
+C++11 provides the new keyword \verb!enum class! and \verb!enum struct! to help
+defining enum that helps to avoid naming clash
+(Sect.\ref{sec:enum-limitations}).
+This is called {\it scoped enum}, while the original C/C++ enum is called {\it
+unscoped enum}.  SYNTAX:
+\begin{verbatim}
+enum [class|struct] [identifier] [: type] { enum-list}; *
+\end{verbatim}
+
+Their default underlying type is \verb!int! but can be changed to other integral types
+to manage the sizes of enums memory efficiently. They cannot be type casted
+implicitly but explicitly.  {\it Old style C++ enums are still available--if you
+want them--largely for backward compatibility with existing code bases. }
+(Sect.\ref{sec:enum-C++}).
+
+\textcolor{red}{LIMITATION: No class method is allowed in an enum class|struct.}
+
+
+
+Example: using enum class
+\begin{verbatim}
+// this code will compile (if your compiler supports C++11 strongly typed enums)
+enum class Color {RED,  // = 0 (by default) 
+                  GREEN, BLUE}; 
+                  
+enum class Feelings {EXCITED, MOODY, BLUE};
+
+Color color = Color::GREEN;
+if ( Color::RED == color )
+{
+    // the color is red
+}
+
+enum class Enumeration {
+    Val1, Val2, Val3 = 100, Val4 // = 101
+};
+\end{verbatim}
+Each enum value is scoped within the name of the enum class.
+The new style requires putting the class name in front of the value, e.g.
+\verb!Color::GREEN!.
+
+\textcolor{red}{NOTE}: \verb!enum class! values are not implicitly converted to
+integers; therefore, they cannot be compared to integers either (the expression
+Enumeration::Val4 == 101 gives a compiler error).
+
+\textcolor{red}{Advantage}: Enum classes have another advantages over old-style
+enums. You can have a forward declaration to a strongly typed enum, meaning that
+you can write code like:
+\begin{verbatim}
+enum class Mood; // forward declaration
+ 
+void assessMood (Mood m);
+  
+// the class can be defined later on:
+enum class Mood { EXCITED, MOODY, BLUE };
+\end{verbatim}
+
+\textcolor{red}{Advantage}: You can explicitly set the number of bytes to store
+each element in your enum--you can use any signed or unsigned integer type.
+The default type is \verb!int!, but you can also use char, unsigned long, \ldots
+\begin{verbatim}
+// we only have three colors, so no need for ints!
+enum class Colors : char { RED = 1, GREEN = 2, BLUE = 3 };
+\end{verbatim}
+
+\textcolor{red}{Advantage}: In C++11, we can use data types in \verb!<cstdint>!
+header to specify the exact size. For example, sometimes you want to have a
+32-bit integer, not just an int that might have different sizes on different
+architectures.
+\begin{verbatim}
+#include <cstdint>
+enum class Colors : std::int8_t { RED = 1, GREEN = 2, BLUE = 3 };
+\end{verbatim} 
+The cstdint header includes types such as 
+\begin{verbatim}
+std::int8_t
+std::int16_t
+std::int32_t
+std::int64_t 
+\end{verbatim}
+(as well as unsigned versions that begin with u: \verb!std::uint8_t!).
+
+
+\textcolor{red}{\bf Example:}
+The data is declared in .cpp file, e.g. state.cpp
+\begin{lstlisting}
+#include "state.h"
+
+const int NUM_PEOPLE=300;
+State Person[NUM_PEOPLE];
+\end{lstlisting}
+
+To use this data, we can put the name as \verb!extern! in the header file, e.g. state.h, 
+\begin{lstlisting}
+#ifndef STATES_H
+#define STATES_H
+
+enum State { happy,sad,mad };
+
+extern const int NUM_PEOPLE;
+extern State Person[]; // do not provide the size here
+
+#endif
+\end{lstlisting}
+and include that header file everywhere
+\begin{lstlisting}
+#include "state.h"
+
+int main()
+{
+    for(int i=0;i<NUM_PEOPLE;++i) Person=happy;
+
+    return 0;
+}
+\end{lstlisting}
+\url{https://www.gamedev.net/forums/topic/413799-using-extern-with-enums-in-c/}
+
+\subsection{enum struct (C++11)}
+\label{sec:enum_struct-C++11}
+
+\verb!enum struct! is accepted as a synonym to \verb!enum class!
+(Sect.\ref{sec:enum_class-C++11})
+
+\subsection{Good practice}
+
+\subsection{- Default as a descriptive name}
+
+It is good to have a descriptive name \verb!Default! and assign to the default
+descriptive name in the enumeration.
+\begin{verbatim}
+public enum Scope
+{
+    Transient,
+    Singleton,
+    Default=Transient
+}
+\end{verbatim}
+
+\subsection{- map user-input (an integer) to a variable of a given enum}
+
+A user-input can be an integer value, the question is how to assign this value 
+to a variable of a given enum type. A safe option is using \verb!static_cast!.
+
+NOTE: The associated integer values in the enum may be discontinuous
+
+\begin{lstlisting}
+enum Test
+{
+    A, B
+}
+
+int a = 1;
+
+  // not a good option
+Test castEnum = (Test)a;
+
+  // a safer option
+Test castEnum = static_cast<Test>(a);
+
+wind_directions_t wind_direction = NO_WIND;
+
+std::cin >> static_cast( wind_direction );
+
+\end{lstlisting}
+
+
+To prevent users from entering a crazy value, this can be a good option
+{\small 
+\begin{verbatim}
+std::cout << "Please enter NORTH, SOUTH, EAST, WEST, or NONE for our wind direction";
+std::cout << std::endl;
+
+string input_wind_dir;
+cin >>
+
+wind_directions_t wind_dir;
+
+if ( user_wind_dir == "NORTH" )
+{
+        wind_dir = NORTH_WIND;
+}
+else if ( user_wind_dir == "SOUTH" )
+{
+        wind_dir = SOUTH_WIND;
+}
+else if ( user_wind_dir == "EAST" )
+{
+        wind_dir = EAST_WIND;
+}
+else if ( user_wind_dir == "WEST" )
+{
+        wind_dir = WEST_WIND;
+}
+else if ( user_wind_dir == "NONE" )
+{
+        wind_dir = NO_WIND;
+}
+else
+{
+        std::cout << "That's not a valid direction!" << std::endl;
+}
+\end{verbatim}
+}
+
+% Here are some examples:
+% \begin{verbatim}
+% enum enumType 
+% { 
+%     A = 0,
+%     B,  //default is +1 of the previous element, i.e. A+1
+%     C,
+%     enumTypeEnd
+% };
+% 
+% enum Foo {
+%   One, //default is 0
+%   Two,
+%   Three,
+%   Last
+% };
+% 
+% enum Foo {
+%   One = 1,
+%   Two = 9,
+%   Three = 4,
+%   Last
+% };
+% \end{verbatim}
+
+
+\subsection{- index an enum}
+
+Question: can we use indexing to access an element in the enum, e.g. Test[0] to
+get 'hi'? 
+\begin{lstlisting}
+enum Test{hi, bye};
+\end{lstlisting}
+
+ANSWER: NO, you cannot use array-indexing style, but you can use the 
+integer value associated with the descriptive name.
+  
+If you have
+\begin{verbatim}
+enum Test{hi = 0, bye};
+\end{verbatim}
+then you can simply refer to 'hi' with the number 0 and 'bye'
+with the number 1. NOTE: this really defeats the whole purpose of using an
+enumeration in the first place.
+  
+
+% REMEMBER: Unless specified otherwise, enums start numbering at 0, and increment
+% by 1 each entry.
+% \begin{verbatim}
+% enum Test
+% {
+%     hi, //0
+%     bye, //1
+%     count //2
+% }
+% \end{verbatim}
+
+
+
+\subsection{- traverse through an enum?}
+
+\verb!enum! is not designed for looping (iterate) through its element.
+However, if 2 adjacent elements are only 1 value difference, then we can use
+the loop.
+\begin{verbatim}
+enum Foo {
+  One = 1,
+  Two,
+  Three,
+  Last
+};
+
+for ( int fooInt = One; fooInt != Last; fooInt++ )
+{
+   Foo foo = static_cast<Foo>(fooInt);
+   // ...
+}
+
+enum Sounds {
+  explosionSnd = 101,
+  attackSnd = 102,
+  ... // each constant increases by 1
+  victorySnd = 185
+}
+
+Sounds firstSnd = explosionSnd;
+Sounds lastSnd = victorySnd;
+
+for ( int theSound = firstSnd;
+theSound <= lastSnd; ++theSound )
+  CheckSoundIsPresent(theSound); 
+\end{verbatim}
+
+IMPORTANT: This, however, doesn't work for this case where the elements are not
+contiguous
+\begin{verbatim}
+enum Foo {
+  One = 1,
+  Two = 9,
+  Three = 4,
+  Last
+};
+\end{verbatim}
+
+A better way to deal with \verb!enum! elements is to use \verb!switch! statement
+\begin{verbatim}
+switch ( foo )
+{
+    case One:
+        // ..
+        break;
+    case Two:  // intentional fall-through
+    case Three:
+        // ..
+        break;
+    case Four:
+        // ..
+        break;
+     default:
+        assert( ! "Invalid Foo enum value" );
+        break;
+}
+\end{verbatim}
+
+\section{Type alias}
+\label{sec:type-alias}
+
+\subsection{typedef}
+\label{sec:typedef-C}
+
+We can use \verb!typedef! to define a new name, i.e. an alias, to a given type.
+
+\subsection{'using' specifier to do define a template class alias}
+
+
+We can define an alias to a template class by using {\bf using} specifier
+\begin{verbatim}
+//using specifier
+using identifier attr(optional) = type-id ;	
+
+
+template < template-parameter-list >
+using identifier attr(optional) = type-id ;
+
+
+template<class T>
+struct Alloc { };
+
+template<class T>
+using Vec = vector<T, Alloc<T>>; // type-id is vector<T, Alloc<T>>
+
+
+Vec<int> v; // Vec<int> is the same as vector<int, Alloc<int>>
+\end{verbatim}
+
+\section{float vs. double}
+\label{sec:float}
+\label{sec:double}
+
+This type represents single-precision floating-point numbers.
+
+NOTE:
+\begin{verbatim}
+error: short, signed or unsigned invalid for 
+\end{verbatim}
+it means there is no discrimination between 'signed' or 'unsigned' for a
+floating-point number.
+
+A floating-point constant must have a fractional part, which have decimal points
+(.) and can contain exponents.
+\begin{verbatim}
+// default is to type 'double'
+8.
+8.0
+8.0e0    //use 'e' or 'E' the same
+8.e0     
+
+// if suffix 'f' or 'F': then type is 'float'
+8.F
+
+// if suffix 'l' or 'L': then type is 'long double' (128-bit)
+\end{verbatim}
+\url{http://msdn.microsoft.com/en-us/library/tfh6f0w2.aspx}
+
+This is syntax error
+\begin{verbatim}
+8F    // error in C++; but okay in C#
+\end{verbatim}
+
+\section{128-bit floating-point (long double)}
+
+It's supported in intrinsic operations since C89. But until C99, it can be used
+in STL. Quadruple precision with 128-bit can be supported using libquadmath
+library and header file \verb!<quadmath.h>! since GCC 4.6
+\footnote{\url{http://stackoverflow.com/questions/13780219/link-libquadmath-with-c-on-linux}}.
+\begin{lstlisting}
+extern "C" {
+    #include <quadmath.h>
+}
+
+int main()
+{
+    __float128 foo=123;
+    cosq(foo);
+    return 0;
+}
+\end{lstlisting}
+To compile, with linking to external library \verb!libquadmath.so!
+(Sect.\ref{sec:linking})
+The library is 
+\begin{verbatim}
+ /usr/lib64/libquadmath.so.0
+\end{verbatim}
+Example:
+\begin{verbatim}
+g++ f128.cpp -lquadmath
+\end{verbatim}
+
+
+
+\section{Complex}
+\label{sec:type-complex}
+\label{sec:complex}
+
+\subsection{C99}
+\label{sec:complex-C}
+
+In C99, a new header file \verb!<complex.h>! was added which provides 
+data type \verb!complex!.
+
+a complex and imaginary specifiers \verb!_Complex! and \verb!_Imaginary!
+were added. They need to be used with either float, double, or long double.
+\begin{lstlisting}
+
+\end{lstlisting}
+
+\subsection{C++}
+\label{sec:complex-C++}
+
+C++ is newer than C and use the header \verb!<complex>! which define a template
+class \verb!std::complex<>! that can be instantiated for float, double, or long
+double.
+
+\begin{lstlisting}
+template<class T>
+class complex
+{
+  T real;
+  T img;
+}
+\end{lstlisting}
+So, C++ uses the templated types \verb!std::complex<float>!,
+\verb!std::complex<double>!, and \verb!std::complex<long double>! for dealing
+with complex numbers. 
+
+Those classes function very similarly to the C99 types but are
+non-interchangeable.
+
+Reference:
+\url{https://en.wikipedia.org/wiki/C_mathematical_functions#complex.h}
+
+\url{http://stackoverflow.com/questions/6363247/what-is-a-complex-data-type-and-an-imaginary-data-type-in-c}
+
+\section{Software-emulated floating-point}
+
+References:
+\begin{enumerate}
+  \item \url{http://gcc.gnu.org/wiki/Software_floating_point}
+  \item \url{http://koala.cs.pub.ro/lxr/#glibc+2.9/soft-fp/subtf3.c#L35}
+\end{enumerate}
+
+\section{sig\_atomic\_t}
+\label{sec:sig_atomic_t}
+
+The type \verb!sig_atomic_t! is defined in \verb!signal.h! header file
+\begin{verbatim}
+   TYPE         MIN                MAX
+sig_atomic_t   SIG_ATOMIC_MIN    SIG_ATOMIC_MAX
+            (signed: -127       127
+            unsigned: 0         255
+            
+\end{verbatim}
+
+\url{https://www.securecoding.cert.org/confluence/display/seccode/SIG31-C.+Do+not+access+shared+objects+in+signal+handlers}
+
+
+\section{'const'}
+\label{sec:const_keywords}
+
+\subsection{'const' with function definition}
+\label{sec:const_function}
+
+\verb!const! can be used in two cases with a function: (1) in a returned value,
+(2) at the end of function definition.
+
+CASE 1: The meaning of \verb!const! last in a C++ method definition means that
+the method is NOT allowed to change any class member (except those that are marked
+\verb!mutable! - Sect.\ref{sec:mutable_keyword}) 
+\begin{verbatim}
+lass Foo 
+{
+public:
+    int Bar(int random_arg) const
+    {
+        // code
+    }
+};
+\end{verbatim}
+
+A function 
+\begin{verbatim}
+int Foo::Bar(int random_arg)
+
+// function call
+Foo f; f.Bar(4);
+\end{verbatim}
+is mapped to
+\begin{verbatim}
+int Foo_Bar(Foo* this, int random_arg)
+
+// becomes
+Foo f; Foo_Bar(&f, 4)
+\end{verbatim}
+
+Adding \verb!const! at the end, then the example above becomes
+\begin{verbatim}
+int Foo::Bar(int random_arg) const
+
+// equivalent
+int Foo_Bar(const Foo* this, int random_arg)
+\end{verbatim}
+
+
+CASE 2: A function that return a const value is not allowed to be modified. It
+means that it cannot be used as a Lvalue (Sect.\ref{sec:rvalue_lvalue}). This
+applies to the case when we want it to return a temporary object.
+\textcolor{red}{Since C++11, it is strongly advised to return a value of
+non-const object so that we can take full advantage of Rvalue references}
+(Sect.\ref{sec:xvalue_glvalue_prvalue}). So, using CASE 2 is considered
+obsolete.
+
+\begin{verbatim}
+const Object myFunc(){
+    // do something
+    
+    return myObject;
+}
+\end{verbatim}
+
+Example: the \verb!operator +! return a non-const object
+\begin{verbatim}
+(a+b).expensive()
+\end{verbatim}
+
+Example:
+\begin{verbatim}
+
+class Bar {
+   SomeType& foo() {
+      //Actual implementation 
+   }
+   const SomeType& foo() const {
+        return const_cast<Bar*>(this)->foo();
+   }
+};
+
+\end{verbatim}
+
+
+\subsection{Positions of 'const' in relation to start (*) pointers and data
+type}
+\label{sec:const_its-position}
+
+The 'const' keyword was added to C in C89 (Sect.\ref{sec:const_C}) and to C++
+in C93 (Sect.\ref{sec:const_C++}). The meaning of 'const' is different between C
+and C++. 
+
+Difference \# 1:
+\begin{enumerate}
+  \item In C, the address for that object cannot be changed, but the value can
+  be changed. So, we don't have to initialize the value.
+  \item In C++, the value or the content of the object cannot be changed. So, we
+  MUST initialize the value or the content of the object at the declaration.
+\end{enumerate}
+\textcolor{red}{const applies to the thing left of it. If there is nothing on
+the left then it applies to the thing right of it.} Here is how it means in C++
+\begin{verbatim}
+const Object* obj; // can't change data
+Object const * obj; // can't change data
+
+Object* const obj; // can't change pointer
+const Object* const obj; // can't change data or pointer
+Object const* const obj; // a constant pointer to a constant object
+\end{verbatim}
+If you allow typedef's pointers (which is NOT recommended), then it's better to
+put \verb!const! on the right side of the target to avoid confusing (see
+Sect.\ref{sec:typedef_pointers}). 
+
+A similar scenario with function pointer where \textcolor{red}{start (*) applies
+to the thing left of it. If there is nothing on the left then it applies to the
+thing right of it}
+% Typically, you put 'const' on the left
+% side of the data type to specify the data is not modifiable.
+\begin{verbatim}
+void * function1(void) declares a function which returns void *,
+void (* function2)(void) declares a function pointer to a function which returns void.
+\end{verbatim}
+
+\begin{framed}
+{\bf Why read right-to-left?} This is probably how the compiler is designed when
+parsing the code
+\end{framed}
+
+In C++, as the content of the object CANNOT be changed,  the 'const' object
+requires the class of the object need to have default constructor.
+
+Difference \# 2:
+\begin{enumerate}
+  \item In C, it has default external linkage
+  \item In C++, it has default internal linkage
+\end{enumerate}
+
+NOTE: Using 'const' with char (Sect.\ref{sec:const_char})
+
+
+\url{http://stackoverflow.com/questions/5503352/const-before-or-const-after}
+
+\section{Programming skils}
+
+\subsection{Mixing 'char' and 'int' NOT RECOMMENDED}
+
+\begin{minipage}[t]{0.5\textwidth}
+\begin{lstlisting}
+#include <stdio.h>
+
+int main()
+{
+
+unsigned char  a;
+unsigned char  b;
+unsigned int  c;
+
+a = 0;
+b = -5;
+
+c =  (a + b); 
+
+printf("c hex: %x\n", c);
+printf("c dec: %d\n",c);
+
+}
+\end{lstlisting}
+Output: 
+\begin{verbatim}
+c hex: fb
+c dec: 251
+\end{verbatim}
+
+\end{minipage}
+\begin{minipage}[t]{0.5\textwidth}
+\begin{lstlisting}
+
+
+
+
+
+
+
+
+
+a = 0;
+b = 5;
+
+c = (a-b);
+
+
+
+
+}
+\end{lstlisting}
+Output:
+\begin{verbatim}
+c hex: fffffffb
+c dec: -5
+\end{verbatim}
+\end{minipage}
+
+\textcolor{red}{WHY}: We need to understand at the assembly level. \verb!char!
+are promoted to \verb!int! to do arithmetic. There is no problem with a=0x00,
+which is extended to 0x00000000. For the case of b, even though we assign b=-5,
+but b is unsigned, it's breaking the rule as a negative value is interpreted as
+a very large positive number. So indeed 251 is assigned (which is the sum of the
+max value (\verb!UCHAR_MAX!=255) with the reduced value module one (-5+1=-4)) to
+be as there is no sign extended, and thus b=0xfb extended to 0x000000fb.
+\begin{verbatim}
+# First case
+0x00000000 + 0x000000fb = 0x000000fb
+
+# Second case
+0x00000000 - 0x00000005 = 0xfffffffb
+\end{verbatim}
+
+
+\section{Windows Data Types}
+\label{sec:WindowsDataTypes}
+
+
+Windows Data Types are widely used in Windows to define function return values,
+function and message parameters, and structure members. Most of the pointer-type
+names begin with a prefix of P or LP (P=32-bit pointer, LP=long-pointer=64-bit
+pointer). Handles refer to a resource that has been loaded into memory.
+\footnote{\url{http://msdn.microsoft.com/en-us/library/windows/desktop/aa383751(v=vs.85).aspx}}
+
+
+\begin{Verbatim}
+PCWSTR         pointer to NULL-terminated string of 16-bit Unicode-characters
+               defined in WinNT.h  
+               typedef CONST WCHAR *PCWSTR;
+               
+\end{Verbatim}

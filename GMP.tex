@@ -1,0 +1,185 @@
+\chapter{GMP library}
+\label{chap:GMP-lib}
+
+There are two header files that you can choose
+\begin{itemize}
+  \item C lang: \verb!gmp.h!
+  
+  \item C++ lang: \verb!gmpxx.h!
+\end{itemize}
+To make sure GMP support C++, compile with \verb!--enable-cxx! 
+\begin{verbatim}
+./configure --prefix=~/gmp --enable-cxx
+make
+make install
+\end{verbatim}
+
+In Code
+\begin{verbatim}
+#include <stdio.h> // required for FILE* parameter
+
+#include <stdarg.h> // required for va_list parameter
+                    // e.g. gmp_vprintf()
+#include <obstack.h>  // required for 'struct obstack' parameter
+                   // e.g. gmp_obstack_printf()
+#include <gmp.h> 
+\end{verbatim}
+
+
+Compile: 
+\begin{verbatim}
+ // 
+g++ mycxxprog.cc -lgmp
+
+// GMP C++ functions
+g++ mycxxprog.cc -lgmpxx -lgmp
+\end{verbatim}
+
+NOTE: If the GMP library is installed to non-standard location, use '-I' and
+'-L' compiler options to point to the right directories.
+
+\section{Data type }
+\label{sec:GMP-datatypes}
+
+GMP uses a different name for intrinsic data type, e.g. integer usually means a
+multiple precision integer.
+
+GMP uses 
+\begin{enumerate}
+  \item \verb!mpz_t! type for integers with multiple precision
+  
+  \item \verb!mpq_t! type for rational numbers with multiple precision
+  
+  \item \verb!mpf_t! type for floating-point numbers with arbitrary precision
+  mantissa with a limited precision exponent. 
+  
+  
+  \item \verb!mp_limb_t! type:
+  
+  A limb means the part of a multi-precision number that fits in a single
+  machine word. (We chose this word because a limb of the human body is
+  analogous to a digit, only larger, and containing several digits.) Normally a
+  limb is 32 or 64 bits. 
+
+  \item \verb!mp_size_t! type: which counts of limbs of a multi-precision
+  number. Currently this is normally a long, but on some systems it's an
+  \verb!int! for efficiency, and on some systems it will be \verb!long long! in
+  the future.
+  
+  \item \verb!mp_bitcnt_t! type: which counts of bits of a multi-precision
+  number. Currently this is always an \verb!unsigned long!, but on some systems
+  it will be an unsigned long long in the future.
+  
+  \item \verb!gmp_randstate_t! type: represents an algorithm selection and
+  current state data.
+  
+  
+\end{enumerate}
+In general \verb!mp_bitcnt_t! is used for bit counts and ranges, and
+\verb!size_t! is used for byte or character counts.
+
+Example:
+\begin{verbatim}
+mpz_t sum;
+
+struct foo { mpz_t x, y; };
+
+mpz_t vec[20];
+\end{verbatim}
+
+
+\subsection{integer}
+
+\url{https://gmplib.org/manual/Initializing-Integers.html}
+
+
+\subsection{floating-point}
+
+
+
+\section{IMPORTANT: before using data}
+
+As data type in GMP is defined as a single data element, it is important to
+initialize them before using it
+\begin{verbatim}
+mpz_t data;
+mpz_init(data);
+
+// use 'data'
+\end{verbatim}
+
+
+\section{Types of functions}
+
+There are 6 classes of functions in GMP which can be distinguish based on the
+prefix
+\begin{enumerate}
+  \item \verb!mpz_! functions (about 150 functions): those manipulate signed
+  integer arithmetic:
+  
+  \item \verb!mpq_! functions (about 35 functions): 
+  
+  \item \verb!mpf_! functions (about 75 functions)
+  
+  \item \verb!mpn_! functions (about 60 functions):
+  operate on natural numbers, mainly works with \verb!mp_limb_t! datas, and hard
+  to use.
+  
+  
+  \item miscellaneous functions: those for generating random numbers; and
+  custome allocations.
+\end{enumerate}
+
+\section{Classes}
+
+Instead of using intrinsic data types in Sect.\ref{sec:GMP-datatypes}, we can
+use a class-form of these types by adding \verb!gmpxx.h! header file.
+
+Three classes
+\begin{verbatim}
+Class: mpz_class
+Class: mpq_class
+Class: mpf_class
+\end{verbatim}
+The standard operators and various standard functions are overloaded to allow
+arithmetic with these classes.
+
+\begin{verbatim}
+mpz_class a, b, c;
+...
+mpz_gcd (a.get_mpz_t(), b.get_mpz_t(), c.get_mpz_t());
+\end{verbatim}
+
+There are no namespace setups in gmpxx.h, all types and functions are simply put
+into the global namespace. This is what gmp.h has done in the past, and
+continues to do for compatibility. The extras provided by gmpxx.h follow GMP
+naming conventions and are unlikely to clash with anything.
+
+
+\section{Convert back to C data type}
+
+IMPORTANT: All operations in GMP mainly utilized data of GMP data types. 
+At the end, we need to convert back to C types for further processing using
+other APIs.
+
+\begin{itemize}
+  \item for integer:
+  \url{https://gmplib.org/manual/Converting-Integers.html}
+\end{itemize}
+
+\section{Passing data type as function parameter}
+
+\url{https://gmplib.org/manual/Parameter-Conventions.html}
+
+When a GMP variable is used as a function parameter, it's effectively a
+call-by-reference, meaning if the function stores a value there it will change
+the original in the caller. Parameters which are input-only can be designated
+const to provoke a compiler error or warning on attempting to modify them.
+
+How could this happens? For interest, the GMP types \verb!mpz_t! etc. are
+implemented as one-element arrays of certain structures. This is why declaring a
+variable creates an object with the fields GMP needs, but then using it as a
+parameter passes a pointer to the object. Note that the actual fields in each
+\verb!mpz_t! etc are for internal use only and should not be accessed directly
+by code that expects to be compatible with future GMP releases.
+

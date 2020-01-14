@@ -1,0 +1,400 @@
+\chapter{Math operations}
+
+NOTE: Using C++ standard template library, it provides many algorithms. 
+\begin{Verbatim}
+std::find
+std::find_if
+std::count
+std::find
+std::binary_search
+std::equal_range
+std::lower_bound
+std::upper_bound
+\end{Verbatim} 
+\url{http://www.aristeia.com/Papers/CUJ_Dec_2001.pdf}
+
+\section{Operator precedence}
+\label{sec:precedence}
+
+
+\begin{itemize}
+   \item \verb!.! is higher than \verb!*!
+\begin{verbatim}
+*p.f
+\end{verbatim}
+\begin{minipage}[t]{0.5\textwidth}
+EXPECT: (*p).f
+\end{minipage} 
+\begin{minipage}[t]{0.5\textwidth}
+REALITY: *(p.f)
+
+Take the $f$ offset from p, and use it as a pointer
+\end{minipage} 
+  
+  \item \verb![]! is higher than \verb!*!
+\begin{verbatim}
+int *p[];
+\end{verbatim}
+\begin{minipage}[t]{0.5\textwidth}
+EXPECT: int (*p)[]
+\end{minipage} 
+\begin{minipage}[t]{0.5\textwidth}
+REALITY: int*(p[]);
+
+An array whose elements are pointer to int.
+\end{minipage} 
+
+
+  \item function \verb!()! is higher than \verb!*!
+\begin{verbatim}
+int *f(int)
+\end{verbatim}
+\begin{minipage}[t]{0.5\textwidth}
+EXPECT: f is a function pointer
+\end{minipage} 
+\begin{minipage}[t]{0.5\textwidth}
+REALITY: f is a function, returning a pointer to int.
+\end{minipage} 
+   
+   \item \verb!==! and \verb.!=. are higher than bitwise operations
+\begin{verbatim}
+(val&mask != 0)
+\end{verbatim}
+
+\begin{minipage}[t]{0.5\textwidth}
+EXPECT:\verb!(val & mask) != 0!
+\end{minipage} 
+\begin{minipage}[t]{0.5\textwidth}
+REALITY: \verb!val & (mask != 0)!
+\end{minipage} 
+
+   \item \verb!==! and \verb.!=. are higher than assignment operations
+\begin{verbatim}
+c=getchar() != EOF
+\end{verbatim}
+\begin{minipage}[t]{0.5\textwidth}
+EXPECT: (c=getchar()) != EOF
+\end{minipage} 
+\begin{minipage}[t]{0.5\textwidth}
+REALITY: c = (getchar() != EOF)
+\end{minipage} 
+
+   \item arithmetic is higher than shift
+\begin{verbatim}
+msb<<4 + lsb
+\end{verbatim}
+\begin{minipage}[t]{0.5\textwidth}
+EXPECT: (msb<<4) + lsb
+\end{minipage} 
+\begin{minipage}[t]{0.5\textwidth}
+REALITY: msb << (4+lsb)
+\end{minipage} 
+
+  \item comma (,) has lowest precedence of all operators
+\begin{verbatim}
+i =1,2;
+\end{verbatim}
+\begin{minipage}[t]{0.5\textwidth}
+EXPECT: i = (1,2);
+\end{minipage} 
+\begin{minipage}[t]{0.5\textwidth}
+REALITY: (i=1), 2;
+\end{minipage} 
+
+\end{itemize}
+
+% \begin{minipage}[t]{0.5\textwidth}
+% EXPECT: (*p).f
+% \end{minipage} 
+% \begin{minipage}[t]{0.5\textwidth}
+% REALITY: *(p.f)
+% \end{minipage} 
+
+\section{Comparison}
+\label{sec:math_comparison}
+
+\verb!==! is used for comparison, but can be easily mistaken with \verb!=! which
+is used for asignment.
+
+POTENTIAL BUG: \verb!sizeof()! returns value of type \verb!size_t! which is an
+unsigned int. During a comparision, the compiler does type cast promotion from
+int to unsigned int (Sect.\ref{sec:type-cast-C}). So a value \verb!-1! in int
+become a very large positive value in \verb!unsigned int!.
+
+In a comparison between a type \verb!int! vs. \verb!unsigned! (e.g.
+\verb!size_t!), this is the bug
+\begin{verbatim}
+int array[] = {2, 3, 4, , 5, 7};
+#define TOTAL_ELEMENTS  (sizeof(array) / sizeof(array[0]))
+
+int d = -1, x;
+
+if (d <= TOTAL_ELEMENTS - 2) 
+   x = array[d+1];
+\end{verbatim}
+To resolve this problem, put \verb!int! cast to keep everything in \verb!int!.
+\begin{verbatim}
+if (d <= (int) TOTAL_ELEMENTS - 2) 
+   x = array[d+1];
+\end{verbatim}
+
+\section{Absolute value |x|}
+
+NOTE: The function \verb!fabs()! return the absolute value |x| of x.
+\begin{verbatim}
+//C90
+#include <math.h>
+double fabs(double x)
+
+//C99 - we have to call different names depending the type of argument
+#include <tgmath>      // tg = type-generic
+double       fabs
+float        fabsf
+long double  fabsl
+
+//C++98  : use 'fabs' for all types in C99; but output is of the same
+//         type as input
+//  support double, float, and 'long double'
+e.g. double fabs(double x);
+
+//C++11 - cover C++98
+//        also add an overload for integer, of template type 'T'
+#include <cmath>
+doube fabs(T x); //with all integer types of 'T' return result in double
+
+
+\end{verbatim}
+
+
+To use the generic function \verb!std::abs()! which accepts any other type of
+input, we include
+\begin{verbatim}
+//C++98
+#include <tgmath.h>
+#include <math.h>
+
+//C++11
+#include <cmath>
+\end{verbatim}
+
+The function \verb!abs(n)! return the absolute value for integral type, i.e.
+/n/ with $n$ is an integer type.
+\begin{verbatim}
+//C
+int
+
+//C++98
+int
+long int  abs()  //equivalent to 'labs(n)'
+
+//C++11
+int
+long int  abs()  //equivalent to 'labs(n)'
+long long int  abs()  //equivalent to 'llabs(n)'
+\end{verbatim}
+
+
+\section{Check divisibility}
+
+Given little-endian architecture, to check if $a$ is divisible by $N$ =
+2,3,4,5,\ldots?
+\begin{enumerate}
+  \item Using modulo (\%) operator \verb!a % N == 0!, if $N$ is a variable, then
+  a division is generated, i.e. a calll to GCC EABI function which is about
+  20-70 times slower than any logic operator  (ARM9 processor or X86/X64)
+  \citep{granlund2012}. If $N$ is a constant, then  the compiler may choose a
+  better algorithm itself. 
+  
+  \item If N is 4,8,16 we can use \verb!(v & N) == 0! test.
+  
+\end{enumerate}
+
+\section{Minimum/Max/MinMax value}
+
+\subsection{Min}
+
+There is no min function is C. We can write the loop
+\begin{verbatim}
+small = element[0]
+for each element in array, starting from 1 (not 0):
+    if (element < small)
+        small = element
+\end{verbatim}
+
+In C++, the STD has the header \verb!<algorithm>! that can work on containers,
+e.g. std::vector, can use 
+\begin{itemize}
+  \item \verb!std::min_element()!: for more than 2 values
+  \item \verb!std::min(val1, val2)!: for 2 values only
+\end{itemize}
+\url{http://en.cppreference.com/w/cpp/algorithm}
+
+\begin{Verbatim}
+#include <algorithm>
+#include <iostream>
+#include <vector>
+ 
+int main()
+{
+    std::vector<int> v{3, 1, 4, 1, 5, 9};
+ 
+    std::vector<int>::iterator result = std::min_element(std::begin(v), std::end(v));
+    std::cout << "min element at: " << std::distance(std::begin(v), result);
+}
+\end{Verbatim}
+
+\subsection{Max}
+
+Similarly, there is no max function in C. We need to use the loop, similar to
+that above.
+
+
+In C++, if we use containers, e.g. std::vector, we can use
+\verb!std::max_element()! function from \verb!<algorithm>! header file.
+\begin{Verbatim}
+
+\end{Verbatim}
+
+
+\subsection{MinMax}
+
+From C++11, we can use \verb!std::minmax_element()! from \verb!<algorithm>!
+header file. The result value is of type \verb!std::pair!, or simply use
+\verb!auto! (compiler automatically detect the type for declaration).
+
+\begin{Verbatim}
+#include <algorithm>
+#include <iostream>
+#include <vector>
+ 
+int main()
+{
+    std::vector<int> v = { 3, 9, 1, 4, 2, 5, 9 };
+ 
+    auto result = std::minmax_element(v.begin(), v.end());
+    std::cout << "min element at: " << (result.first - v.begin()) << '\n';
+    std::cout << "max element at: " << (result.second - v.begin()) << '\n';
+}
+\end{Verbatim}
+
+
+\section{Power}
+
+The simplest thing for $a^b$ with $b$ is a small integer, we can do
+\begin{verbatim}
+x = a * a * a; //b=3
+\end{verbatim}
+There  is no such function for \verb!pow(int, int)! before C++11. The reason is
+that \verb!int! type can be promoted to any of float, double and can cause ambiguity.
+\begin{verbatim}
+call of overloaded `pow(int, int)' is ambiguous
+\end{verbatim}
+Since C++11, we have \verb!double pow(int base, int exponent)!.
+
+
+\begin{framed}
+NOTE: 2.0 is double, 2.0f is float.
+\end{framed}
+
+For floating-point power, we use \verb!pow()! in <cmath> library.
+\begin{verbatim}
+//pow(float, int);
+pow(double, int); //C++98
+pow(long double, int); //C++98
+
+pow(float, float);  //C++98, C99, C++11
+pow(double, double);  //C90, C++98, C99, C++11
+pow(long double, long double); //C++98, C99, C++11
+double pow(Type1 x, Typ2 y) //C++11 
+\end{verbatim}
+The additional overload provided by C++11 (Type1,Type2) which effectively cast
+its argument to \verb!double! before doing calculation, except at least one of
+the argument is \verb!long double!, the both are casted to \verb!long double!.
+Other library
+\begin{verbatim}
+#include <cmath>  //requirement
+
+#include <complex> --> complex pow      
+#include <valarray> --> valarray pow   [power on all elements]
+\end{verbatim}
+
+We typically combine with \verb!static_cast! to choose the proper function to
+use (NOTE: we should avoid C-style cast which is weak, un-checked that can lead
+to many bugs)
+\begin{lstlisting}
+int side1Sqr = pow( static_cast<double>(i) ,i );
+int side2Sqr = pow( static_cast<double>(a) ,a );
+\end{lstlisting}
+Error code in \verb!errno! in C90/C++98
+\begin{itemize}
+  \item EDOM: if domain error (e.g. $a$ is finite negative and $b$ is finite
+  but not an integer value, or both $a,b$ are zero, or $a$ is zero and $b$ is
+  negative)
+  \item ERANGE: if pole or range error (e.g. $a$ is zero and $b$ is
+  negative (depending on library implementation), or the result is too big or
+  too small to be represented by a value in the returned type)
+\end{itemize}
+Since C99/C++11, \verb!math_errhandling! is considered which tell the error
+handling mechanism employed by the functions in <cmath> (see references).
+
+
+For big-precision calculation, we can use GMP library (\url{http://gmplib.org/})
+
+
+\section{Times}
+
+
+\subsection{System time}
+
+Return the number of milliseconds has elapsed since the system was started.
+\begin{enumerate}
+  \item Windows
+\begin{verbatim}
+#include <Windows.h>
+
+DWORD WINAPI GetTickCount(void);
+\end{verbatim}
+The time wraps around to zero if the system run continuously for 49.7 days. To
+avoid this, use 64-bit version
+\verb!GetTickCount64()!\footnote{\url{http://msdn.microsoft.com/en-us/library/ms724408(v=vs.85).aspx}}
+
+
+  \item Linux
+\begin{verbatim}
+#include <ctime>
+
+const long double sysTime = time(0);
+const long double sysTimeMS = sysTime*1000;
+\end{verbatim}
+
+\end{enumerate}
+
+\subsection{Elapsed processor time by the program}
+
+To measure the period of time, in the number of clock-ticks, that processor
+has served your program (excluding the time it uses for other processes), then
+you can use
+\begin{verbatim}
+#include <time.h>       /* clock_t, clock, CLOCKS_PER_SEC */
+
+
+clock_t clock (void);
+
+
+clock_t t;
+  int f;
+  t = clock();
+  printf ("Calculating...\n");
+
+   //do something
+   
+  t = clock() - t;
+  printf ("It took me %d clicks (%f seconds).\n",t,((float)t)/CLOCKS_PER_SEC);
+\end{verbatim}
+
+
+\subsection{Current date time}
+
+\begin{verbatim}
+time();
+\end{verbatim}

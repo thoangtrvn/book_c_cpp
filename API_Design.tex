@@ -1,0 +1,68 @@
+\chapter{API Design}
+
+\section{Boolean vs. Enum parameter}
+
+80\% of the time a Boolean argument is passed in as a constant, and its
+intention is to turn a piece of behavior on or off. 
+
+Example: 
+\begin{verbatim}
+FileStream f  = File.Open ("foo.txt", true, false);
+\end{verbatim}
+This call gives you no context whatsoever to understand the meaning behind true
+and false. 
+
+A better approach:
+\begin{verbatim}
+FileStream f  = File.Open ("foo.txt", CasingOptions.CaseSenstative,
+                           FileMode.Open);
+\end{verbatim}
+
+
+In .NET: As far as the runtime is considered an enum is treated just like its
+underlying type which is in most cases Int32 (the same in memory size Booleans
+take up). Generally speaking, enums don't cost noticeably more than Booleans.  
+Today there is a very small overhead (on the order of 300 bytes for each enum
+type referenced).
+
+\subsection{Use Boolean}
+
+guideline for boolean parameters are to only use them if the method is a
+statement. ie. 
+\begin{verbatim}
+myObject.Enable( true ); 
+\end{verbatim}
+
+\subsection{Use Enum}
+
+ Using Boolean parameter is not recommended.
+\begin{verbatim}
+do_sorting(sortAscending=True)
+\end{verbatim}
+
+RECOMMENDED:
+\begin{verbatim}
+
+enum SortOrder = {ASCENDING, DESCENDING}
+
+do_sorting(sortOrder = SortOrder.ASCENDING)
+\end{verbatim}
+
+If you have to use, try to add comments, i.e.
+always name boolean params (or other unclear params of any kind) with inline
+comments, e.g.
+\begin{verbatim}
+ // C/C++ language
+box.pack(child, /* expand = */ false, /* fill = */ true);
+\end{verbatim}
+
+References:
+\begin{enumerate}
+  \item \url{http://blogs.msdn.com/b/oldnewthing/archive/2006/08/28/728349.aspx}
+  
+  \item \url{http://blogs.msdn.com/b/brada/archive/2004/01/12/57922.aspx}
+  
+  \item \url{http://blog.ometer.com/2011/01/20/boolean-parameters-are-wrong/}
+\end{enumerate}
+
+

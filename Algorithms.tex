@@ -1,0 +1,215 @@
+\chapter{Algorithms}
+
+
+\section{Very large computation (e.g. n!)}
+
+Suppose factorial problem n!, when using \verb!long long! data type, it exceeds
+the size at 20!
+\begin{verbatim}
+
+121645100408832000      <-  18!
+2432902008176640000     <-  19!
+-4249290049419214848    <-  20!
+\end{verbatim}
+
+
+This is based on the idea of carried over of multiplication
+\begin{verbatim}
+   12
+ x 13
+ -------
+   36  = 3x12
+  12   = 1x12
+ --------
+  158   
+\end{verbatim}
+
+Solution, either use a string of character, or an array in which each element
+keep a single digit. NOTICE that as we now the less-significant number first, so
+they will be stored as the first element in the array. So '123' is stored as 
+a = [3,2,1]. This is important for I/O purpose that we need to go through from
+a[m-1] to a[0].
+
+\begin{verbatim}
+int a[200]; //array will have the capacity to store 200 digits.
+            // we actually can use 'byte' to save memory
+
+int m;  //keep the maximum index being used, i.e. a[0] ... a[m-1]
+int temp; //keep the carry value
+\end{verbatim}
+
+\begin{verbatim}
+a[0] = 1;
+m = 1;
+temp = 0;
+
+for (int i = 0; i <= n; i++)
+{
+  for (int j = 0;j < m; j++)
+  {
+     int x = a[j] * i + temp; //digit-by-number product
+     a[j] = x%10; //contain the less-significant digit
+     temp = x/10; //contain the carry value
+  }
+  while (temp > 0)
+  {
+     a[m] = temp%10;
+     temp = temp/10;
+     m++;
+  }
+} 
+\end{verbatim}
+
+Now to print,
+\begin{verbatim}
+for (int i = m-1;0; i--)
+  print(%d, a[i]);
+  
+\end{verbatim}
+\section{Recursion}
+
+A function that call itself is called a recursive function
+\begin{verbatim}
+def recsum(x):
+ if x == 1:
+  return x
+ else:
+  return x + recsum(x - 1)
+\end{verbatim}
+The function doesn't returns, as it need to call a function and that function
+need to be completed before a sum with 'x' can be done and return the value.
+
+Each functional call creates a stack frame in the call stack
+(Sect.\ref{sec:heap_stack}). The problem with this is that if the number of
+recursive call is too large, \textcolor{red}{stack overflow} error may occur.
+
+A solution is to use {\it tail-recursive} function. The recursive call is the
+last thing that happens so the functional call can be replaced with a jump to
+the function's entry point. \textcolor{red}{Most current gcc compilers do
+tail-call optimization.} Here, the result is passed as an argument to the
+function, so that the result is constantly updated as each function call
+\begin{verbatim}
+def tailrecsum(x, running_total=0):
+  if x == 0:
+    return running_total
+  else:
+    return tailrecsum(x - 1, running_total + x)
+\end{verbatim}
+The function returns, and call another function. So, we don't have the problem
+of stack overflow.
+
+In C++: the n! = 1.2.3\ldots. n
+\begin{verbatim}
+int factorial(int n, int acc=1) {
+  if (n <= 1) return acc;
+  else        return factorial(n-1, n*acc);
+}
+\end{verbatim}
+However, this actually calculate n.(n-1).(n-2)\ldots1. It means that it requires
+the operator, i.e. multiplication, is both associative and commutative. This is
+luckily correct, in this case, but again, not true for a general operator. A
+better solution is
+\begin{verbatim}
+int factorial(int n, int k = 1, int acc=1) {
+  if (n <= 1) return acc;
+  else        return factorial(n-1, k+1, k*acc);
+}
+\end{verbatim}
+\url{http://stackoverflow.com/questions/15537432/convert-recursion-to-tail-recursion}
+
+What if the problem is double-recursion, like the Fibonacci problem
+\begin{verbatim}
+F(n) = F(n-1) + F(n-2)
+\end{verbatim}
+with
+\begin{verbatim}
+F1 = 1, F2 = 1
+or 
+F1 = 0, F2 = 1
+\end{verbatim}
+
+Using \verb!f_a! as F(n-1) and \verb!f_b! as F(n-2)
+\begin{verbatim}
+int fibonacci(int n, int f_a =1, int f_b = 1)
+  if (n == 0) return f_a;
+  else   return fibonacci(n-1, f_a+f_b, f_a)
+}
+\end{verbatim}
+
+CONCLUSION: By keep adding enough parameters to the tail-recursive function, it
+can solve for a recursive sequence where each element can be expressed by some
+formula of the previous $k$ elements.
+
+\section{std::transform}
+\label{sec:std::transform}
+
+We can apply unitary operation or binary operation.
+However, std::transform does not guarantee in-order application.
+To apply a function to a sequence in-order or to apply a function that modifies
+the elements of a sequence, use \verb!std::for_each!
+(Sect.\ref{sec:std::for_each})
+
+{\bf unitary operation}
+\begin{verbatim}
+#include <algorithm>
+
+//assume 's' is some iterable object (e.g. array, vector)
+std::transform( s.begin(), s.end(), unitary_operator)
+
+// with unitary_operator can be
+// 1. lambda
+ std::string s("hello");
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return std::toupper(c); });
+    std::cout << s;
+\end{verbatim}
+Sect.\ref{sec:}
+
+{\bf binary operator}
+\begin{lstlisting}
+//assume 'si' is some iterable object (e.g. array, vector)
+std::transform( s.begin(), s.end(), s2.begin(), result.begin(), binary_operator)
+\end{lstlisting}
+\url{http://stackoverflow.com/questions/13728430/element-wise-multiplication-of-two-vectors-in-c}
+
+\section{std::for\_each}
+\label{sec:std::for_each}
+
+\section{Reduction}
+
+\subsection{Sum}
+
+\begin{verbatim}
+vector<int> V{1,2,3};  
+
+sum = 0;  // 0 - value of 3rd param
+for (auto x : V)  sum += x;
+\end{verbatim}
+
+Another way is using 
+\begin{enumerate}
+  \item std::accumulate
+\end{enumerate}
+
+\subsection{-- std::accumulate}
+\label{sec:std::accumulate}
+
+This is a reduction operation
+\begin{verbatim}
+vector<int> V{1,2,3};  
+// NOTE: 0 is the initial value for the reduction operation
+// sum = 0 + V[0] + V[1] + ...
+int sum = accumulate(V.begin(), V.end(), 0);
+// sum == 6
+\end{verbatim}
+It is important to choose the right matrix.
+
+There is also optional 4th parameter, which allow to replace addition with any
+other operation.
+
+\begin{verbatim}
+vector<int> V{1,2,3};
+int product = accumulate(V.begin(), V.end(), 1, multiplies<int>());
+\end{verbatim}
+
+\url{http://stackoverflow.com/questions/12633950/understanding-stdaccumulate}

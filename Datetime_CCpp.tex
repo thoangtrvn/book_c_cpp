@@ -1,0 +1,332 @@
+% \chapter{Data type: Date time}
+% \label{chap:date_time}
+% 
+
+
+% \section{Date-time}
+% \label{sec:date_time}
+
+\section{Year 2038 problem}
+
+Due to the complication of using date time (local vs. GMT time, Year 2038 bug
+problems), you are suggested to use 64-bit data type (i.e. \verb!long long! in
+GNU C or POSIX/SUS-systems), and use GMT-time all the times. Suggestions
+\begin{enumerate}
+  \item  Using local time,
+even though easier for a human to know the time of the event in referenced to
+the time of current geographical area of the user, it's hard to compare with
+other time due to the complexity of converting them to the same
+references due to daylight saving available in some countries and the saving
+varies from countries to countries, as well as the GMT offset complexities.
+
+  \item When you use more than 2 libraries, make sure the data types are of the
+same size. This will allows the code to be recompiled easily
+  
+\end{enumerate}
+
+Example: after it passes the largest number, the 32-bit data
+is interepted as year 1901 \url{http://en.wikipedia.org/wiki/Year_2038_problem}
+\begin{verbatim}
+Hexa (32-bit): 0x7FFFFFFF
+Binary :  01111111  11111111  11111111  11111111  
+Decimal: 2147483647
+Date (interpreted)   : 2038-01-19 03:14:07 (UTC)
+Date (true)  : 2038-01-19 03:14:07 (UTC)
+
+//after it pass the maximum value --> it becomes negative
+Binary :  10000000  00000000  00000000  00000000
+Decimal: -2147483648
+Date (interpreted)   : 1901-12-13 20:45:52 (UTC)
+Date (true)  : 2038-01-19 03:14:08 (UTC)
+\end{verbatim}
+
+This is known as {\bf Unix Millenium bug} which is a serious problems in
+embedded systems which still use 8-bit, 16-bit or 32-bit microprocessors.
+Embedded systems are being used every where: mirowave ovens, gas stations, car
+fuel injection computers, radios, \ldots
+
+
+There is no universal solution to the Year 2038 problem. A solution is to use
+struct \verb!tm! (Sect.\ref{sec:struct_tm}) or using the new 64-bit definition
+for \verb!time_t!.
+\begin{verbatim}
+  // in Cygwin
+#typedef unsigned long long time_t
+
+
+// /usr/include/bits/types.h
+typedef long int __time_t;
+typedef __time_t time_t;
+\end{verbatim}
+
+
+Another options is to write your own function:
+\url{http://www.2038bug.com/developers.html}
+
+
+\section{struct tm}
+\label{sec:struct_tm}
+
+The header file is \verb!<time.h>! (in C) or \verb!<ctime>! (in C++).
+
+In C90 (C++98), the struct \verb!tm! has 9 members, in any order
+\begin{verbatim}
+int tm_sec; //second (0..61*) [FIXED 0..60 in C99/C++11]
+int tm_min; // minutes (0..59)
+int tm_hour; //hours since midnight (0..23)
+int tm_mday; //day of the month (1..31)
+int tm_mon;  //month since Jan (0..11)
+int tm_year; // year since 1900
+int tm_wday; // day since Sunday (0..6)
+int tm_yday; // days since Jan-1 (0..365)
+int tm_isdst; //daylight saving flag (0 or 1)
+\end{verbatim}
+NOTE: \verb!tm_sec! is generally 0..59. However, the extra value is to
+accommodate for leap seconds in certain years. [NOTE: {\bf leap seconds} is
+one-second adjustment applied to UTC in order to keep the ]
+
+\verb!tm! struct is being used in some functions
+\begin{verbatim}
+time_t mktime(struct tm*	)		// convert from tm to time_t (local time)
+struct tm localtime( )  // return current local time (left or right of GMT)
+                        // and inclusive any daylight-saving offsets.
+struct tm gmtime( )    // return current GMT-time
+char* asctime(const struct tm*	)  //convert from struct tm to string 
+\end{verbatim}
+The string returned by \verb!asctime()! is in the same format as \verb!ctime()!
+function, which uses the information from these fields: 
+\begin{verbatim}
+tm_wday
+tm_mon
+tm_mday
+tm_hour
+tm_min
+tm_sec
+1900+tm_year
+\end{verbatim}
+
+Example:
+\begin{verbatim}
+  static const char wday_name[][4] = {
+    "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+  };
+  static const char mon_name[][4] = {
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+  };
+  static char result[26];
+  sprintf(result, "%.3s %.3s%3d %.2d:%.2d:%.2d %d\n",
+    wday_name[timeptr->tm_wday],
+    mon_name[timeptr->tm_mon],
+    timeptr->tm_mday, timeptr->tm_hour,
+    timeptr->tm_min, timeptr->tm_sec,
+    1900 + timeptr->tm_year);
+  return result;
+\end{verbatim} 
+
+
+\section{time\_t}
+\label{sec:time_t}
+
+ISO C define \verb!time_t! as an arithmetic type, but doens't specify any
+particular type, or the range, resolution or encoding of it. Also, it doesn't
+specify the meaning of arithmetic operations on the data of this type. So, it's
+pretty much implementation dependent. The header file is \verb!<time.h>! (in C)
+or \verb!<ctime>! (in C++). To check how \verb!time_t! is defined, we write a
+simple code and compile like this
+\begin{verbatim}
+#include <time.h>
+
+int main(int argc, char** argv)
+{
+        time_t test;
+        return 0;
+}
+\end{verbatim}
+and compile
+\begin{verbatim}
+gcc -E test.c | grep 'time_t'
+\end{verbatim}
+
+The function that deals with \verb!time_t! data treat the value as \verb!local!
+time. The value of using \verb!local! time, which can changes depending where
+the machine is running on the globe (i.e. GMT time or Greenwich Mean Time or UTC
+- Coordinated Universal Time). So, if two machines talk to each other, the
+current time between them, using this function, can be a few hours difference.
+To make sure it's the same, they should be referenced to the same place, i.e.
+UTC time. This can be done using \verb!gmtime()! function.
+
+\begin{enumerate}
+  \item \verb!time()!: return the current calendar time (in seconds) compared to
+  the intial time (as described below). 
+  
+\begin{verbatim}
+time_t time(time_t *);
+\end{verbatim}  
+If the argument is not a NULL value, then the current calendar time is returned
+to this value as well.
+
+   \item \verb!ctime()!: convert the time (in local reference time) to string.
+
+\begin{verbatim}
+char* ctime(const time_t * timer); 
+\end{verbatim}
+This is equivalent to \verb!asctime(localtime(timer)!
+   
+The C-string is in the format \verb!Www Mmm dd hh:mm:ss yyyy!, followed by a
+character \verb!'\n'!, and terminated by a NULL-character.
+\begin{verbatim}
+Wwww = weekday
+Mmm  = month (in letters)
+dd   = day of the month
+hh:mm:ss = time 
+yyyy = year
+\end{verbatim}
+
+   \item \verb!gmtime():!
+\end{enumerate}
+
+{\bf UNIX and POSIX-compliant system}: 
+\begin{verbatim}
+   // 32-bit or 64-bit wide depending which CPU architecture
+   //                       and operating system
+#typedef signed integer time_t
+\end{verbatim}
+The value of this type tells the number of seconds since the start of the Unix
+epoch, i.e. {\it midnight UTC of January 1, 1970} (not counting leap seconds). 
+
+If it's a 32-bit value, then consider the largest value and it causes Year 2038
+problem
+\begin{verbatim}
+#include <stdio.h> /* printf */
+#include <time.h>  /* time_t */
+
+time_t biggest_in_seconds = 0x7FFFFFFF;
+
+printf("biggest time in the future = %s ", ctime(&biggest));
+\end{verbatim}
+
+\section{Convert to string}
+\label{sec:datetime_to_string}
+
+We can use \verb!ctime(), ctime_r()! 
+
+We can use \verb!asctime()!
+
+We can use \verb!strftime()! function, which interprets the data in
+\verb!timptr! to the string pointed by \verb!s! using the format given by
+\verb!format!. The maximum characters (including the NULL-character) of the
+string pointed by \verb!s! is given in \verb!maxsizes!.
+\begin{verbatim}
+#include <time.h>
+
+size_t strftime(char *s, size_t maxsize, const char *format,
+    const struct tm *timptr);
+\end{verbatim}
+The function returns the total number of characters (not including the
+NULL-character) copied to \verb!s! if the total length copied is less than
+\verb!maxsizes! (i.e. successful). Otherwise, it returns 0 (which can be used
+to detect error) and the contents of the string pointed by \verb!s! is
+indeterminate.
+
+\url{http://pubs.opengroup.org/onlinepubs/007908799/xsh/strftime.html}
+
+
+Example:
+\begin{Verbatim}
+#include <stdio.h>      /* puts */
+#include <time.h>       /* time_t, struct tm, time, localtime, strftime */
+
+int main ()
+{
+  time_t rawtime;
+  struct tm * timeinfo;
+  char buffer [80];
+
+  time (&rawtime);
+  timeinfo = localtime (&rawtime);
+
+  strftime (buffer,80,"Now it's %I:%M%p.",timeinfo);
+  puts (buffer);
+
+\end{Verbatim}
+
+
+\section{Thread-safe functions}
+
+MinGW provides both \verb!*_r()! and \verb!*_s()! functions. The \verb!*_r()!
+are the re-entrant (thread-safe) versions
+
+\subsection{POSIX}
+
+Added to SUS (Single Unix Specification) version 2: \verb!gmtime_r()!,
+\verb!asctime_r()!, \verb!ctime_r()!, and \verb!localtime_r()!.
+
+Example: The function \verb!gmtime()! is not thread-safe as it
+use a pointer to an internal object of type \verb!struct tm!. A thread-safe
+version is \verb!gmtime_r()! (on standard POSIX-compliant system) or
+\verb!gmtime_s()! (on Windows system). Using these thread-safe are non-portable
+\begin{verbatim}
+  // the order of the arguments are different
+  
+  // return a pointer pointing to the value the same as the second argument
+  // or return a NULL pointer if failed
+struct tm* gmtime_r(const time_t*, struct tm*)
+
+  // return 0 (successful) 
+  // or errno_t value if failed
+int gmtime_s(struct tm*, const time_t*)
+\end{verbatim}
+
+\subsection{Windows}
+
+These functions are added to Windows' Secure CRT (Secure C run-time):
+\verb!gmtime_s()!, \verb!asctime_s()!, \verb!ctime_s()!, and
+\verb!localtime_s()!. 
+
+NOTE: Thread-safety is not an issue with \verb!gmtime()! and \verb!localtime()!
+in Windows, and the output is allocated per thread. Here, the two new functions
+added to do Secure CRT's parameter validation (e.g. checking if the parameter
+are NULL to evoke error handling or not).
+
+
+\section{<chrono> (C++11)}
+\label{sec:chrono-header-file}
+
+Since C+=11, the header file \verb!<chrono>! has been added and contains
+elements to deal with time.
+\begin{enumerate}
+  \item measure duration, i.e. time spans
+  
+  \item a specific time point
+  
+  \item relate time point to real physical time
+\end{enumerate}
+
+This is adopted from Boost::Chrono library (Sect.\ref{sec:Boost.Chrono})
+
+\url{http://www.cplusplus.com/reference/chrono/}
+
+To convert from
+\begin{verbatim}
+std::chrono::system_clock::time_point
+\end{verbatim}
+to \verb!time_t!, we use
+
+\begin{lstlisting}
+time_t  data = std::chrono::system_clock::to_time_t(...)
+\end{lstlisting}
+
+Finally, use the normal C function \verb!ctime()! or strftime to format it.
+
+\begin{verbatim}
+std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
+
+std::time_t time = std::chrono::system_clock::to_time_t(tp);
+std::tm timetm = *std::localtime(&time);
+std::cout << "output : " << std::put_time(&timetm, "%c %Z") << "+"
+          << std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch()).count() % 1000 << std::endl;
+          
+\end{verbatim}
+
+\url{http://www.cplusplus.com/reference/ctime/strftime/}

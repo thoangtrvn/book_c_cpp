@@ -1,0 +1,37 @@
+\chapter{Troubleshoot compiling error}
+
+\begin{enumerate}
+  \item You pass \verb!std::string! to a function that accepts only \verb!char *!
+\begin{verbatim}
+error: no matching function for call to 'std::basic_ifstream<char,
+std::char_trait<char> > ::basic_ifstream(std::string&)'
+
+... note: candidate are: std::basic_ifstream<_CharT,
+      _Traits>::basic_ifstream(const char*,
+\end{verbatim}  
+The solution
+\begin{verbatim}
+#if defined(__CXX_EXPERIMENTAL_C0XX_) || __cplusplus >= 201103L
+	ifstream file(filename);
+#else
+	ifstream file(filename.c_str());
+#endif	
+\end{verbatim}
+
+
+   \item \verb!warning: incompatible implicit declaration of built-in function!
+   
+Typically, the standard functions are defined in some header files. Recently, 
+the compiler gcc has some built-in definitions for some of these standard
+functions. However, if you don't \verb!#include! these header files, and using
+the function with an implicit declaration that doesn't match the built-in
+definitions of gcc, then you get this warning. 
+
+THE SOLUTION: Add the proper header files
+\begin{verbatim}
+#include <stdlib.h>
+#include <string.h>
+\end{verbatim}
+
+
+\end{enumerate}

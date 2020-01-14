@@ -1,0 +1,50 @@
+\chapter{XML C++}
+
+
+\section{LibXML++ (C++)}
+\label{sec:LibXML++}
+
+Feature-wise it is very complete, including XPath, charset conversions (by
+Glibmm) and everything that you'd expect in an XML library. It uses traditional
+DOM and SAX APIs, which counts as a pro or a con depending on whom you ask from.
+One possible issue is that the dependencies of the library are extremely heavy
+(due to the use of Glibmm). Still, it appears to be the only decent XML library
+for C++.
+
+\section{TinyXML}
+\label{sec:TinyXML}
+
+TinyXML does not parse XML according to the specification, so I would recommend against it, even though it works for simple documents.
+
+
+\section{XERCES (C++)}
+\label{sec:XERCES}
+
+	
+Xerces-C++ is a validating XML parser written in a portable subset of C++.
+Xerces-C++ makes it easy to give your application the ability to read and write
+XML data.
+\url{http://xerces.apache.org/xerces-c/}
+
+\url{http://stackoverflow.com/questions/2126541/xerces-c-load-read-and-save-alternatives}
+
+Example on how to use Xerces-C++:
+\url{http://libprf1.tigris.org/files/documents/1338/13256/libprf1-0.1R3.tar.gz}
+
+\begin{lstlisting}
+// Mandatory for using any feature of Xerces.
+#include <xercesc/util/PlatformUtils.hpp>
+
+// Use the Document Object Model (DOM) API
+#include <xercesc/dom/DOM.hpp>
+
+// Required for outputing a Xerces DOMDocument
+// to a standard output stream (Also see: XMLFormatTarget)
+#include <xercesc/framework/StdOutFormatTarget.hpp>
+
+// Required for outputing a Xerces DOMDocument
+// to the file system (Also see: XMLFormatTarget)
+#include <xercesc/framework/LocalFileFormatTarget.hpp>
+\end{lstlisting}
+
+\url{http://www.codeproject.com/Articles/32762/Xerces-for-C-Using-Visual-C-Part}

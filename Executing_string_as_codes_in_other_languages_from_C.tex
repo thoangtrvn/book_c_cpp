@@ -1,0 +1,50 @@
+\chapter{Executing string as code in other languages from C/C++}
+
+
+\section{string as Python code}
+
+compile and link your C program with \verb!-lpython2.7! (or a
+proper version tag like \verb!-lpython3.3!)
+
+inside your code, include \verb!#include <Python.h>!
+
+write 
+
+
+
+\section{strings as Scheme code (using libguile)}
+\label{sec:libguile}
+
+Libguile is the library which allows C programs to start a Scheme interpreter
+and execute Scheme code. 
+\begin{itemize} 
+  \item All low-level public APIs have \verb!scm_! prefix.
+  
+  \item All high-level public APIs have \verb!gh_! prefix. This is more stable,
+  as it is simpler.
+\end{itemize} 
+
+compile and linke your C program with \verb!-lguile!.
+
+
+inside your code, include \verb!guile/gh.h>! 
+
+initialize the code with 
+\begin{verbatim}
+gh_enter()  //to start Scheme interpreter
+gh_enter(argc, argv, main_prog); //or pass to it the entry function
+ 
+void main_prog(int argc, char *argv[])
+{
+gh_eval_str("(display \"hello Guile\")");
+
+gh_eval_str("(define (square x) (* x x))");
+gh_eval_str("(define (fact n) (if (= n 1) 1 (* n (fact (- n 1)))))");
+gh_eval_str("(square 9)");
+}      
+\end{verbatim}
+
+
+
+
+\url{https://www.gnu.org/software/guile/docs/master/guile-tut.html/What-is-libguile.html}

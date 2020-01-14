@@ -1,0 +1,154 @@
+\chapter{Intel MKL}
+\label{chap:Intel_MKL}
+
+Intel MKL is designed to run on multiple processors and O/Ss. To work with
+different compilers and libraries, it provides different interfaces
+(Sect.\ref{sec:LinkLine-Advisor}).
+
+The current version (11.1) supports a number of different packages
+\begin{enumerate}
+  \item BLAS: provide basic linear algebra subprograms (consider as the {\it
+  de factor } APIs for linear algebra libraries). There are three levels: Level
+  1 (vector operations), Level 2 (matrix-vector), Level 3 (matrix-matrix).
+  
+This is the building block for many other libraries: LAPACK, LINPACK, MatLab,
+NumPy, R, Mathematica.
+  
+NOTE: \verb![D]GEMM! is the general matrix multiplication, D=double, and is
+the target for optimization due to its widely use in solving problems. 
+
+Other implementations optimized for different hardwares: ATLAS (portable
+self-optimizing BLAS), GotoBLAS. To run on GPU, Nvidia provided CUDA BLAS
+
+Other implementations to balance between speed and its ease of use: Armadillo
+(using template class), uBLAS (part of Boost library, using advanced C++
+features) \url{http://en.wikipedia.org/wiki/General_Matrix_Multiply}
+
+
+
+
+  \item LAPACK: linear algebra package 
+
+NOTE: LINKACK is designed to run on vector computers with shared memory. LAPACK
+does the same thing, yet is designed to exploit caches. LAPACK needs to use BLAS
+
+  \item sparse BLAS: 
+  \item Extended EigenSolver
+  \item PARDISO (Intel MKL): based on PARDISO 2006, a thread-safe,
+  high-performance, robust and memory efficient, easy to use for solving large
+  sparse matrix (symmatrix and unsymmetric linear systems of equations) on {\it
+  shared-memory} and {\it distributed-memory} systems.
+  
+NOTE: PARDISO has many featuers not available here.
+\footnote{\url{http://www.pardiso-project.org/}}
+  
+  \item FFT: fast-fourier-transform (optimized for Intel AVX-512, improved
+  performance when length is not power of 2 on Intel MIC)
+  
+  \item VML:
+  \item VSL RNG: random number generators (MRG32K3A, and MT2203 BRNGs)
+\end{enumerate}
+\url{https://software.intel.com/en-us/articles/intel-math-kernel-library-documentation}
+
+\section{Link-Line Advisor}
+\label{sec:LinkLine-Advisor}
+
+
+\url{https://software.intel.com/en-us/articles/intel-mkl-link-line-advisor/}
+
+
+\section[SDL]{Single-Dynamics Library (Intel MKL 10.3+)}
+\label{sec:SDL}
+
+When a code is compiled into library, it can be statically link to the program
+that use it, which makes the program bigger; or it can be compiled as shared
+library, and can be loaded, when needed, by one or more programs that
+dynamically link to the library. If we have multiple programs, which all link to
+the same library, then dynamic loading will help reduced the
+memory.\footnote{\url{http://stackoverflow.com/questions/311882/what-do-statically-linked-and-dynamically-linked-mean}}
+
+In high performance computing, it is simpler and preferred to statically link.
+When one node has mainly one process running at one time, the advantage of
+dynamic loading (i.e. less memory use) is not available. Secondly, scientific
+codes tend not so sophisticated in terms of language features or program design,
+i.e. rarely needs to use plugin modules. Third, dynamic libraries make the
+program less portable across operating systems, which typically requires some
+tools to detect the missing libraries for automatic installation of the dynamic
+libraries, which can sometimes create more problems than they
+solve.\footnote{\url{http://scicomp.stackexchange.com/questions/1673/what-does-static-dynamic-and-single-dynamic-linking-mean}}
+\textcolor{red}{On some HPD systems, static linking is REQUIRED, e.g. IBM
+BlueGene/L, as the reduced O/S doesn't support dynamic linking}. 
+
+\subsection{Problem 1}
+
+The size of a primitive integer type varies from system to system. There
+different {\bf interface layers} to choose: LP64, LLP64, ILP64.
+\begin{Verbatim}
+Type	ILP64	LP64	LLP64
+int	64	32	32
+long	64	64	32
+pointer	64	64	64
+long long	64	64	64
+\end{Verbatim}
+Windows 64-bit uses LLP64, while Solaris and Unix use LP64 platfoms. 
+
+
+\textcolor{red}{In Intel MKL 9.1 and older, there is only one interface
+available: LP64.} After that, Intel MKL use ILP64 for 64-bit integer type, and
+LP64 for indexing 32-bit integer type, which are compiled into separate libraries
+\begin{verbatim}
+
+    libmkl_intel_lp64.a or libmkl_intel_ilp64.a for static linking
+    libmkl_intel_lp64.so or libmkl_intel_ilp64.so for dynamic linking
+
+\end{verbatim}
+ILP64 interface supports (1) large data arrays ($> 2^{31}-1$ elements), (2)
+enable compiling the Fortran code with \verb!-i8! compiler option. To simplify
+this, i.e. linking only a single library which can be mapped to LP64 or ILP64
+easily, Intel provided Single-Dynamics Library.
+
+\subsection{Problem 2}
+
+
+\subsection{Why SDL?}
+
+\textcolor{red}{Intel MKL is suggested to use dynamic linking, support different
+compilers and interfaces, different OpenMP* implementations (serial and multiple
+threads), wide range of processors}, which is important to resolve the problem
+above.
+\begin{enumerate}
+  \item Interface layer
+  \item Threading layer
+  \item Computational layer
+\end{enumerate}
+Traditionally, depending on which option for each layer being used, we need to
+use a different compiling option. To know which library to link to, typically
+we check in the order (1) choose the interface library, (2) the threading
+library for that interface layer, and (3) which computational library
+
+{\bf Single Dynamics Library} is an Intel-specific term which help reduce the
+problem mentioned above when using dynamic libraries. To simplify the linking
+process, Intel MKL packages the dynamic libraries into a single meta-library
+\verb!libmkl_rt.so! which need to be linked when compiling your program
+
+\begin{verbatim}
+icc <yourcode.c> -lmkl_rt
+\end{verbatim}
+
+\url{http://scc.ustc.edu.cn/zlsc/chinagrid/intel/mkl/mkl_userguide/GUID-87821148-338B-4022-8C90-F24C866F2878.htm}
+
+
+\section{Issues and workaround solution}
+
+\subsection{11.1}
+
+{\bf Update 3}:
+\begin{enumerate}
+  \item crash on 64-bit AMD Jaguar processor (Sect.\ref{sec:AMD_Jaguar}): try to
+  reduce optimization from AVX to SSE4.2 by setting
+\begin{verbatim}
+MKL_CBWR=SSE4_2
+\end{verbatim}
+
+ 
+\end{enumerate}

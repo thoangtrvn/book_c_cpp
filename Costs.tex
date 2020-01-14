@@ -1,0 +1,63 @@
+\chapter{Costs}
+
+
+\section{using virtual function}
+\label{sec:overhead-of-virtual-function}
+
+
+Using inheritance, we can avoid the overhead of virtual functions
+
+
+\section{instantiating}
+\label{sec:overhead-of-instantiating}
+
+\subsection{object in C++ vs. struct in C}
+\label{sec:overhead-of-instantiating-object_in_C++-vs_struct_in_C}
+
+In C++ the cost of instantiating an object is the same as instantiating a struct
+in C.
+
+All an object is, is a block of memory big enough to store the v-table (if it
+has one - Sect.\ref{sec:V-table}) and all the data attributes. Methods consume
+no further memory after the v-table has been instantiated.
+
+\section{orders of declaration}
+\label{sec:overhead-of-order-of-declaration}
+
+
+\subsection{of data members}
+\label{sec:overhead-of-order-of-declaration-data-members}
+
+C++ 03 standard \verb!9/12!:
+\begin{verbatim}
+Nonstatic data members of a (non-union) class declared without an intervening
+access-specifier are allocated so that later members have higher addresses 
+within a class object. 
+The order of allocation of nonstatic data members separated 
+by an access-specifier is unspecified (11.1). 
+Implementation alignment requirements might cause 
+two adjacent members not to be allocated immediately after each other; 
+so might requirements for space for managing virtual functions (10.3) 
+and virtual base classes (10.1).
+\end{verbatim}
+\url{http://stackoverflow.com/questions/3824213/does-order-of-members-of-objects-of-a-class-have-any-impact-on-performance}
+
+\subsection{of objects}
+\label{sec:overhead-of-order-of-declaration-objects-in-a-function}
+
+
+C++ guarantees that the order of objects in memory is the same as the order of
+declaration, unless an access qualifier intervenes.
+
+Objects which are directly adjacent are more likely to be on the same cacheline,
+so one memory access will fetch them both (or flush both from the cache). Cache
+effectiveness may also be improved as the proportion of useful data inside it
+may be higher. Simply put, spatial locality in your code translates to spatial
+locality for performance.
+
+
+Order may affect the amount of padding.  Unnecessary padding may increase the
+total size of the structure, leading to higher memory traffic.
+\url{http://stackoverflow.com/questions/3824213/does-order-of-members-of-objects-of-a-class-have-any-impact-on-performance}
+
+

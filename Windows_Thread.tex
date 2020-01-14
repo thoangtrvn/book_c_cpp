@@ -1,0 +1,15 @@
+\chapter{Threads in Windows}
+
+\url{http://forums.codeguru.com/printthread.php?t=453057}
+
+\begin{itemize}
+  \item In Windows: the lowelest level is \verb!_beginthread! 
+  
+  \verb!CreateThread! is Windows API \url{https://msdn.microsoft.com/en-us/library/windows/desktop/ms682516(v=vs.85).aspx}
+  
+  \verb!AfxBeginThread! is MFC specific global function (returns a CWinThread*) \url{http://msdn.microsoft.com/en-us/library/48xz4yz9(VS.80).aspx}
+  
+  \verb!_beginthread[ex]! is a runtime library function \url{https://msdn.microsoft.com/en-us/library/kdzttdcb.aspx}
+  
+  \item In Linux POSIX: \verb!pthread_create! \url{http://www.yolinux.com/TUTORIALS/LinuxTutorialPosixThreads.html}
+\end{itemize}

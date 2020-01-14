@@ -1,0 +1,91 @@
+\chapter[Intel Thread Building Block]{Intel Thread Building Block (multi-core)
+library}
+\label{chap:TBB}
+
+Threading Building Blocks (TBB) is a C++ template library developed by Intel for
+writing software programs that take advantage of multi-core processors.
+
+TBB is better than the following lower-level libraries
+\begin{enumerate}
+  \item  use of native threading packages such as POSIX threads, 
+  
+  \item Windows  threads, or 
+  
+  \item the portable Boost Threads
+\end{enumerate}
+as such libraries require individual threads of execution are created,
+synchronized, and terminated manually.
+
+A TBB program creates, synchronizes and destroys graphs of dependent tasks
+according to algorithms, i.e. high-level parallel programming paradigms (a.k.a.
+Algorithmic Skeletons - Sect.\ref{sec:Algorithmic_Skeletons}).
+\textcolor{red}{Tasks are then executed respecting graph dependencies.}
+
+\section{Introduction}
+
+Intel TBB was under GPL license until August 2016. As of September 2016 Intel
+TBB is relicensed under Apache v2.0 license.
+
+As of September 2016 Intel TBB is dual-licensed, with a commercial (COM)
+license as part of the suite products (Intel Parallel Studio, Intel System
+Studio), and as open source under Apache v2.0 license.
+
+If we run
+\begin{verbatim}
+make -j10
+\end{verbatim}
+it creates
+\begin{verbatim}
+./build/macos_intel64_gcc_cc4.2.1_os10.8.2_release
+
+./build/macos_intel64_gcc_cc4.2.1_os10.8.2_debug
+\end{verbatim}
+in such folder, there should be tbbvars.sh and tbbvars.csh, where we can source
+
+
+\url{https://github.com/01org/tbb}
+
+
+
+\section{Algorithmic Skeletons}
+\label{sec:Algorithmic_Skeletons}
+
+Algorithmic skeletons take advantage of common programming patterns to hide the
+complexity of parallel and distributed applications. Starting from a basic set
+of patterns (skeletons), more complex patterns can be built by combining the
+basic ones. Algorithmic skeletons were first introduced by Cole in 1989
+
+
+{\it The most outstanding feature of algorithmic skeletons}, which
+differentiates them from other high-level parallel programming models, is that
+orchestration and synchronization of the parallel activities is implicitly
+defined by the skeleton patterns. \textcolor{red}{Programmers do not have to
+specify the synchronizations between the application's sequential parts.}
+
+\url{https://en.wikipedia.org/wiki/Algorithmic_skeleton}
+
+{\bf Non-object oriented algorithmic skeleton frameworks}
+
+\begin{enumerate}
+  \item Eden library: Haskell language
+\end{enumerate}
+
+
+{\bf Object oriented algorithmic skeleton frameworks}
+\begin{enumerate}
+  \item FastFlow library (2009-): C++ used for CUDA/OpenCL/C++11
+  
+   Initially developed to target multi-core platforms, and then extended to
+   heterogeneous platforms composed of clusters of shared-memory platforms,
+   possibly equippped with computing accelerators (CUDA, Xeon Phi, Tilera
+   TILE64)
+  
+  FastFlow is typically comparable to (and is some cases slightly faster than)
+  state-of-the-art parallel programming frameworks such as Intel TBB, OpenMP, Cilk, 
+  
+  {\it Skeleton set}: 
+  Pipeline, Farm, ParallelFor, ParallelForReduce, MapReduce, StencilReduce,
+  PoolEvolution, MacroDataFlow
+  
+  \item Marrow library (2013-): C++   
+\end{enumerate}

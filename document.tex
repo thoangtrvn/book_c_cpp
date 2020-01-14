@@ -1,0 +1,331 @@
+\documentclass[11pt]{book}
+\usepackage{draftcopy} % PS or DVI
+%\usepackage{pdfdraftcopy} % PDF
+%http://filoxus.blogspot.com/2008/01/how-to-insert-watermark-in-latex.html
+
+\usepackage{amsmath} %Never write a paper without using amsmath for its many new commands
+
+\usepackage{amssymb} %Some extra symbols
+
+\usepackage{makeidx} %If you want to generate an index automatically
+%\usepackage{graphicx} %If you want to include postscript graphics
+\ifx\pdftexversion\undefined
+\usepackage[dvips]{graphicx}
+%%%%%%%% 
+%% To include .jpg and .pnm into latex
+%%%%%%%%%%%%%%
+\DeclareGraphicsExtensions{.jpg,.eps,.pnm}
+\DeclareGraphicsRule{.jpg}{eps}{.jpg.bb}{`jpeg2ps -h #1}
+\DeclareGraphicsRule{.pnm}{eps}{.pnm.bb}{`pnmtops #1}
+\else
+\usepackage{graphicx} 
+\fi 
+  
+\usepackage{epsfig}
+
+\usepackage{color}  %Add color capabilities to fonts,e.g. \color{blue}{text something}
+\usepackage{listings} % Add typeset programs (programming code) within LaTeX.
+\usepackage{verbments}
+
+\usepackage[square]{natbib}
+\usepackage{tabularx}
+%\usepackage{ucs}
+\usepackage[T1]{fontenc} %otherwise we use \textless \textgreater
+%%
+% http://tex.stackexchange.com/questions/2369/why-do-the-less-than-symbol-and-the-greater-than-symbol-appear-wrong-as
+%\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+
+\usepackage{chemarr}
+
+\usepackage{verbatim}
+\usepackage{fancyvrb}  %% \begin{Verbatim} .. \end{Verbatim}
+
+\usepackage[version=3]{mhchem}
+
+%\usepackage{mystyle} 
+%Create your own file, mystyle.sty where you put 
+% all your own \newcommand statements, for example.
+
+%\usepackage{url}
+\usepackage[hyphens]{url}
+           % usage \url{URL}
+
+%\usepackage[hypertex, dvips]{hyperref}       % does not work with LaTeX2HTML
+            % usage \href{URL}{text}
+%\includeonly{chaptr2} %If you just want to process chaptr2.tex
+\usepackage[breaklinks=true, linktocpage]{hyperref}       
+
+\usepackage[hyphenbreaks]{breakurl}  % used with dvips, not with pdflatex
+\usepackage{breakcites}
+
+\usepackage[all]{hypcap}
+%\graphicspath{{./images/}}
+
+\usepackage{lgrind}
+
+\usepackage[stable]{footmisc}
+
+\usepackage{multicol}
+
+
+\usepackage{ulem} 
+% support : \uline, \sout, \uuline...
+\usepackage{soul}
+
+%\usepackage{mdframed}
+\usepackage[style=2]{mdframed}
+%%\begin{mdframed}[style=exampledefault,frametitle={Inhomogeneous linear}]
+\usepackage[square]{natbib}
+
+\usepackage{cprotect}
+
+\usepackage{import}
+
+\lstset{
+  basicstyle=\ttfamily,
+  keywordstyle=\bfseries,
+  showstringspaces=false,
+  columns = fullflexible,
+  mathescape = false,
+  prebreak = \raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
+  literate={~} {$\sim$}{1} 
+  %texcl = true
+  % language=R
+}
+
+
+\let\~=\tilde
+
+\usepackage{tocloft}% http://ctan.org/pkg/tocloft
+\setlength{\cftsubsecnumwidth}{4em}% Set length of number width in ToC for \subsection
+\makeatother
+
+\usepackage{fancyhdr}
+\thispagestyle{empty}
+\renewcommand{\headrulewidth}{0.0pt}
+\thispagestyle{fancy}
+\pagestyle{fancy}
+\lfoot{}
+\cfoot{\it Tuan Hoang-Trong}
+\rfoot{}
+
+
+\makeindex
+
+\begin{document}
+
+\author{Tuan, Hoang-Trong}
+\title{C/C++ manual}
+\date{Mar 2013}
+
+\frontmatter
+\tableofcontents
+%\include{preface}
+
+\mainmatter
+\lstset{language={C++}, numbers=left, numberstyle=\tiny,
+  stepnumber = 5, numbersep=5pt, keywordstyle=\color{blue}}
+
+
+
+\part{The Language}
+\include{Introduction}
+\include{MemoryManagement_OS}
+\import*{../Fortran_manual/}{X86_X86-64.tex}
+\import*{../Reverse_Engineering/}{Library.tex}
+%\import*{../Fortran_manual/}{Programming_Concepts.tex}
+\include{Locale}
+\include{Data_types}
+\include{Array}
+\include{Data_types_character_string}
+\include{CPointer}
+\include{CppPointer}
+\include{Subprogram}
+\include{ProgramConstructs}
+
+\part{Object-Oriented}
+\import*{../Project_Management/}{Programming_Concepts.tex}
+\include{OO_CCpp} 
+\include{Containers}
+\include{Math}
+\include{ExceptionHandling}
+
+\part{Advanced}
+\include{API_Design}
+\include{ExtensionModule}
+\include{Macro}
+\include{Costs}
+
+\part{I/O}
+\include{PRNG_Intro} 
+\include{GenerateData}
+\include{CommandLineArg}
+\include{IO-default}  
+\include{File_Folder}
+\include{XML_lib}
+%  
+% \include{CommandLineOption}
+% \include{IO-default}
+% \include{Files}
+% \include{DateTime}
+% \include{GenerateData}
+% \include{F2003-2008}
+% 
+\part{Benchmark}
+\import*{../Fortran_manual/}{Datetime.tex}
+\include{Datetime_CCpp} 
+\include{Benchmark}
+
+
+\part{Build \& Compile}
+\include{Compile}
+%\include{GCC}
+\include{Library_CCpp}
+\include{CCpp_Linux}
+\import*{../Fortran_manual/}{Patch.tex} 
+\import*{../Fortran_manual/}{Debug.tex}
+%%\include{GDB} - merged
+\import*{../Fortran_manual/}{CMake.tex}
+%\import*{../Fortran_manual/}{Maketool.tex}
+\import*{../Fortran_manual/}{Autoconf_Automake.tex}
+\include{Testing}
+\import*{../Java_manual/}{JUnit.tex}
+\import*{../Python_Manual/}{UnitTest.tex}
+
+
+\include{Bug_Tracker}
+\include{Bison}
+
+\part{(Visual) C++ in Windows}
+\include{CCpp_Windows}
+\include{Cpp_CLI}
+\include{Visual_C++}
+\import*{../Csharp_Manual/}{Compile_VisualStudio.tex}
+\import*{../Csharp_Manual/}{NET_framework.tex}
+
+\include{IDE_CodeBlock.tex}
+%%\include{NET_framework}
+\include{Troubleshoot}
+\include{Documentation}
+
+\part{Inter-process communication}
+\import*{../Python_Manual/}{ObjectSerialization.tex}
+\import*{../Sys_admin/}{OS_kernels.tex}
+\import*{../Reverse_Engineering/}{Library.tex}
+\import*{../Linux_Computing/}{InterProcessCommunication.tex}
+\include{Executing_string_as_codes_in_other_languages_from_C}
+\include{Socket}
+
+
+\part{Parallel Computing}
+\import*{../Parallel_programming/}{Parallel.tex}
+\import*{../Parallel_programming/}{ThreadProgramming.tex}
+\include{Windows_Thread}
+\include{Boost_Threads}
+\include{Cpp11_Thread}
+\include{Parallel_Programming_OMP}
+\include{Intel_TBB}
+\include{Intel_CilkPlus}
+ 
+\part{Library}
+
+\include{Algorithms}
+\include{Boost_lib}
+\include{OOMPH-Lib} 
+\include{GMP}
+\include{GSL}
+\include{Special_codes}
+\import*{../MatLab_Manual/}{Mex_Oct_files.tex}
+\include{Intel_MKL}
+\include{Windows_Driver}
+
+\part{Interoperability}
+\include{ManagedCode_NativeCode}
+\import*{../Fortran_Manual/}{FortranCpp.tex}
+\include{Swig}
+\include{Vala}
+
+\part{Extras}
+\include{Interview_questions}
+ 
+\include{Project}
+
+% \include{Maketool}
+% \include{Portability}
+% \include{CMake}
+% \include{Debug}
+% \include{Profiler}
+% \include{UnitTest}
+% \include{CodingConvention}
+% \include{Optimization}
+% \include{Patch}
+% \include{Documentation}
+
+% 
+% 
+
+% \include{Library}
+% %\include{FortranC}
+% 
+% 
+% \part{Parallel}
+% \include{Parallel}
+% \include{OpenMP}
+% \include{HPF}
+% \include{Cluster}
+% 
+\part{Data Management}
+
+\import*{../Fortran_Manual/}{Parallel_IO.tex}
+\import*{../Fortran_Manual/}{HDF.tex}
+\import*{../Fortran_Manual/}{Silo.tex}
+%\include{Matlab_MAT}
+
+%\include{Xdmf}
+% 
+% \part{Numerical Recipes}
+% \include{Calculus}
+% \include{RootEquation}
+% \include{RootSetEquations}
+% \include{UnconstrainedOptimization}
+% \include{Regression}
+% \include{Interpolation}
+% \include{Differentiation}
+% \include{Integration}
+% \include{ODE}
+% \include{PDE}
+% \include{ReactionDiffusion}
+% \include{MatrixVector}
+% 
+% \part{Plotting Data}
+%  
+%\part{Hardware Information}
+ 
+% \include{NVIDIA}
+
+
+% PGI : http://www.pgroup.com/support/release_tprs.htm
+
+%\part{Appendix}
+%\include{Appendix}
+Convention:
+
+\begin{itemize}
+\item Text with \textcolor{red}{red color}: obsolete feature,
+  statement...
+\item Text with \textcolor{yellow}{yellow color}: not available in this
+  version
+\end{itemize}
+\backmatter 
+%\include{glossary}
+%\include{notat}
+\bibliographystyle{biophysj} 
+%\bibliographystyle{amsalpha} %The style you want to
+% use for references.
+\bibliography{../ref_C_Cpp} %The files containing all
+                                %the articles and books you ever
+                                %referenced. 
+\printindex %Make an index AUTOMATICALLY
+
+\end{document} 

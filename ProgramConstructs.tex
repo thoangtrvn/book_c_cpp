@@ -1,0 +1,466 @@
+\chapter{Program Constructs}
+
+\section{Structured binding (C++17)}
+\label{sec:structured-binding}
+
+Like a reference, a structured binding is an alias to an existing object. Unlike
+a reference, the type of a structured binding does not have to be a reference
+type.
+
+Structured Bindings give us the ability to declare multiple variables
+initialized from a \verb!tuple! (Sect.\ref{sec:tuple}) or \verb!struct!.
+
+Example: a function returns multiple values, packed in a \verb!tuple!.
+If a function returns a \verb!tuple!, then we want to be able to 
+declare multiple variables receiving the result
+
+\begin{verbatim}
+tuple<T1,T2,T3> f(/*...*/) { /*...*/ return {a,b,c}; }
+
+auto {x,y,z} = f(); // x has type T1, y has type T2, z has type T3
+
+
+struct S {
+    int x1 : 2;
+    volatile double y1;
+};
+S f();
+ 
+const auto [x, y] = f(); // x is a const int lvalue identifying the 2-bit bit field
+                         // y is a const volatile double lvalue
+\end{verbatim}
+
+\textcolor{red}{We can use \verb!auto! with \verb!&! and \verb!&&!}
+\begin{lstlisting}
+int a[2] = {1,2};
+ 
+auto [x,y] = a; // creates e[2], copies a into e, then x refers to e[0], y refers to e[1]
+auto& [xr, yr] = a; // xr refers to a[0], yr refers to a[1]
+\end{lstlisting}
+
+\url{https://en.cppreference.com/w/cpp/language/structured_binding}
+
+\url{http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/p0144r0.pdf}
+
+\section{Loops}
+
+\subsection{finite loop}
+
+{\small \begin{verbatim} 
+for ( variable initialization; condition; variable update ) {
+  Code to execute while the condition is true
+}
+\end{verbatim}}
+
+\textcolor{red}{\bf IMPORTANT}: Though we often use \verb!init! to represent the
+type of the index, when using template we should use \verb!<template>::size_type!, e.g.
+\verb!std::vector<int>::size_type! (Sect.\ref{sec:size_type}).
+
+
+Before C99, i.e. C89 and earlier, we cannot declare the variable inside the
+\verb!for! loop
+\begin{verbatim}
+int ii; 
+for (ii = 0; ii < 5; ii++)
+{
+
+}
+
+//otherwise error:
+// error: 'for' loop initial declarations are only allowed in C99 mode
+\end{verbatim}
+
+Since C99 extension, i.e. we need to compile the code with the flag
+\verb!-std=c99!, we can do
+\begin{verbatim}
+for (int ii = 0; ii < 5; ii++)
+{
+
+}
+\end{verbatim}
+
+\begin{verbatim}
+#include <iostream>
+
+using namespace std; // So the program can see cout and endl
+
+int main()
+{
+  // The loop goes while x < 10, and x increases by one every loop
+  for ( int x = 0; x < 10; x++ ) {
+    // Keep in mind that the loop condition checks 
+    //  the conditional statement before it loops again.
+    //  consequently, when x equals 10 the loop breaks.
+    // x is updated before the condition is checked.    
+    cout<< x <<endl;
+  }
+  cin.get();
+}
+\end{verbatim}
+
+
+
+
+
+\subsection{++ii or ii++ ?}
+
+\begin{itemize}
+  \item pre-increment: increase the value of ii and evaluate to the new
+  incremented value
+  
+  \item post-increment: increase the value of ii, yet evaluate to the
+  original non-incremented value, i.e. a temporary variable need to be used
+\end{itemize}
+In C++, the pre-increment (++ii) is usually prefered where you can use either.
+
+This is because if you use post-increment, it can require the compiler to have
+to generate code that creates an extra temporary variable. This is because both
+the previous and new values of the variable being incremented need to be held
+somewhere because they may be needed elsewhere in the expression being
+evaluated.
+
+So, in C++ at least, there can be a performance difference which guides your
+choice of which to use.
+\url{http://stackoverflow.com/questions/484462/difference-between-i-and-i-in-a-loop}
+
+
+NOTE: In C\# and Java, the bytecode shows no difference between pre-increment
+and post-increment.
+
+% 
+%  using ++i instead of i++ to increase a counter (assuming you do not need the
+% result of the increment operator itself). Your compiler might optimise, but you
+% lose nothing using ++i, and might win something, so you are better off using
+% ++i.
+
+
+\subsection{infinite loop}
+
+\subsection{** while loop}
+
+If we want to check the condition first
+{\small \begin{verbatim} 
+while ( condition ) { Code to execute while the condition is true }
+\end{verbatim}}
+
+If we want the body to be executed at least once
+{\small \begin{verbatim}
+do {
+} while ( condition );
+\end{verbatim}}
+
+Example:
+\begin{verbatim}
+  int x = 0;  // Don't forget to declare variables
+  
+  while ( x < 10 ) { // While x is less than 10 
+    cout<< x <<endl;
+    x++;             // Update x so the condition can be met eventually
+  }
+\end{verbatim}
+
+Example:
+\begin{verbatim}
+  int x;
+
+  x = 0;
+  do {
+    // "Hello, world!" is printed at least one time
+    //  even though the condition is false
+    cout<<"Hello, world!\n";
+  } while ( x != 0 );
+  cin.get();
+\end{verbatim}
+
+\subsection{** range-based for loop (C++11)}
+\label{sec:loop_range-based-for-loop}
+\label{sec:for-loop-ranged-based}
+
+
+
+\subsection{** for\_each loop}
+\label{sec:loop_for_each}
+
+Check Sect.\ref{sec:foreach_boost} in BOOST library, or since C++98, we can use 
+\verb!for_each! loop for a container (Chap.\ref{chap:containers})
+
+NOTE: The third argument can be a function pointer to a regular unary function
+or (since C++11) a {\bf move constructible} function object
+(Sect.\ref{sec:move-constructor-C++11}). If the function returns value, the
+value is ignored.
+
+\begin{lstlisting}
+#include <algorithm>    // std::for_each
+#include <vector>       // std::vector
+
+void myfunction (int i) {  // function:
+  std::cout << ' ' << i;
+}
+
+
+struct myclass {           // function object type:
+  void operator() (int i) {std::cout << ' ' << i;}
+} myobject;
+
+void main()
+{
+  std::vector<int> myvector;
+  
+  for_each (myvector.begin(), myvector.end(), myfunction);
+}
+
+\end{lstlisting}
+A single argument function is used with the argument is of the same type as the
+data element in the container.
+
+\url{http://www.cplusplus.com/reference/algorithm/for_each/}
+
+
+
+\section{Conditional statements}
+
+\subsection{'if' statements}
+
+NOTE: In C, there is no logical data type, \verb!bool! is an alias to integer.
+In C, 0 means false, and any non-zero value means true.
+
+\begin{lstlisting}
+if ( statement is TRUE )
+    Execute this line of code;
+
+if ( statement is TRUE ) 
+{
+    Execute line 1;
+    Execute line 2;
+}
+   
+if ( TRUE ) {
+}
+    /* Execute these statements if TRUE */
+else {
+    /* Execute these statements if FALSE */
+}
+
+if ( age < 100 ) {      /* If the age is less than 100 */
+    printf ("You are pretty young!\n" ); /* Just to show you it works... */
+}
+else if ( age == 100 ) {    /* I use else just to show an example */ 
+    printf( "You are old\n" );   
+}
+else {
+    printf( "You are really old\n" );     /* Executed if no other statement is */
+}
+\end{lstlisting}
+
+COMMON MISTAKES:
+
+Example: using assignment instead of comparison, the assignment return 
+\begin{verbatim}
+// What will happen?
+if (a=b) c; /* a always equals b, but c will be executed if b!=0 */
+\end{verbatim}
+
+
+Example: using multiple comparision, here the first \verb!0<a! is tested first
+which returns either 0 or 1; the value is then compared with 5 which is always
+true regardless of the value is 0 or 1.
+\begin{verbatim}
+  if( 0 < a < 5) c;      /* this "boolean" is always true! */
+\end{verbatim}
+
+Example:
+\begin{verbatim}
+ if( a =! b) c;      /* this is compiled as (a = !b), an assignment, rather than
+                     (a != b) or (a == !b) */
+\end{verbatim}
+
+
+
+\subsection{Short-hand conditions}
+
+A traditional C 'if' statement
+\begin{verbatim}
+if (a > b) {
+    result = x;
+} else {
+    result = y;
+}
+\end{verbatim}
+can be written as
+\begin{verbatim}
+result = (a>b)? x : y;
+\end{verbatim}
+
+Examples:
+\begin{lstlisting}
+int a(5), b(10);
+(a > b)? std::cout << a : std::cout << b; // operation
+int c = (a > b)? a : b;                   // assignment
+int d = (a > b)? ((a > 10)? 10 : a) : b;  // nested
+\end{lstlisting}
+
+\begin{mdframed}
+GNU C-extension allows
+\begin{verbatim}
+a = x ? x : y;
+\end{verbatim}
+to be written as
+\begin{verbatim}
+a = x ?  : y;
+\end{verbatim}
+This is important if 'x' is an expression whose state can be changed (by some
+other side-effects) that make the second evaluation give a different result.
+\end{mdframed}
+
+C++ allows using the short-hand in left-side of the assignment
+\begin{verbatim}
+int a = 0;
+int b = 0;
+
+(argc > 1 ? a : b) = 1;
+\end{verbatim}
+
+\subsection{switch\ldots case}
+
+NOTE: \verb!switch! statement is just a fancy kind of \verb!goto! statement (Sect.\ref{sec:goto}).  
+
+We should not use \verb!switch ... case! statement on string data
+\begin{verbatim}
+  switch(std::string("raj")) //Compilation error - switch expression of type illegal 
+    {
+    case"sda":
+    }
+\end{verbatim}
+The reason is that in order for C/C++ compiler to generate code for a switch
+statement, it must know how to generate the code for value comparison. 
+C++ language does not have a string type, i.e. std::string is part of the
+Standard Library, but not part of the language. As a result, for string, it's
+harder as it can be case sensitive, insensitive, culture aware, etc. 
+% Additionally, C/C++ switch statements are typically generated as branch
+% tables. It's not nearly as easy to generate a branch table for a string style switch. 
+
+
+A common compiling error is
+\begin{verbatim}
+error: jump to case label
+\end{verbatim}
+
+Example: 
+\begin{verbatim}
+switch(foo) {
+  case 1:
+    int i = 42; // i exists all the way to the end of the switch
+    dostuff(i);
+    break;
+  case 2:
+    dostuff(i*2); // i is *also* in scope here, but is not initialized!
+}
+\end{verbatim}
+The reason is that variables declared in one \verb!case! block are still visible 
+in the subsequent \verb!case! unless an explicit \verb!{  }! block is used.
+
+The solution is to enclose each \verb!case! block in braces \verb!{}!.
+\begin{verbatim}
+switch(foo) {
+  case 1:
+    {
+        int i = 42; // i only exists within the { }
+        dostuff(i);
+        break;
+    }
+  case 2:
+    dostuff(i*2); // Now you cannot use i accidentally --> error detected by compiler
+}
+\end{verbatim}
+
+\url{http://stackoverflow.com/questions/5685471/error-jump-to-case-label}
+
+\section{Logical operators}
+
+\begin{verbatim}
+Relational and comparison operators ( ==, !=, >, <, >=, <= )
+
+Logical operators ( !, &&, || )
+
+Conditional ternary operator ( ? )
+
+Comma operator ( , )
+\end{verbatim}
+\url{http://www.cplusplus.com/doc/tutorial/operators/}
+
+Example:
+\begin{verbatim}
+7==5 ? 4 : 3     // evaluates to 3, since 7 is not equal to 5.
+\end{verbatim}
+
+Example: The comma operator (,) is used to separate two or more expressions that
+are included where only one expression is expected. When the set of expressions
+has to be evaluated for a value, only the right-most expression is considered.  
+\begin{verbatim}
+ a = (b=3, b+2);
+   // b is assigned the value 3
+   // and then a is assigned the value of (b+2)
+\end{verbatim}
+
+\subsection{Bitwise operator}
+
+\begin{verbatim}
+Bitwise operators ( &, |, ^, ~, <<, >> )
+\end{verbatim}
+
+\subsection{Condition for string}
+
+We cannot use 'switch' to compare string (or \verb!char*!). Some people
+suggest using hash table using your own hash function. 
+\begin{verbatim}
+h=_myhash (mystring);
+switch (h)
+{
+case 66452:
+   .......
+case 1342537:
+   ........
+}
+\end{verbatim}
+If you want to avoid the hashed-value, you can use
+\begin{verbatim}
+if (hash(str) == HASH("some string") ..
+\end{verbatim}
+An example of hash table implementation:
+\url{https://developer.gnome.org/glib/stable/glib-Hash-Tables.html}.
+
+You can use 'if..elseif...' statement, instead.
+
+
+\subsection{Condition for function call}
+
+You can use a map, with key='string', and value=pointer to the function-call.
+
+\begin{verbatim}
+typedef void (*funcPointer)(int);
+\end{verbatim}
+and create multiple functions
+\begin{verbatim}
+void String1Action(int arg);
+void String2Action(int arg);
+\end{verbatim}
+and to map string content to function choice, we use
+\begin{verbatim}
+std::map<std::string, funcPointer> stringFunctionMap;
+\end{verbatim}
+and
+\begin{verbatim}
+stringFunctionMap.add("string1", &String1Action);
+\end{verbatim}
+
+We can also use hash table and function object which give O(1) insertion and
+lookup
+\begin{verbatim}
+void func1() {
+}
+std::unordered_map<std::string, std::function<void()>> hash_map;
+hash_map["Value1"] = &func1;
+// .... etc
+hash_map[mystring]();
+\end{verbatim}
+

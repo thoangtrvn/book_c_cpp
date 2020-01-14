@@ -1,0 +1,2025 @@
+\chapter{Compile}
+\label{chap:compiler}
+
+
+The C source code files can be compiled into different targets (static lib,
+shared lib, executable file), for different platform (32-bit, 64-bit, ARM).
+In general, compilation goes through 2 steps:
+{\bf compiling} and {\bf linking}. 
+
+First, the compiler convert the source code (the .cpp file) to object file
+(*.o). At this time, the code may have reference to non-completed types, i.e.
+those whose declaration are available via header files; but whose definition are
+not available yet.
+In the first step, the compiler takes a {\bf compilation unit}
+(Sect.\ref{sec:compilation-unit}).
+
+At linkage stage, then, the linker takes all the object files, together with
+statistically-linked libraries, to create a binary program.
+
+It's important to know how to best organize the code (Sect.\ref{sec:modules-in-C++}).
+
+Different IDE tools allows us to do this easily. Chap.\ref{chap:Visual_C++}
+describes how to compile C/C++ projects using Visual Studio.
+Chap.\ref{chap:compile_Csharp} how to use Visual Studio for C\# language. To
+compile your code into a library, you should also read Chap.\ref{chap:library}.
+
+\section{Manage complexity of a C/C++ project}
+\label{sec:modules-in-C++}
+
+C and C++ programs normally take the form of a collection of separately compiled
+modules.
+As a big project is developed, an new executable can be built rapidly if only
+the changed modules need to be recompiled.
+
+\textcolor{red}{\bf What is a module in C/C++?}:
+In C++, the contents of a module consist of structure type (struct)
+declarations, class declarations, global variables, and functions.
+The functions themselves are normally defined in a source file (a “cpp” file).
+
+Each source (.cpp) file has a header file (a “.h” file) associated with it
+that provides the declarations needed by other modules to make use of this
+module.
+
+The idea is that other modules can access the functionality in module X simply
+by \verb!#include!'ing the “X.h” header file, and the linker will do the rest.
+
+The code in X.cpp needs to be compiled only the first time or if it is changed;
+the rest of the time, the linker will link X’s code into the final executable
+without needing to recompile it, which enables the Unix make utility and IDEs to
+work very efficiently.
+
+Usually, the main module (i.e. the one with \verb!main()! function) does not
+have a header file, since it normally uses functionality in the other modules,
+rather than providing functionality to them.
+
+IMPORTANT: compilers and linkers need help in enforcing the One Definition Rule
+(Sect.\ref{sec:one-definition-rule}).
+
+\textcolor{red}{Well-designed header file to reduce the coupling}:
+
+Reduce the amount of “coupling” between components by minimizing the number of
+header files that a module’s header file itself \verb!#include!s. On very large
+projects (where C++ is often used), minimizing coupling can make a huge differ-
+ence in “build time” as well as simplifying the code organization and debugging.
+
+\subsection{Design a good module}
+\label{sec:module-in-C++-good-design}
+\label{sec:compilation-unit}
+
+Each module with its .h and .cpp file should correspond to a clear piece of
+functionality.
+The Standard Library modules <cmath> and <string> are good examples of clearly
+distinct modules.
+{\it Don’t force together into a module things that will be used or maintained
+separately, and don’t separate things that will always be used and maintained
+together.}
+
+
+Always use “include guards” in a header file. Choose a guard symbol based on the
+header file name, since these symbols are easy to think up and the header file
+names are almost always unique in a project.
+For example “Geometry_base.h” would start with:
+\begin{verbatim}
+#ifndef GEOMETRY_BASE_H
+#define GEOMETRY_BASE_H
+\end{verbatim}
+and end with:
+\begin{verbatim}
+#endif
+\end{verbatim}
+ 
+ 
+If module A needs to use module X’s functionality, it should always 
+\begin{verbatim}
+#include “X.h”
+\end{verbatim}	
+, and never contain hard-coded decla- rations for structs, classes,
+globals, or functions that appear in module X.
+
+The reason is that: If module X is changed, but you forget to change the
+hard-coded declarations in module A, module A could easily fail with subtle
+run-time errors that won’t be detected by either the com- piler or linker.
+  
+
+\textcolor{red}{RULE 6}:
+Set up global variables for a module with an extern declaration in the header
+file, and a defining declaration in the .cpp file.
+\begin{verbatim}
+// in header file
+// place an extern declaration in the .h 
+// it means that any files included this header file
+//  can use 'g_number_of_entities' (without asking where it is)
+//  it's location/definition will be provided at linkage time
+//  by linking the object file (compiled form the .C file containing the unique definition
+//  of 'g_number_of_entities' (below)
+
+extern int g_number_of_entities;
+\end{verbatim}
+and in source file
+(the .cpp file for the module) must include this same .h file, 
+and near the beginning of the file, a defining declaration should appear.
+This declaration both defines and initializes the global variables
+
+\begin{verbatim}
+// the source file
+// where unique-definition occurs
+
+// static/global variables are initialized to zero by default; but initializing
+// explicitly to zero is customary because it marks this declaration as the
+// defining declaration, meaning that this is the unique point of definition.
+
+int g_number_of_entities = 0;
+\end{verbatim}
+
+NOTE: different C compilers and linkers will allow other ways of setting up
+global variables, but this is the accepted C++ method for defining global
+variables and it also works for C to ensure that the global variables obey the
+One Definition Rule.
+ 
+\url{http://umich.edu/~eecs381/handouts/CppHeaderFileGuidelines.pdf}
+
+
+
+\section{Translation units}
+
+\label{sec:translation-unit}
+
+
+A {\bf translation unit} is not "a header and a source file". It could include a
+thousand header files (and a thousand source files too).
+A translation unit is typically a pre-processed source file (i.e a source file
+with all the contents of all header files)
+
+A translation unit is simply what is commonly known as "a source file" or a
+``.cpp file'' after being preprocessed. If the source file \#includes other
+files the text of those files gets included in the translation unit by the
+preprocessor. There is no difference between C and C++ on this matter.
+
+ 
+
+\section{Locale of the source files}
+\label{sec:locale_source-files}
+
+The source code can be stored in ASCII scheme or Unicode scheme or some other
+encoding scheme (Sect.\ref{sec:locale}). Before you can compile your program,
+the compile must be able to read the source code. So, it's important to tell the
+compiler which encoding scheme of the source file
+\begin{itemize}
+  \item ILE (Integrated Language Environment) C/C++ compiler from IBM can
+  compile code written in single--byte EBCDIC CCSID (Coded Character Set
+  Identifier).
+  
+IBM i (previously named OS/400 then i5/OS) is EBCDIC-based O/S runs on IBM Power
+Systems and IBM PureSystems. Extended Binary Coded Decimal Interchange Code
+(EBCDIC)  is an 8-bit character encoding used mainly on IBM mainframe and IBM
+midrange computer O/S. 
+  
+  There are two supported locales: *CLD and *LOCALE. Use either but not both
+  \begin{itemize}
+    \item *LOCALE: based on IEEE POSIX P1003.2, ISO/IEC 9899:1990/Amendment
+    1:1994[E], and X/Open Portability Guide standards for global locales and
+    coded character set conversion. 
+    \item *CLD: for ILE C use only (not ILE C++). Programs compiled prior to
+    V3R7 use the *CLD locale support
+  \end{itemize}
+  \url{http://publib.boulder.ibm.com/iseries/v5r2/ic2924/books/c092712331.htm}
+  
+  \item GNU C/C++ : 
+\end{itemize}
+
+\section{C Preprocessor cpp}
+\label{sec:cpp-preprocessor}
+
+\verb!cpp! is the GNU C macro processor, that is used automatically by the C
+compiler (or C++ compiler, or Objective-C compiler) to transform your source
+code, before compilation.
+
+How it is used: it expects 2 file names as arguments (one for infile, and one
+for outfile).
+It reads the \verb!infile! file, along with ALL files specified via the
+\verb!#include! statement in that file. 
+\begin{itemize}
+  \item we can substitue one or both with \verb!-! (a dash) which means standard input (i.e. from terminal) or standard output (i.e. the terminal)
+\end{itemize}
+
+\begin{verbatim}
+cpp <options>
+    infile  outfile
+\end{verbatim}
+Options to use:
+
+\begin{enumerate}
+  \item what ISO standard of the code:
+  
+\begin{verbatim}
+-std=c90
+
+-std=c99
+
+-std=c11
+\end{verbatim}
+  
+Also use \verb!-pedantic! to get all the mandatory diagnostics.  
+  
+  \item any macro to be defined (so that the check \verb!#ifdef MACRO_NAME! or 
+  \verb!#if defined(MACRO_NAME)!) returns True
+  
+\begin{verbatim}
+-D MACRO_NAME
+\end{verbatim}
+you define any name in place of \verb!MACRO_NAME!
+
+  \item any macro to be defined with a given value
+\begin{verbatim}
+-D MACRO_NAME=value
+\end{verbatim}  
+  
+  
+\end{enumerate}
+
+
+\subsection{Preprocessed files}
+\label{sec:preprocessed-file}
+
+To stop after the preprocessing stage, and do no compilation, we use \verb!-E!
+option to \verb!g++! or \verb!gcc!. Those who don't need preprocessing are
+ignored. The preprocessed output is written to the standard output. 
+
+
+\subsection{Preprocessed + Compilation}
+
+If we want to stop at compilation, and do no assemble, we use \verb!-S! option.
+Those who don't need compilation are ignored. The output is an assembler code
+file for each input file specified. By default, the assembler code file has the
+same name with the input file, with extension is \verb!.s!
+
+
+\subsection{Preprocessed + Compilation + Assemble}
+
+If we want to stop at compilation, and do no linking, we use \verb!-c! option.
+Unrecognized input files, not requiring compilation or assembly are ignored. The
+output is in the form of an object file for each input file, with extension
+\verb!.o!
+
+
+\subsection{Preprocessed + Compilation + Assemble + Linking}
+\label{sec:preprocessed_compile_assemble_linking}
+
+When the symbol (function or global identifier) is {\it internal linkage}, it means that it's
+only accessible in one translation unit. An {\it external linkage} means that
+the symbol is accessible throughout the program.
+
+A linkage to a symbol can be controled as internal or external using
+\verb!static! and \verb!extern!, respectively. By default, \verb!const! symbols
+are \verb!static!, and non-\verb!const! symbols are \verb!extern!.
+
+\begin{verbatim}
+// in namespace or global scope
+int i; // extern by default
+
+const int ci; // static by default
+extern const int eci; // explicitly extern
+
+static int si; // explicitly static
+
+// the same goes for functions (but there are no const functions)
+int foo(); // extern by default
+static int bar(); // explicitly static 
+\end{verbatim}
+
+For internal linkage, instead of using \verb!static! keyword, it's suggested to
+use {\bf anonymous namespaces}
+
+\section{How a C-code runs: -nostartfiles}
+
+When you run a binary C-program, unlike assembly language, some basic
+pre-requisites need to be satisified before the control is transferred to this
+C-code. These setups include
+\begin{enumerate}
+  \item stack
+  \item global variables: initialized, uninitialized
+  \item read-only data
+\end{enumerate}
+
+\begin{verbatim}
+static int arr[] = { 1, 10, 4, 5, 6, 7 };
+static int sum;
+static const int n = sizeof(arr) / sizeof(arr[0]);
+
+int main()
+{
+        int i;
+
+        for (i = 0; i < n; i++)
+                sum += arr[i];
+}
+\end{verbatim}
+
+Stack is used for storing local (auto) variables (Sect.\ref{sec:heap_stack}).
+The memory grows downward (i.e. toward lower address). The memory location of
+the initial stack pointer is stored in the {\bf r13} register or the alias {\bf
+sp} in assembly
+\begin{verbatim}
+ldr sp, =0xA4000000
+\end{verbatim}
+The \verb!.data! section contains the initialized global data by the compiler.
+The C-language guarantees all uninitialized global variables will be initialized
+to zero. The section \verb!.bss! is used for uninitialized variables. The
+global \verb!const! data are saved in \verb!.rodata! section (e.g. string
+constants); the content of this section cannot be modified.
+
+Once the pre-requisites are satisfied.
+
+\subsection{How a C-code initialize: \_start(), \_\_libc\_start\_main(), \_\_libc\_csu\_init(), main()}	
+\label{sec:_start()}
+\label{sec:__libc_start_main()}
+
+In the program with blank \verb!main()!
+\begin{verbatim}
+int main() {}
+\end{verbatim}
+
+Once you compile, you can use \verb!objdump -d! on the binary a.out, you will see it evokes two subprograms
+\begin{itemize}
+  \item \verb!_start()!: setup aligment, push arguments on stack, 
+  and then call \verb!__libc_start_main()!.
+  
+  \item \verb!__libc_start_main()!: the first line to execute is 
+  
+\begin{verbatim}
+jmp *0x8049658
+\end{verbatim}
+which is the indirect branch instruction, which actually jumping back to \verb!__Libc_start_main()! at this time
+is the location loaded in RAM at runtime. The real RAM address of \verb!__libc_start_main()! is found in 
+DYNAMIC RELOCATION RECORDS table, which is created in RAM by the dynamic loader when the program is loaded. This is called {\bf lazy loading} mechanism.
+
+This function, once loaded into RAM, evokes \verb!__libc_csu_init()!, main(), and \verb!exit()! in that order.
+
+\verb!__libc_csu_init()! is the constructor of the program, it is called by
+\verb!__libc_start_main()! before actually running the user-defined main() function.
+
+\end{itemize}
+
+\url{dbp-consulting.com/tutorials/debugging/linuxProgramStartup.html}
+
+
+\subsection{main(), wmain()}
+\label{sec:main_wmain}
+
+Once the program has been loaded into the memory (i.e. after the execution of
+\verb!__start()!, \verb!__libc_start_main()!), the program entry point 
+\verb!main()! is executed (both Windows and Linux).
+\begin{verbatim}
+int main();
+int main(int argc, char* argv[]);
+\end{verbatim}
+
+In Windows, to adhere to Unicode
+programming model, we use \verb!wmain()! to allows the program to handle
+wide-character command lines
+\footnote{\url{http://msdn.microsoft.com/en-us/library/bky3b5dh.aspx}}
+\begin{verbatim}
+int wmain( int argc, wchar_t* argv[]);
+int wmain( int argc, wchar_t *argv[ ], wchar_t *envp[ ] )
+\end{verbatim}
+If we use \verb!wmain()!, then all parameters and arguments need to follow
+Unicode (Sect.\ref{sec:WindowsDataTypes}).
+
+While Windows applications prefer UTF16, Unix applications still want UTF8 for
+Unicode strings encoding. Even not defined in C++, Windows also provide an
+extension to entry point, called \verb!_tmain()! to allows easy switching
+between multi-byte or Unicode.
+\footnote{\url{http://stackoverflow.com/questions/895827/what-is-the-difference-between-tmain-and-main-in-c}}
+
+\begin{verbatim}
+ int _tmain(int argc, _TCHAR *argv[]) 
+\end{verbatim}
+which can be mapped to
+\begin{verbatim}
+int wmain(int argc, wchar_t *argv[])
+\end{verbatim}
+or
+\begin{verbatim}
+int main(int argc, char *argv[])
+\end{verbatim}
+
+NOTE: All the identifiers in the code needs to have \verb!_t! prefix, e.g.
+\verb!_TCHAR, _tcout!. 
+\begin{verbatim}
+#include <iostream>
+#include <tchar.h>
+
+#if defined(UNICODE)
+    #define _tcout std::wcout
+#else
+    #define _tcout std::cout
+#endif
+
+int _tmain(int argc, _TCHAR *argv[]) 
+{
+   _tcout << _T("There are ") << argc << _T(" arguments:") << std::endl;
+
+   // Loop through each argument and print its number and value
+   for (int i=0; i<argc; i++)
+      _tcout << i << _T(" ") << argv[i] << std::endl;
+
+   return 0;
+}
+\end{verbatim}
+
+\subsection{without main()}
+\label{sec:without_main()}
+
+The only places we see a C application without main() are either embedded
+applications or device drivers. For embeded applications, we can define its own
+entry point.
+\begin{verbatim}
+#include<stdio.h>
+#include<stdlib.h>
+_start()
+{
+   exit(my_main());
+}
+int my_main()
+{
+   printf("Hello");
+   return 0;
+}
+\end{verbatim}
+and then compile with
+\begin{verbatim}
+gcc  -nostartfiles  hello.c 
+\end{verbatim}
+
+
+The latter one tend to be loaded into a running program.
+
+\subsection{-nostdlib}
+
+Some additional work is required if you want to use standard C library. So
+\verb!-nostdlib! means do NOT use it. Then, only the libraries you specify will
+be passed to the linker, and any options specifying linkages to the system
+libraries (e.g. -static-libgcc, -shared-libgcc) are ignored.
+
+\subsection{How a C-code terminate: exit(), atexit(), \_Exit(), std::quick\_exit (since C++11)}	
+\label{sec:exit()}
+\label{sec:atexit()}
+\label{sec:_Exit()}
+\label{sec:quick_exit()}
+
+In C, \verb!exit()! terminates the calling process, and returns the error code
+as passed via the argument to the function.
+
+\begin{verbatim}
+
+exit(0); 
+
+exit(1);
+\end{verbatim}
+\verb!exit()! does some cleaning before termination of the program, e.g.
+\begin{itemize}
+  \item connection termination
+  
+  \item flush the buffers
+  
+  \item \ldots
+\end{itemize}
+You can registered a list of functions to get called \verb!
+
+In C11 and C++11, it introduces \verb!_Exit()! which terminates the program
+immediately, i.e. without performing any cleanup tasks nor running function
+registered with \verb!atexit()!.
+Example: you won't see any output to the terminal 
+\begin{lstlisting}
+
+#include <bits/stdc++.h>  // needs for atexit()
+#include <stdlib.h> //needs for _Exit()
+
+int main(void)
+{
+  int exit_code = 0;
+  print("Terminating using _Exit"); //this is buffered, and is not flushed to the terminal right away
+  _Exit(exit_code);  //exit, and not flush the buffer
+}
+\end{lstlisting}
+
+
+Example: we can register a function, which will be evoked at normal completion of main() or at \verb!exit()! calls
+\begin{lstlisting}
+void func(void)
+{
+   std::cout << "Exiting";
+}
+
+int main(void)
+{
+  atexit(func);
+  
+  exit(10);  //which will evoke func() before termination
+}
+\end{lstlisting}
+
+\verb!std::atexit()! then calls \verb!__cxa_atexit()! to register that function.
+This is not the source standard, and it is only binary standard.
+On the other hand, \verb!atexit()! is not in the binary standard, but it is in
+the source standard.
+
+
+Since C++11, it supports \verb!std::quick_exit()! function which causes normal
+program termination without complete.y cleaning the resources. What it actually
+does is to evokes all the functions registered using
+\verb!std::at_quick_exit()!, and in the reverse order of their registration.
+If any exception occurs in such functions, \verb!std::terminate()! is called. If
+all registered functions complete with no exception, then calls to
+\verb!std::_Exit()! occurs, using the given exit code.
+IMPORTANT: Functions registered with \verb!std::atexit()! are not called by
+\verb!quick_exit()!.
+
+
+\begin{lstlisting}
+#include <cstdlib>
+
+void quick_exit(int exit_code) noexcept;
+\end{lstlisting}
+
+\begin{mdframed}
+
+WHY adding \verb!std::quick_exit()!?
+
+The feature was added to specifically deal with the difficulty of ending a
+program cleanly when you use threads.
+As \verb!exit! is started by a highly asynchronous event, e.g. user closing the
+GUI, or admin shutting down the machine, \ldots without regarding to the states
+of the threads the program has started, such threads are almost always in a
+highly unpredictable state.
+
+
+
+
+\end{mdframed}
+
+\subsection{Threads created with MPI\_Init}
+
+
+An MPI program, using a minimal 1 process, needs at least 2 threads. It means
+that after \verb!MPI_Init()! is evoked, two threads are created by the MPI
+library, and after \verb!MPI_Finalize()!, the two threads are closed.
+
+\subsection{When a global scope variable get destructed?}
+
+What is the lifetime of these different file-scope, and probably namespace-scope, variables
+\begin{lstlisting}
+
+
+MyClass myobj;  //global-scope
+
+static MyClass myobj; 
+
+const MyClass myobj;
+
+static const MyClass myobj;
+
+
+static constexpr MyClass myobj; //since C++11
+\end{lstlisting}
+
+
+For static function-scope variable:
+\begin{lstlisting}
+void somefunc()
+{
+   static MyClass myobj; //when its initialization actually occured?
+}
+
+
+\end{lstlisting}
+
+
+The destructor of file or namespace-scope objects get called when the control
+flow leaves main(). So, if the destruction requires a third-party library, which
+is already unloaded before the destructor get called. This is a problem.
+
+
+\section{include (header) files}
+\label{sec:include-files}
+
+There are two different ways to include a header file
+\begin{verbatim}
+// Option 1
+#include  "headerfile.h"
+
+// Option 2 
+#include <headerfile.h>
+\end{verbatim}
+
+\begin{enumerate}
+  \item Option 1:
+  the preprocessor searches in for the file in folders that are
+  implementation-defined
+  \begin{verbatim}
+  //POSIX-based implementation
+  search order
+  1. current folder: ./headerfile.h
+  2. the directories as specified in -I before -iquote option (or -I- for
+  older gcc)  [default: -iquote come last, if not specified] 
+  3. directories as used with <> in option2
+  
+NOTE: -I- (deprecated; use -iquote instead) can be put at any point in the list
+of -I options 
+  Effect 1:
+    Directories appearing before the -I- in the list are searched
+    only for headers requested with quote marks.
+    Directories after -I- are searched for all headers
+  Effect 2:
+    the directory containing the current file is not searched for anything,
+    unless it happens to be one of the directories named by an -I switch
+    
+    
+NOTE: special folder name '-'
+  write -I./-    
+  \end{verbatim}
+  and causes the replacement of that directive by the
+  entire contents of the header. This method is normally used to include programmer-defined header files.
+  
+NOTE: 
+\begin{verbatim}
+"mypath/myfile" 
+     is short for 
+./mypath/myfile
+\end{verbatim}  
+  
+  If this search is not supported, or if the search fails, the directive is
+  reprocessed as if it read \verb!#include <headerfile.h>!
+  
+  \item Option 2:
+   searches in an implementation dependent manner, normally in search
+  directories pre-designated by the compiler/IDE, 
+
+\begin{verbatim}
+  //GCC
+  search order
+1.
+(C & C++) directories specified via -I option
+   (if multiple, then search folders specified from left-to-right order)
+
+2.     
+(C++ only) libdir/../include/c++/<version>
+
+3.
+(C & C++)
+     /usr/local/include
+     libdir/gcc/<target>/version/include
+     /usr/target/include
+     /usr/include
+     
+NOTE: 
+  target is the canonical name of the system GCC was configured to compile
+code for; often but not always the same as the canonical name of the system it runs on. 
+  version is the version of GCC in use.
+  
+NOTE: You can prevent GCC from searching any of the default directories with the
+-nostdinc option
+\end{verbatim}
+  and causes the replacement of
+  that directive by the entire contents of the header.. This method is normally
+  used to include standard library header files.
+  
+NOTE:
+\begin{verbatim}
+<mypath/myfile> 
+     is short for 
+<defaultincludepaths>/mypath/myfile
+\end{verbatim}
+  
+\end{enumerate}
+\url{https://gcc.gnu.org/onlinedocs/cpp/Search-Path.html}
+
+Use of \verb!-I! option: To tell the directory where the header file (.h) reside, you
+use the -I option or specify the full path to the header file
+\begin{verbatim}
+gcc .... -I /usr/local/pvm/include/
+\end{verbatim}
+
+In GNU GCC, an environment variable equivalent to \verb!-I! is 
+\verb!CPATH! (which is used regardless of the language is being processed).
+Search order: path in \verb!-I! first, and then path in \verb!CPATH!. For
+language-specific, we can use the below environment variables:
+\begin{itemize}
+  \item \verb!C_INCLUDE_PATH!: C-lang (C header files) 
+    
+  \item \verb!CPLUS_INCLUDE_PATH!: C++-lang (C++ header files)
+  
+  \item \verb!OBJC_INCLUDE_PATH!: ObjectiveC-lang
+  
+  \item \verb!CPATH!: for all languages
+\end{itemize}
+
+% In the second case, the INCLUDE statement must be the first
+% statement\footnote{\url{http://www.netlib.org/pvm3/book/node140.html}}.
+
+A good habit is to define these macros in the beginning of the makefile.
+\begin{verbatim}
+MAKE =	make
+CC   =	gcc
+RM   =	rm -rf
+
+OBJS =	main.o foo.o bar.o
+
+prog:	$(OBJS)
+	$(CC) -o prog $(OBJS)
+
+clean:
+	$(RM) $(OBJS) prog
+
+.c.o:
+	$(CC) -c $<
+\end{verbatim}
+
+
+\section{Source files}
+\label{sec:source-files}
+
+C/C++ sourfe files are in free-form, rather than column-based or text-line-based
+restrictions like FORTRAN 77.
+
+\textcolor{red}{IMPORTANT: The A.c file should first include ``A.h''
+file, and then any other headers required for}.
+
+Read Sect.\ref{sec:extern_''C''} to know how to call C++ code from C.
+
+\subsection{C language} 
+
+In C language, typically, you have \verb!main.c!
+\begin{lstlisting}
+#include <stdio.h>
+#include <stdlib.h>
+#include "source.h"
+int main(void){
+    printf("%d", returnSeven());
+    return 0;
+}
+\end{lstlisting}
+
+Source files are typically in pair of source/header, e.g.
+\verb!source.c!/\verb!source.h!.
+\begin{verbatim}
+// header.h
+#ifndef __HEADER__H
+#define __HEADER__H
+
+int returnSeven(void);
+/// ...
+
+#endif
+\end{verbatim}
+and
+\begin{lstlisting}
+#include "header.h"
+
+int returnSeven(void){
+    return 7;
+}
+\end{lstlisting}
+
+In order to call a function, it has to be 'declared' before you use it. There
+are two ways to 'declare' a function: to write a prototype or to write the
+function itself (the definition). If you use a function, just by providing the
+prototype, not the definition, it's called {\bf forward declaration}
+(Sect.\ref{sec:forward_declaration}).
+In C, to tell that a variable is declared somewhere else so that the compiler doesn't
+allocate the memory for it, we use \verb!extern! keyword.
+\begin{verbatim}
+int x; //allocate the memory for 'x' as int type
+extern int y;  // don't, as 'y' is assumed to be defined somewhere else
+\end{verbatim}
+A good programming style is to put all
+function definition in the \verb!.c! file, and the function prototype in the
+header \verb!.h! file. So, when one source file want to use the function defined
+in another file, it just \verb!#include <header-file.h>! the proper header file
+name.
+
+In the old C (K\&R style), the function doesn't have prototype
+\begin{lstlisting}
+main (argc, argv)
+
+  int argc;
+  char **argv;
+
+{
+  ...
+}
+\end{lstlisting}
+Using C89 and later, it has prototype
+\begin{lstlisting}
+main (int argc, char **argv) { ... }
+\end{lstlisting}
+In C89/C90, without the function prototype, it's implicitly assumed as function
+taking undefined list of arguments and returning \verb!int!.
+
+
+\subsection{C++ language}
+
+There is no fixed rule of what extension your code must use. Example: MSVC uses
+.cpp; while on Linux, it uses .cc as the extension. Other choices: .cxx. 
+
+For the header files, it can be .hpp (MSVC), .hh (Linux), .hxx, .H, or even
+using .h (Microsoft Visual C++).
+
+
+Example: Boost libraries use .hpp/.cpp. 
+
+References: \url{http://www.parashift.com/c++-faq-lite/hdr-file-ext.html}
+
+\section{Linking}
+\label{sec:linking}
+
+Once you compile the code, you may need to link to external libraries (.so, .a). 
+The location of these libraries are found (1) first in fodler specified in
+\verb!-L! compiler option
+\begin{verbatim}
+gcc -L/home/mylib/ -lmylib
+\end{verbatim}
+then (2) from folders specified in the environment variable
+ \verb!LIBRARY_PATH!
+
+\section{Online compilers}
+
+When testing your code (with different compiler's versions), you can paste your
+code to an online editor, select the compiler to use, and then see the result
+quickly.
+
+\begin{enumerate}
+  \item \url{http://www.comeaucomputing.com/tryitout/}
+\end{enumerate}
+
+\section{Compilers}
+
+The most popular C/C++ compiler in UNIX-liked operating systems is GCC,
+Sect.\ref{sec:GCC}.
+
+
+Some compilers provide enhanced features. To write code that utilize features
+from a certain compiler, we can add the macro to detect the present of the
+compiler being used as given in Sect.\ref{sec:macro-detect-compiler}.
+
+To write code that utilize the ehnahced features from a certain version of
+language, we can use macros to detect the version of the compiler from that
+it can be used to infer if a certain language feature is supported -
+Sect.\ref{sec:macro-detect-compiler-version}). 
+Example, for C++11, to check which features are supported by a given GCC
+version: take a look at
+\url{http://wiki.apache.org/stdcxx/C++0xCompilerSupport}
+
+
+
+
+\section{Compile MPI code}
+
+When you compile the code with MPI, you can either
+\begin{enumerate}
+  \item  using the compiler you needs
+(e.g. gcc, clang, intel cc, ..) with options that link to libmpi library as well
+as path to MPI header file
+
+  \item using a wrapper, e.g. mpiCC (for C++ code), mpicc (for C code), 
+  
+ The wrapper would call the compiler that was selected when the MPI library,
+ e.g. OpenMPI, was installed. These compilers are found during running \verb!configure! script of building say OpenMPI, or
+ using those as indicated in these following environment variables, if defined by user
+ 
+\begin{verbatim}
+CC
+CXX
+F77
+FC
+\end{verbatim}
+  
+ \item using the wrapper, and also override the default setting of chosen compilers
+ 
+ By using a text files containing this configuration information,
+ \begin{verbatim}
+ /path/to/openmpi_library/share/openmpi/mpicc-wrapper-data.txt
+ \end{verbatim}
+ file  [\textcolor{red}{we rarely modify this file, but it's good to know the default setting as stored in these files}],  
+ or by setting selected environment variables of the form
+ \verb!OMPI_value!, with valid values \begin{verbatim}
+ CPPFLAGS
+     flags to used when invoking the preprocessor
+     
+ LDFLAGS
+     ... linker 
+ 
+ LIBS
+     libraries added when invoking the linker
+ 
+ CC
+     chose the C compiler
+ CFLAGS
+     choose the flag for that C compiler
+     
+ CXX
+ 
+ CXXFLAGS
+ 
+ FC
+ 
+ FCFLAGS
+ \end{verbatim}
+ 
+pass the option to specify the
+gcc/g++ version using
+\begin{verbatim}
+-cc : use with mpicc to change the compiler used
+-CC : .....    mpicxx (or mpic++, mpiCC)
+-fc            mpif77
+-f90           mpif90
+\end{verbatim}
+\url{https://www.dartmouth.edu/~rc/classes/intro_mpi/compiling_mpi_ex.html}
+
+\end{enumerate}
+
+\section{GCC (gcc, g++)}
+\label{sec:GCC}
+\label{sec:g++}
+
+GNU compiler system includes
+\begin{itemize}
+  \item  \verb!gcc! : compile C code
+  \item  \verb!g++! : compile C++ code
+\end{itemize}
+
+Remember that there are different versions of C or C++ language specification. 
+You can force the GNU compiler to use the non-default version by passing to the 
+\verb!-std=! option (Sect.\ref{sec:-std-option-GNU}).
+\begin{itemize}
+  \item since GCC 4.7:  you can find the default version of C++ standard supported
+  
+\begin{verbatim}
+g++ -dM -E -x c++  /dev/null | grep -F __cplusplus
+
+// g++ 7.4
+#define __cplusplus 201402L
+
+// g++ 4.8
+#define __cplusplus 199711L
+\end{verbatim}
+
+NOTE: \verb!__cplusplus! should be so defined
+according to ISO C++ section 16.8 
+\url{https://gcc.gnu.org/bugzilla/show_bug.cgi?id=1773}
+
+   \item C++14 is the default for GCC 6.1 and later:
+   
+   \url{https://gcc.gnu.org/projects/cxx-status.html#cxx14}
+   
+   \item 
+\end{itemize}
+
+These compilers utilize a library file that implements the C standard library
+(Sect.\ref{sec:C-standard-library}) or C++ standard library
+(Sect.\ref{sec:C++-standard-library}).
+
+GCC is very widely used in Linux/Unix world. It compiles the source-code into
+binary files targetted to a particular hardware architecture, i.e. the binary
+code is in assembly from a given instruction set (e.g. MMX, SSE, SSE2) of CPU.
+You can select the target CPU using \verb!-march=cpu-type! option
+(Sect.\ref{sec:GCC_CPU_target})
+
+To install multiple versions of GCC in your system, we
+can 
+\begin{itemize}
+  \item use Modules for version selection - Sect.\ref{sec:modules_gcc}
+  \item use update-alternatives selection - Sect.\ref{sec:update-alternative}
+\end{itemize}
+
+\subsection{Versions}
+
+GCC 1.0 released in 1987, and was extended to support C++ in the same year.
+Later on, other languages were also supported (Objective-C, Objective-C++, Fortran, Ada,
+Java, etc.).
+
+By 1991, GCC 1.x reached stability but not extendable to incorporate some new
+features. 
+
+In 1997, a new project formed to incorporate g77 (FORTRAN), PGCC (P5
+Pentium-optimized GCC), many new C++ improvements, and many new architectures
+supports. The project is called EGCS (Experimental/Enhanced GNU Compiler
+System). To work with it, programmers call \verb!gcc!, a driver to interpret
+command arguments, and decide which programming languages to use for each input
+files. The files are pre-processed, and then run by the assembler, and finally
+the {\bf linker} to produce the complete binary file. There's a low-level
+runtime library, \verb!libgcc!, which is required to handle arithmetic
+operations that the target processors cannot handle directly.
+
+\begin{mdframed}
+Previously, GCC was compiled by C compiler. In May 2010, GCC was compiled by C++
+compiler, as it now has a subset of C++ features (destructors and generics). In
+Aug. 2012, the transition is completed and GCC is now being implemented by C++
+totally (minimum C++ 2003 features).
+\end{mdframed}
+
+Prior to GCC 4.0, g77 which only support FORTRAN 77 was used. In newer versions,
+g77 was dropped; and \verb!gfortran! was used as the front-end as it supports
+Fortran 95, and part of Fortran 2003.
+
+\subsection{-std= option}
+\label{sec:-std-option-GNU}
+
+
+To specify a particular version of language standard to use, we use \verb!std=!
+\begin{verbatim}
+gcc -std=c89 
+
+  //C99 mode
+gcc -std=c99 
+gcc -std=gnu99 
+
+\end{verbatim}
+In C mode, \verb!-ansi! is equivalent to \verb!std=c89! (as C89 was referred to
+as ANSI C; even though nowadays C11 is now the official ANSI C standad).
+
+\begin{verbatim}
+g++ -std=c++98
+
+g++ -std=gnu++98
+		which is c++98 PLUS GNU extensions
+
+   // C++0x draft or C++11 standard
+g++ -std=c++0x
+
+g++ -std=c++11
+		//disable GNU extension
+
+g++ -std=gnu++11
+		//also enable GNU extension
+
+g++ -std=gnu++1y
+
+g++ -std=gnu++14
+\end{verbatim}
+
+To know which features in C++11 supported by GCC, check
+\url{http://gcc.gnu.org/projects/cxx0x.html}. 
+
+
+Since GCC 4.7, C++11 standard is officially suported. 
+
+\subsection{write code to support different versions of C/C++ languages}
+
+In the code, to support code working with different versions of the GNU
+compiler, we can  detect if C++11 standard or C++00x draft is used via 
+the macro (Sect.\ref{sec:macro-detect-compiler})
+\begin{verbatim}
+#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
+   ...
+#else
+   ... //old code
+#endif      
+
+NOTE: __cplusplus = 199711L (C++98/03)
+                  = 201103L (C++11)
+\end{verbatim}
+
+You can check the difference using 
+\begin{verbatim}
+g++ -E -dM -std=c++0x -x c++ /dev/null >b && \
+g++ -E  -dM -std=c++98 -x c++ /dev/null >a && \
+diff -u a b | grep '[+|-]^&#define' && rm a b
+\end{verbatim}
+
+Other macros can be used
+\begin{verbatim}
+#if __GNUUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 4) // <= gcc 4.4
+  #define BOOST_NO_CXX11_HDR_THREAD
+#elif (__GNUC__ == 4 && __GNUC_MINOR__ < 8) // gcc 4.8
+  #if !(defined(_GLIBCXX_HAS_GTHREAD) &&
+  	   defined(_GLIBCXX_USE_C99_STDINT_TR1) &&
+  	   defined(_GLIBCXX_USE_SCHED_YIELD) &&
+  	   defined(_GLIBCXX_USE_NANOSLEEP) &&
+  	   defined(_GLIBCXX_USE_EXPERIMENTAL_CXX0X__)
+  	   )
+  	 #define BOOST_NO_CXX_HDR_THREAD
+#elif __cplusplus < 201103L
+     #define BOOST_NO_CXX11_HDR_THREAD
+#endif       
+\end{verbatim}
+
+\subsection{Install multiple versions of GCC}
+\subsection{-- using Modules }
+\label{sec:modules_gcc}
+
+Use Modules for version management (Check Sys-admin book). Then we need to
+install each gcc version into /modules/gcc/ folders. For example:
+\begin{verbatim}
+/modules/gcc/4.2
+/modules/gcc/4.7
+\end{verbatim} 
+
+To be able to compile gcc from source, first we need essential packages 
+\begin{verbatim}
+ sudo apt-get install g++ gawk m4 gcc-multilib
+\end{verbatim}
+
+Next, we need to install packages that GCC depends on, i.e. three other
+libraries gmp, mpc and mpfr.
+\begin{itemize}
+  \item GCC 5.4: needs libgmp 4.2+ (Sect.\ref{sec:GMP-datatypes}), MPFR 2.4+,
+  MPC 0.8+.
+
+SUGGEST: GMP 5.0, MPFR 4.3 and MPC 1.0
+
+NOTE:
+\begin{verbatim}
+MPFR 4.0+ depends on and needs GMP 5.0+
+
+\end{verbatim}
+  
+\end{itemize}
+
+Then select the source code of the right version of GCC to download and compile:
+\url{https://gcc.gnu.org/releases.html}
+and \url{https://ftp.gnu.org/gnu/gcc/}
+Make sure use \verb!--prefix=! option of \verb!./configure! command as
+\begin{verbatim}
+./configure --prefix=/packages/gcc/
+
+
+../configure                           \
+    --prefix=/packages/gcc/5.4                           \
+    --disable-multilib                 \
+    --with-system-zlib                 \
+    --enable-languages=c,c++,fortran,go,objc,obj-c++ \
+    --with-isl=/packages/isl/lib &&
+\end{verbatim}
+for each version.
+
+\subsection{-- using update-alternative}
+\label{sec:update-alternative}
+
+Suppose the default gcc/g++ version is 4.8, and you want to use gcc/g++ 4.4,
+you need to search for the older version and install it.
+You can use \verb!aptitude! and search for 
+\verb!gcc-4.4! and \verb!g++-4.4!.
+NOTE \verb!+! is a special character in regular expression, so make sure to use
+\verb!\+! to indicate the plus.
+
+Once the older version is installed, you need to specify the version to use.
+
+\begin{verbatim}
+sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+sudo apt-get update
+sudo apt-get install gcc-4.7 g++-4.7
+\end{verbatim}
+and then update-alternatives
+\begin{verbatim}
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.6 60 --slave /usr/bin/g++ g++ /usr/bin/g++-4.6 
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.7 40 --slave /usr/bin/g++ g++ /usr/bin/g++-4.7 
+sudo update-alternatives --config gcc
+\end{verbatim}
+
+
+
+\subsection{libgcc\_s.so}
+\label{sec:libgcc_s.so}
+
+\verb!libgcc_s.so! is GCC's runtime library. It contains some low-level
+functions that GCC emits calls to (like long long division on 32-bit CPUs).
+\url{https://gcc.gnu.org/onlinedocs/gccint/Libgcc.html}
+
+\url{http://refspecs.linuxbase.org/LSB_4.1.0/LSB-Core-generic/LSB-Core-generic/libgcc-s.html}
+
+
+\subsection{Target CPU}
+\label{sec:GCC_CPU_target}
+
+\verb!-march=cpu_type! option generates instructions (binary code, assembly
+code) for a given CPU type. The generated code thus may not run on other
+processors. However, \verb!-mtune=cpu_type! only tunes the generated code for
+that CPU type, but the code still be able to run on other processors. NOTE:
+\verb!-march=cpu_type! implies \verb!-mtune=cpu_type!.
+
+Values for \verb!cpu_type!
+\begin{itemize}
+  \item 'native': generate code for the CPU in the local machine (by default)
+  \item 'i386':
+  \item 'i486':
+  \item 'i586':
+  \item 'pentium':
+  \item 'pentium-mmx': based on Pentium core with MMX instruction set
+  \item 'pentiumpro':
+  \item 'i686':
+  \item 'pentium2': based on Pentium Pro core with MMX instruction set.
+  \item 'pentium3': 
+  \item 'pentium3m': based on Pentium Pro core with MMX and SSE 
+  \item 'pentium-m':  based on Pentium III CPU with MMX, SSE and SSE2
+  \item 'pentium4':
+  \item 'pentium4m': based on Pentium 4 with MMX, SSE and SSE2
+  \item 'prescott':
+  \item 'nocona':
+  \item 'core2':
+  \item 'corei7':
+  \item 'corei7-avx':
+  \item 'core-avx-i':
+  \item 'atom':
+  \item 'k6': AMD K6 CPU with MMX
+  \item 'k6-2':
+  \item 'k6-3': AMD K6 CPU with MMX and 3DNow!
+  \item 'athlon':
+\end{itemize}
+\url{http://gcc.gnu.org/onlinedocs/gcc-4.8.3/gcc/i386-and-x86-64-Options.html}
+
+\subsection{GCC extension: \_\_attribute\_\_}
+\label{sec:__attribute__}
+
+One of the best (but little used) feature of GCC extension (since GCC 2.95.3)
+\footnote{\url{www.unixwiz.net/techtips/gnu-c-attributes.html}}) is
+\verb!__attribute__! mechanism, which tell the compilers to do better
+optimization. There is always two sets of parantheses surrounding the content.
+\begin{verbatim}
+__attribute__((myattribute))
+\end{verbatim}
+
+You also need to compile your code with \verb!-Wall! to enable this. This can
+apply to either (1) function, (2) variable, and (3) data type.
+\begin{enumerate}
+  \item Function: 8 keywords ``noreturn'', ``const'', ``format'', ``section'',
+  ``constructor'', ``destructor'', ``unused'' and ``weak''
+  \item Variable: ``section''
+  \item Type: \ldots
+\end{enumerate}
+NOTE: We may also use attribute keyword with \verb!__! preceding, and follwing
+each keyword, e.g. \verb!__noreturn__! and \verb!noreturn! are the same.
+
+{\bf noreturn}: During optimization, the compiler need to consider the case when
+'fatal' can occur. However, there are functions we know that this never happens.
+So, we can tell the compiler to ignore this, which can help producing better
+code, as well as avoidig spurious warnings of uninitizlied variables. An example
+is that 
+\begin{verbatim}
+extern void exit(int) __attribute__((noreturn))
+
+extern void abort(void) __attribute__((noreturn))
+\end{verbatim}
+IMPORTANT: Functions that use ``noreturn'' must be 'void' function, i.e.
+function to return 'void'
+\footnote{\url{docs.freebsd.org/info/gcc/gcc.info.Function_Attributes/html}}.
+
+
+
+Before C11, using \verb!__attribute__! causes the code to be non-portable. One
+solution is to use
+\begin{verbatim}
+#ifdef __GNUC__
+#define UNUSED __atribute__((unused))
+#else
+#define UNUSED
+#endif
+
+void function(void) UNUSED;
+\end{verbatim}
+However, since C11, the keyword \verb!_Noreturn! has been introduced in the
+standard to indicate that a function never turns. This is being used in
+functions like \verb!longjmp()!, \verb!exit()!, \verb!abort()!,
+\verb!quick_exit()!, and \verb!thrd_exit()!.
+
+To make the code portable, use ANSI C's \verb!#pragma!.  Compilers that are NOT
+GCC compatibles use \verb!#pragma! to achieve the similar goals. However, it's
+NOT recommended. Since C99, it has \verb!_Pragma! operator tha allows you to
+spew pragmas in the middle of your code, and to compose the contents of a pragma
+with macros.
+
+\subsection{GCC extension: \_\_builtin\_ prefix}
+\label{sec:__builtin_C99functions}
+
+GCC provides built-in versions of the ISO C99/posix. These functions has a
+prefix \verb!__builtin_!, e.g. The \verb!<string.h>! functions
+like \verb!memcpy! becomes \verb!__builtin_memcpy!.
+
+TIPS: The \verb!<string.h>! functions are only replaced when the size of the
+source argument can be known at compile time or even at the first level of
+optimization (-O1 or -O). In which case the call to libc is replaced directly by
+unrolled code.
+\url{http://stackoverflow.com/questions/11747891/when-builtin-memcpy-is-replaced-with-libcs-memcpy}
+
+To avoid using \verb!__builtin_! extension, you compile the code with
+\verb!-fno-builtins!, -ansi, -std=c89, or something similar.
+
+
+\url{https://gcc.gnu.org/onlinedocs/gcc-3.4.6/gcc/Other-Builtins.html}
+
+
+\subsection{GCC 3.4}
+
+GCC 3.4 uses LSB 3.0 (Sect.\ref{sec:LSB_3.x}).
+
+\subsection{GCC 4.5 (Ubuntu Natty)}
+
+\url{https://wiki.ubuntu.com/NattyNarwhal/ToolchainTransition}
+
+\subsection{GCC 4.6 (Ubuntu 12.04)}
+
+It has 3 minor versions: 4.6.1, 4.6.2, and 4.6.3 (March-2012). 
+
+\subsection{GCC 4.7}
+
+NOTE: gcc-4.7 supports a number of C++11 features.
+ \url{https://gcc.gnu.org/gcc-4.7/cxx0x_status.html}
+
+To enable C++11 features, build with
+\verb!-std=c++11! or \verb!-std=gnu++11! compiler
+options; the former disables GNU extensions.
+
+\subsection{GCC 4.8.1}
+
+This is a major release with all major features C++11 are supported
+(Sect.\ref{sec:C++11}). Even though GCC 4.8.1 is C++ complete, libstdc++ (the
+standard library that goes with GCC - Sec.\ref{sec:libstdc++}) is not; so one way to
+utilize full C++11 is by compiling and linking with libc++ (Sect.\ref{sec:libc++})
+\url{https://gcc.gnu.org/projects/cxx0x.html}
+
+In many Linux distro, we need to download and compile it manually to have C++11
+features (check sys-admin book). 
+\ref{sec:C++11}
+
+\subsection{GCC 5.0 (Ubuntu 14.10)}
+\label{sec:GCC-5.0}
+
+Since GCC 5.x, the default is C++11 (Sect.\ref{sec:C++11}), i.e.
+\verb!-std=gnu11! rather than C++98 \verb!-std=gnu98!. Also, C++ runtime library
+(libstdc++) provides a dual ABI (ABI C++98 and ABI C++11), and uses a new ABI by
+default (Sect.\ref{sec:ABI-compatibility-C++98-C++11}).
+
+New extensions:
+\begin{enumerate}
+  \item OpenACC 2.0a specification (Sect.\ref{sec:OpenACC})
+  
+  \item OpenMP 4.0 specification
+  
+  \url{http://openmp.org/mp-documents/OpenMP4.0.0.Examples.pdf}
+  
+  
+  \item Cilk Plus
+  
+  \item Go language 1.4.2 
+\end{enumerate}
+
+New CPUS
+\begin{enumerate}
+  \item Atmel AVR: ATtiny4/5/9/10/20/40. 
+  
+  \item 
+\end{enumerate}
+\url{https://gcc.gnu.org/gcc-5/changes.html}
+
+
+%Sect.\ref{sec:glibc}
+
+\subsection{GCC 6.0 (Ubuntu 16.x)?}
+\label{sec:GCC-6.0}
+
+Since GCC 6.x, the default is C++14 (Sect.\ref{sec:C++14}), i.e.
+\verb!-std=gnu14!.
+
+New extensions:
+\begin{enumerate}
+  \item OpenACC 2.0a specification (Sect.\ref{sec:OpenACC}): improved
+  implementation
+  
+  \item OpenMP 4.5 specification
+  
+  \url{http://openmp.org/mp-documents/OpenMP4.5.0.Examples.pdf}  
+\end{enumerate}
+
+New CPUS
+\begin{enumerate}
+%  \item Atmel AVR: ATtiny4/5/9/10/20/40. 
+  
+  \item 
+\end{enumerate}
+
+\url{https://gcc.gnu.org/gcc-6/changes.html}
+
+
+How to install:
+\url{https://gist.github.com/application2000/73fd6f4bf1be6600a2cf9f56315a2d91}
+
+
+\subsection{GCC 7.x}
+
+GCC 7.0 was release in May 2017
+
+\begin{verbatim}
+sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+sudo apt-get update
+sudo apt-get install gcc-7 g++-7
+gcc-7 --version
+\end{verbatim}
+
+
+\subsection{GCC 7.2 (Ubuntu 17.10)}
+
+Ubuntu 17.10 has GCC 7.2 and clang 4.0 as default.
+
+\subsection{GCC 7.3}
+
+\url{https://gcc.gnu.org/ml/gcc/2018-01/msg00197.html}
+
+GCC 7.3 has more than 99 bugs fixed since GCC 7.2; besides the adding of new
+options to generate safe code - preventing Spectre vulnerabilities.
+
+Retpoline is a spectre v2 mitigation technique, and was added to GCC 7.3 (after
+GCC 8.1).
+
+\verb!-mindirect-branch-loop=! option to control loop filler in call
+and return thunks generated by \verb!-mindirect-branch=!
+
+\begin{verbatim}
+'lfence' uses "lfence" as loop filler.  
+
+'pause' uses "pause" as loop filler.  
+'nop' uses "nop"  as loop filler. 
+
+The default is 'lfence'.
+\end{verbatim}
+As per AMD architects, using "lfence" in "retpoline" is better than "pause" for our targets.
+So please allow filler to use "lfence". 
+
+To install GCC 7.3 in Ubuntu 16.04
+\begin{verbatim}
+sudo apt-get install -y software-properties-common python-software-properties
+
+sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+sudo apt update
+sudo apt install g++-7 -y
+
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 \
+                         --slave /usr/bin/g++ g++ /usr/bin/g++-7 
+sudo update-alternatives --config gcc
+gcc --version
+g++ --version
+\end{verbatim}
+\url{https://gist.github.com/jlblancoc/99521194aba975286c80f93e47966dc5}
+
+
+\section{Clang (clang, clang++)}
+\label{sec:clang}
+
+Clang is an LLVM-based compiler that targets to C/C++/Objective-C/Objective-C++.
+The compiler uses libc++ (Sect.\ref{sec:libc++}) which is a 100\% complete C++11
+implementation on Apple's OS X.
+
+It uses LLVM as the back-end, and Clang is designed to be able to replace the
+full GNU Compiler Collection (GCC). It can  produce code that run faster than
+GCC, low memory use and GCC-compatible. Clang is safe in Linux to use since is
+configured as a GCC replacement. Its standard library is \verb!libc++!
+(Sect.\ref{sec:libc}).
+
+
+It has two parts
+\begin{enumerate}
+  \item the driver
+  
+  \item the front-end:  Sect.\ref{sec:clang-front-end}
+  
+  The -cc1 argument indicates that the compiler front-end is to be used, and not
+  the driver.
+\end{enumerate}
+
+
+Clang is released as part of regular LLVM releases, and thus Clang is designed
+to be built as part of an LLVM build. Assuming that the LLVM source code is
+located at \verb!$LLVM_SRC_ROOT!, then the clang source code should be installed
+as:   \verb!$LLVM_SRC_ROOT/tools/clang!.
+\url{https://github.com/llvm-mirror}
+
+
+Note that functionality provided by <atomic> is only functional with clang.
+
+\subsection{clang front-end}
+\label{sec:clang-front-end}
+
+The -cc1 argument indicates that the compiler front-end is to be used, and not
+the driver (Sect.\ref{sec:clang-driver}).  It uses LLVM as its back end and has
+been part of the LLVM release cycle since LLVM 2.6.
+
+The options for the front-end is meant to be used by developer.
+
+
+\subsection{clang driver}
+\label{sec:clang-driver}
+
+By default, if you run \verb!clang!, the driver is used. If you add \verb!-cc1!,
+the front-end is used. A clang driver is a production quality compiler driver
+with a compilar chain and tools, using the compatible options with gcc driver.
+(Sect.\ref{sec:GCC}). \url{https://clang.llvm.org/docs/DriverInternals.html}
+
+ALL OPTIONS: \url{https://clang.llvm.org/docs/genindex.html}
+
+STAGE 1: parsing source file (i.e. string of texts)
+\begin{verbatim}
+The clang driver can dump the results of this stage using the 
+-### flag (which must precede any actual command line arguments). For example:
+
+clang -### -Xarch_i386 -fomit-frame-pointer -Wa,-fast -Ifoo -I foo t.c
+\end{verbatim}
+
+
+FOR CROSS-COMPILATION:
+\begin{verbatim}
+  //  <arch><sub>-<vendor>-<sys>-<abi>
+"-triple", "x86_64-apple-macosx10.11.0",
+"-target", "x86_64-apple-macosx10.11.0",
+
+NOTE:
+arch = x86_64, i386, arm, thumb, mips, etc.
+sub = for ex. on ARM: v5, v6m, v7a, v7m, etc.
+vendor = pc, apple, nvidia, ibm, etc.
+sys = none, linux, win32, darwin, cuda, etc.
+abi = eabi, gnu, android, macho, elf, etc.
+\end{verbatim}
+\url{https://clang.llvm.org/docs/CrossCompilation.html}
+
+CHANGE DEFAULT PREFIX to ROOT INCLUDE FOLDER (default: /):
+\begin{verbatim}
+-isysroot /path/to/build
+      , which makes all includes for your library relative to the build
+      directory.
+\end{verbatim}
+
+Example: if you don't want \verb!<mylib.h>! to be found in
+\verb!/usr/include/mylib.h!, then you pass the custom folder to 
+\verb!-isysroot! 
+\begin{verbatim}
+-isysroot /Developer/SDKs/MacOSX10.4u.sdk 
+           will look for mylib.h in
+/Developer/SDKs/MacOSX10.4u.sdk/usr/include/mylib.h.
+
+SO: all default include paths should be prefixed with
+         /Developer/SDKs/MacOSX10.4u.sdk
+\end{verbatim}
+\url{https://clang.llvm.org/docs/UsersManual.html}
+
+
+\subsection{clang-tidy}
+\label{sec:clang-tidy}
+
+\url{http://clang.llvm.org/extra/clang-tidy/}
+
+
+clang-tidy is a clang-based C++ “linter” tool. Its purpose is to provide an
+extensible framework for diagnosing and fixing typical programming errors, like
+style violations, interface misuse, or bugs that can be deduced via static
+analysis
+\begin{verbatim}
+
+sudo apt-get install clang-tidy-6.0
+\end{verbatim}
+
+
+\subsection{compilation database}
+\label{sec:clang-compilation-database}
+
+\url{https://clang.llvm.org/docs/JSONCompilationDatabase.html}
+
+\subsection{.clang file, .clang.ow file}
+\label{sec:clang-dot-clang}
+
+Each project can have a dot file at his root, containing
+the compiler options. This is useful if you're using some
+non-standard include paths.
+        
+        
+Vim-clang uses a file named ".clang" (same as \verb!.clang_complete! for
+\verb!clang_complete!) in the project root to save Clang options.
+
+The format of the .clang file is either
+\begin{verbatim}
+  Each flags option can have one or more compiler arguments. A .clang file can
+  have multiple flags options. They will be concatenated in the order of their
+  appearance.  
+flags=<flags>
+
+flags=-I/home/arakshic/.local/include -DNDEBUG
+flags=-I/../src
+\end{verbatim}
+or
+\begin{verbatim}
+  // requires the path (relative to the .clang file) to
+  // a clang JSON compilation database format specification
+compilation_database = "<path to compilation_database>"
+\end{verbatim}
+
+The file ".clang" only contains: "-I." to include files in directory "./".
+So that the source file should use \verb!#include "yacl/xxx.h"! to include
+files.
+
+A new similar file named ".clang.ow" is added to deal with the special
+case that one want to overwrite all clang options, which means the one don't
+need automatically generated options for clang by the plugin.
+
+NOTE: all options in ".clang" and ".clang.ow" must be safe to be used by the
+'shell', that means special chars should always be escaped correctly.
+
+\subsection{.clang-format file}
+\label{sec:clang-dot-clang-format}
+
+.clang-format file contains format style
+
+\begin{verbatim}
+-style=file to load style configuration from
+                .clang-format file located in one of the parent
+                directories of the source file (or current
+                directory for stdin).
+                Use -style="{key: value, ...}" to set specific
+                parameters, e.g.:
+                  -style="{BasedOnStyle: llvm, IndentWidth: 8}"
+\end{verbatim}
+\url{https://clang.llvm.org/docs/ClangFormat.html}
+
+An easy way to create this file
+\begin{verbatim}
+clang-format -style=llvm -dump-config > .clang-format
+\end{verbatim}
+
+
+\subsection{Clang versions}
+
+\subsection{-- Clang 7.0}
+\label{sec:clang-7.0}
+
+\begin{verbatim}
+sudo apt-get install libedit-dev
+
+// if you get error on ppc64le architecture of ldap-common not found
+sudo aptitude safe-upgrade '-o APT::Get::Fix-Missing=true'
+\end{verbatim}
+
+
+
+\begin{verbatim}
+
+\end{verbatim}
+
+\subsection{-- Clang 6.0}
+\label{sec:clang-6.0}
+
+On Ubuntu 16.04, it only has clang 3.8 by default: 
+
+To install Clang 6.0
+\begin{verbatim}
+wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+sudo apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-6.0 main"
+sudo apt-get update
+sudo apt-get install -y clang-6.0
+
+
+update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-3.8 100
+update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-6.0 1000
+update-alternatives --install /usr/bin/clang++ clang /usr/bin/clang-3.8 100
+update-alternatives --install /usr/bin/clang clang /usr/bin/clang-3.8 100
+update-alternatives --install /usr/bin/clang clang /usr/bin/clang-6.0 1000
+update-alternatives --config clang
+update-alternatives --config clang++
+\end{verbatim}
+\url{https://blog.kowalczyk.info/article/k/how-to-install-latest-clang-6.0-on-ubuntu-16.04-xenial-wsl.html}
+
+\subsection{-- Clang 4.0}
+\label{sec:clang-4.0}
+
+\subsection{-- Clang 3.9}
+\label{sec:clang-3.9}
+
+Added
+\begin{verbatim}
+CXTranslationUnit_KeepGoing
+\end{verbatim}
+
+
+\subsection{-- Clang 3.8}
+\label{sec:clang-3.8}
+
+Added
+\begin{verbatim}
+CXTranslationUnit_CreatePreambleOnFirstParse
+\end{verbatim}
+
+\subsection{-- Clang 3.6}
+\label{sec:clang-3.6}
+
+\subsection{Download and build }
+\label{sec:clang-install}
+
+Use the script
+\begin{verbatim}
+wget https://raw.githubusercontent.com/Microsoft/ChakraCore/master/tools/compile_clang.sh
+
+// Update LLVM_VERSION="3.9.1" at line 7 to LLVM_VERSION="4.0.0"
+
+sudo ./compile_clang.sh
+\end{verbatim}
+
+First download LLVM: LLVM in git: \url{https://github.com/llvm-mirror/llvm}
+
+\begin{verbatim}
+git clone ...
+\end{verbatim}
+
+Checkout Clang into a folder inside llvm
+\begin{verbatim}
+cd llvm/tools
+
+// checkout to llvm/tools/clang
+git clone ... 
+\end{verbatim}
+CLANG in git: \url{https://github.com/llvm-mirror/clang}
+\footnote{\url{https://github.com/llvm-mirror/clang/blob/979aa4018b0fb1b7acee5c4cdb0b4354816b5a9a/INSTALL.txt}}
+
+NOTE: If using SVN to download the source we can follow:
+\url{https://solarianprogrammer.com/2013/01/17/building-clang-libcpp-ubuntu-linux/}
+
+{\bf Folder structure:}
+\begin{verbatim}
+$LLVM
+  llvm
+    tools/clang
+  build
+\end{verbatim}
+
+NOTE: Newer llvm use cmake
+\begin{verbatim}
+cd $LLVM
+mkdir build && cd build
+cmake -G <generator> [options] <path to llvm sources>
+
+// 
+\end{verbatim}
+
+
+
+NOTE: Older llvm use configure and make. To build in location
+\verb!/usr/clang_3_4!
+\begin{verbatim}
+cd $LLVM
+mkdir build && cd build
+../configure --prefix=/usr/clang_3_4 --enable-optimized --enable-targets=host --disable-compiler-version-checks
+make -j 8
+\end{verbatim}
+
+References: CPU0
+\url{http://jonathan2251.github.io/lbd/about.html}
+
+\subsection{* Build LLVM/CLANG in RedHat}
+\label{sec:LLVM-build}
+\label{sec:CLANG-build}
+
+As RedHat 6.x only has gcc 4.4.7 which is not supported to build LLVM/CLANG.
+
+You need to download gcc 4.8.2 source and then compile it using gcc 4.4.7.
+
+As we install gcc in a non-standard location, we need to tell the system to
+looks for the libraries in non-standard locations as well.
+
+Example: for 
+\begin{verbatim}
+> /build/share/gcc/4.8.2/bin/g++ -E -x c++ - -v < /dev/null
+\end{verbatim}
+
+\begin{enumerate}
+  \item Install gcc 4.8.2
+  \item Install glibc with right version 2.15+ 
+  \item Download the \verb!build-gcc.sh! script
+
+\url{http://btorpey.github.io/blog/2015/01/02/building-clang/}
+  
+\begin{verbatim}
+// follow the steps in the link above first to download
+
+// then
+export
+EXTRA_CMAKE_ARGS="-DCMAKE_C_COMPILER=/gsa/yktgsa/home/t/m/tmhoangt/bin/gcc/4.8.2/bin/gcc -DCMAKE_CXX_COMPILER=/gsa/yktgsa/home/t/m/tmhoangt/bin/gcc/4.8.2/bin/g++ -DGCC_INSTALL_PREFIX=/gsa/yktgsa/home/t/m/tmhoangt/bin/gcc/4.8.2 -DCMAKE_CXX_LINK_FLAGS='-L/gsa/yktgsa/home/t/m/tmhoangt/bin/gcc/4.8.2/lib64 -Wl,-rpath,/gsa/yktgsa/home/t/m/tmhoangt/bin/gcc/4.8.2/lib64' -DCMAKE_INSTALL_PREFIX= -DLLVM_ENABLE_ASSERTIONS=ON -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=X86 -DPYTHON_LIBRARY=/home/tmhoangt/bin/lib/libpython2.7.so -DPYTHON_EXECUTABLE=/home/tmhoangt/bin/bin/python"
+
+mkdir build
+cd build
+../llvm/configure --prefix=/home/tmhoangt/bin/ --enable-optimized
+--enable-targets=host --disable-compiler-version-checks
+
+./build-gcc.sh_short
+\end{verbatim}
+\end{enumerate}
+
+
+
+\section{Intel CC (icc)}
+\label{sec:icc}
+\label{sec:Intel-C-Compiler}
+
+\section{XL CC (xlcc)}
+\label{sec:xlcc}
+
+
+\section{Visual C++}
+\label{sec:VisualC++-Microsoft}
+Visual C++ 2010 implemented many C++0x specification. Visual C++ 2012 expands
+to include many C++11 features
+\footnote{\url{msdn.microsoft.com/en-us/library/vstudio/hh567368.aspx}}.
+
+Extensions:
+\begin{enumerate}
+  \item SCARY iterators
+  \item \verb!<filesystem>! from TR2 proposal. If offers working with
+  file/folder intuitively using \verb!path! object, a directory
+  iterator \verb!recursive_directory_iterator!.
+  This is based on Boost.Filesystem V2. (NOTE: Boost.Filesystem V3 has not been implemented yet
+  in Visual C++ 2012)
+\end{enumerate}
+
+
+\section{Intermediate files}
+
+During the compilation, there can be different files are generated, and are
+automatically deleted at the end of the compilation.
+You can tell the compiler to keep these files using a compiling option.
+
+The content of these files can be useful for debugging purpose
+(Sect.\ref{chap:debug}).
+
+\url{https://msdn.microsoft.com/en-us/library/fwkeyyhe.aspx}
+
+\subsection{Listing file (/FA)}
+\label{sec:Listing_file_/FA}
+
+
+A listing file is the file that contains source code, assembler code, or machine code.
+
+\begin{verbatim}
+
+          default file extension      content
+/FAc      .cod                       machine code
+ 
+/FAs      .asm                      assembly code
+
+/FAcs     .cod                      source code, machine code, assembly code
+
+/FAsc
+\end{verbatim}
+
+\subsection{Map file (/Fm, /MAP)}
+
+
+A mapfile is the file containing segments of code in the order in which they appear in the final EXE or DLL file.
+The content of a map file
+\begin{itemize}
+  \item module name
+  \item timestamp from program header file
+  \item list of segments: 
+  \item list of public symbols
+  \item entry point : \verb!section:offset! address
+\end{itemize}
+
+The default name is the base name of the program with the extension \verb!.map!
+\begin{verbatim}
+/Fm:path
+
+/MAP:filename
+\end{verbatim}
+\url{https://msdn.microsoft.com/en-us/library/8byw5bh9.aspx}
+
+\url{https://msdn.microsoft.com/en-us/library/8byw5bh9.aspx}
+
+\subsection{Object file (/Fo)}
+\label{sec:object_file_/Fo}
+
+
+\subsection{Hot patchable file (/hotpatch)}
+\url{https://msdn.microsoft.com/en-us/library/ms173507.aspx}
+
+\section{Linker}
+\label{sec:linker}
+
+Sect.\ref{sec:how-linux-run-a-program} explains how Linux launch a program, and
+load the code into memory.
+
+Compiling your code goes through two stages:
+\begin{itemize}
+  \item compile the code, as organized into a single source file (.c, .cpp, .cxx) into a single object file 
+  
+  If the code utilize functions in another library, or object file, it only need header files 
+  
+  So, \verb!-I /path/to/include/! is a commonly used option.
+  
+   Other options to use at compiling stages: see 
+  
+  \item (optional) generate an archive file (*.a in Linux, *.lib in Windows)
+  that contains many or all object files (*.o in Linux, *.obj in Windows)
+  
+  
+  \item link the main source file, with either (1) all the object files together, (2) with the archive file
+  
+ So, we have the options: (1) compile everything into a .lib file and then link that .lib file to the executable, 
+ (2) link the executable directly against all the .obj file
+  
+ At this time, it needs to also know the external library, i.e. \verb!-lcudart! (for libcudart.so library), and
+ the path to the library, i.e. \verb!-L/path/to/lib! option.  
+
+ Other options to use at linking stages: see below
+\end{itemize}
+
+Suppose your program 
+\begin{itemize}
+  
+  \item  if the code call a function - the dynamic object, by loading an external library, using 
+  \verb!dlopen! (Sect.\ref{sec:dlopen}), but such dynamic object refers back to the symbols, e.g. the function, 
+  defined by the current program, then we need to link such library to the program using option \verb!-rdynamic!.  
+  
+  Another choice is using \verb!-Wl,--export-dynamic!, this will cause passing
+  \verb!--export-dynamic! to the linker.
+  
+\begin{mdframed}
+
+The \verb!-Wl,xxx! option for gcc passes a comma-separated list of tokens as a space-separated list of arguments to the linker
+
+\begin{verbatim}
+gcc -Wl,aaa,bbb,ccc
+
+// turns into 
+ld aaa bbb ccc
+\end{verbatim}
+
+So, to have 
+\begin{verbatim}
+ld -rpath
+
+// if we use gcc, then we need
+gcc -Wl,-rpath
+\end{verbatim}
+
+\end{mdframed}
+  
+  \item link a static library against your executable, unreferenced symbols
+  
+  
+\verb!-Wl,--whole-archive! if passed to the linker, then for each archive (*.a
+file) mentioned on the command line, after the \verb!--whole-archive! option, 
+linker is forced to include every object file in the archive in the link, rather
+than searching the archive for the required object files.
+
+WHEN TO USE THIS: This is normally used in Makefile's target for buidling a
+shared library, i.e. to turn an archive file (*.a) into a shared library, i.e.
+forcing every objects to be included in the resulting shared library.
+
+NOTE: In Visual Studio C++ 2015 (Update 2), it use \verb!/WHOLEARCHIVE! flag,
+which has equivalent functionality to the \verb!--whole-archive! option to
+\verb!ld!.  
+
+NOTE: In Visual Sdtudio, use \verb!/INCLUDE! flag to force inclusion of unused symbols.
+
+
+   \item if you get the error 
+
+\begin{verbatim}
+ld bad rpath option
+\end{verbatim}
+It means that the linker cannot find the path to the shared library being used, i.e. we need to add \verb!-L/path/to/lib! 
+where it can find the library
+
+\end{itemize}
+
+
+
+NOTE: The usual gcc switch for passing options to linker is -Wl, and it is
+needed because gcc itself may not understand the bare -rpath linker option. 
+When using \verb!-rpath! the path is saved in \verb!DT_RPATH!.
+
+
+
+\section{Compile your program using a non-standard glibc}
+
+By default, the compiler links to the glibc version being used by the Linux
+kernel. If, for some reason, you want to compile the code to use a different
+version of glibc
+\begin{enumerate}
+  \item first, you need to install that version of glibc (Sect.\ref{sec:glibc-install})
+  
+  \item 
+ Then, when you compile your program
+\begin{verbatim}
+g++ main.o -o myapp ... \
+   -Wl,--rpath=/path/to/newglibc \
+   -Wl,--dynamic-linker=/path/to/newglibc/ld-linux.so.2
+\end{verbatim}
+
+\end{enumerate}
+
+The usual gcc switch for passing options to linker is -Wl,, and it is needed
+because gcc itself may not understand the bare -rpath linker option.
+The -rpath linker option will make the runtime loader search for libraries in
+/path/to/newglibc (so you wouldn't have to set \verb!LD_LIBRARY_PATH! before
+running it), and the -dynamic-linker option will "bake" path to correct
+ld-linux.so.2 into the application.
+
+
+	
+Now you can use a convenient utility patchelf (nixos.org/patchelf.html), which
+allows you to modify rpath and interpreter of already compiled ELF
+(Sect.\ref{sec:ELF}).

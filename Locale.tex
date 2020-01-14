@@ -1,0 +1,142 @@
+\chapter{Locale - Internationalization - Globalization}
+\label{chap:locale}
+
+Locale refers to the way the application behaves acoording to the user's
+language environment. This include character encoding, formatting of
+dates/times, currency and large numbers.
+
+Support for international locale started since C89 (Sect.\ref{sec:C89_locale}).
+A (character) language environment defines
+\begin{enumerate}
+  \item native language of the country-specific
+  \item character set and coded character set : how to map a character of a
+  character set into a code point in a set of code points. A code point is a
+  hexadecimal value (binary value if stored in computer). 
+
+  \item collating and ordering: define the relative orders of characters (used
+  for sorting)
+  
+  \item character classification: define the type of characters in which groups
+  (alphabetic, numeric)
+  
+  \item character case conversion: mapping between lower case and upper case
+  
+  \item data, time format: names of the weekdays, order of months, etc.
+  \item format of numbers and monetary quantities: numeric grouping,
+  decimal-point character, and monetary symbols.
+  
+  \item format of affirmative and negative system responses: 
+\end{enumerate}
+A \verb!locale! tells us how the language-specific data (given above)
+is processed, data I/O (printed and displayed). 
+
+Before you can compile your program, the compile must be able to read the source
+code. So, it's important to tell the compiler which encoding
+scheme of the source file (Sect.\ref{sec:locale_source-files})
+
+% What it tells is It mainly deals with character and string processing.
+
+You can set the locale in the code so that it knows how to interpret data based
+on that locale. A locale define the code sets, date and time formatting conventions,
+monetary conventions, decimal formatting convention, etc. Each can be set by
+modifying a given environment variable, which can be
+queried using \verb!locale! command.
+\begin{verbatim}
+LANG=en_US.UTF-8
+LANGUAGE=
+LC_CTYPE="en_US.UTF-8"
+LC_NUMERIC="en_US.UTF-8"
+LC_TIME="en_US.UTF-8"
+LC_COLLATE="en_US.UTF-8"
+LC_MONETARY="en_US.UTF-8"
+LC_MESSAGES="en_US.UTF-8"
+LC_PAPER="en_US.UTF-8"
+LC_NAME="en_US.UTF-8"
+LC_ADDRESS="en_US.UTF-8"
+LC_TELEPHONE="en_US.UTF-8"
+LC_MEASUREMENT="en_US.UTF-8"
+LC_IDENTIFICATION="en_US.UTF-8"
+LC_ALL=
+\end{verbatim}
+At the machine level, the locale name can be set in the \verb!LANG! environment
+variable. If set inside the program, it overwrite the setting in the environment
+variable. 
+
+C or POSIX locale is the set of locale setting that is required for all
+POSIX-compliant systems/softwares. Single UNIX Specification (SUS) version 3
+defined \verb!C locale! (Sect.\ref{sec:LSB_C-lang}).  
+\url{http://www-01.ibm.com/support/knowledgecenter/ssw_aix_53/com.ibm.aix.nls/doc/nlsgdrf/locale.htm}
+``C'' and ``POSIS'' are the same. 
+On GNU systems, only \verb!LC_ALL=C! or \verb!LC_ALL=POSIX! or
+\verb!LC_MESSAGE=C|POSIX! override \verb!$LANGUAGE!
+setting.\footnote{\url{http://unix.stackexchange.com/questions/87745/what-does-lc-all-c-do}} 
+
+A C program (automatically) inherits the locale information from the environment
+variables when it starts up. However, it doesn't control how the locale used by
+the library function. Thus, to ensure all the functions (including in the
+library) use the locale specified by the environment, we run \verb!locale()!
+function with \verb!LC_ALL! as the first argument and an empty string in the
+second argument.
+
+\begin{verbatim}
+#include <locale.h>
+
+int main()
+{
+  char* locale;
+  locale = setlocale(LC_ALL, "C");  /* set using C-locale */
+  locale = setlocale(LC_ALL, "");  /* set based on environment variables */
+  
+  return 0;
+}
+\end{verbatim}
+\url{http://www.gnu.org/software/libc/manual/html_node/Setting-the-Locale.html}
+
+
+See how different locales' behavior?
+\begin{verbatim}
+$ LC_TIME=fr_FR.UTF-8 date
+jeudi 22 aot 2013, 10:41:30 (UTC+0100)
+
+$ LC_MONETARY=fr_FR.UTF-8 locale currency_symbol
+
+
+$ LC_ALL=es_ES man
+Que pgina de manual desea?
+
+$ LC_ALL=C man
+What manual page do you want?
+
+$ LC_ALL=en_US sort <<< $'a\nb\nA\nB'
+a
+A
+b
+B
+
+$ LC_ALL=C sort <<< $'a\nb\nA\nB'
+A
+B
+a
+b
+\end{verbatim}
+
+
+Example: converting ASCII to UPPERCASE
+\begin{verbatim}
+auto loc = std::locale("");
+
+char s[] = "hello";
+for (char &c : s) {
+  c = toupper(c, loc);
+}
+\end{verbatim}
+
+Example: To be internationalize, we use \verb!wchar_t! instead.
+\begin{verbatim}
+auto loc = std::locale("");
+
+wchar_t s[] = L"hello";
+for (wchar_t &c : s) {
+  c = toupper(c, loc);
+}
+\end{verbatim}

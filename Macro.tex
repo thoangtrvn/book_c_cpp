@@ -1,0 +1,256 @@
+\chapter{Macro}
+\label{chap:macro}
+
+
+We use \verb!#define! (Sect.\ref{sec:define}),
+as discussed in Sect.\ref{sec:macro_C}.
+
+\section{Function-like macro}
+\label{sec:function-like-macro}
+
+We put a pair of parentheses immediately after the macro name.
+
+\begin{verbatim}
+#define lang_init()  c_init()
+
+then
+     lang_init()
+          ==> c_init()
+
+but  
+     lang_init
+         ==> lang_init
+\end{verbatim}
+So,   function-like macro is only expanded if its name appears with a pair of
+parentheses after it. If you write just the name, it is left alone.
+
+\url{https://gcc.gnu.org/onlinedocs/cpp/Function-like-Macros.html}
+
+
+\section{Macro that can accept any number of arguments}
+
+
+Sect.\ref{sec:macro_variadic}
+
+\section{Using \# (stringize operator, number-sign) and \#\#}
+
+
+C89 standard -- that was the standard the codified the \verb!#! and \verb!##!
+operators in macros and mandates recursively expanding macros in \verb!args!
+before substituting them into the body if and only if the body does not apply a
+\verb!#! or \verb!##! to the argument. C99 is unchanged from C89 in this
+respect.
+
+\url{http://c-faq.com/ansi/stringize.html}
+
+\subsection{\#}
+
+The stringize operator or number-sign operator \verb!#! is used with a
+function-like macro (Sect.\ref{sec:function-like-macro}) and converts a macro
+parameters into string literal immediately, without further expanding it.
+
+\begin{verbatim}
+#define make_string(x) #x
+\end{verbatim}
+then the parameter token immediately to the right of the \verb!#! (ignoreing
+any white-spaces) is transformed by the preprocessor into a string.
+Leading and trailing white space are deleted.
+
+Application:
+\begin{verbatim}
+#define COMMA ,
+
+make_string(twas brillig);
+make_string( twas brillig );
+make_string("twas" "brillig");
+make_string(twas COMMA brillig);
+\end{verbatim}
+print out
+\begin{verbatim}
+"twas brillig"
+"twas brillig"  (leading and trailing spaces from the original token are
+                 removed)
+
+"twas COMMA brillig"   (if the tokens contain another macro name, it is not
+                       expaned)
+\end{verbatim}
+
+\url{http://www.complete-concrete-concise.com/programming/c/preprocessor---understanding-the-stringizing-operator}
+
+\url{http://stackoverflow.com/questions/2751870/how-exactly-does-the-double-stringize-trick-work}
+
+ Example:
+\begin{verbatim}
+#define Str(x) x
+#define Xstr(x) Str(x)
+#define OP plus
+char *opname = Xstr(OP);
+\end{verbatim}
+becomes
+\begin{verbatim}
+char *opname = Xstr(plus) = Str(plus) = plus;
+\end{verbatim}
+
+But:
+\begin{verbatim}
+#define Str(x) #x
+#define Xstr(x) Str(x)
+#define OP plus
+char *opname = Xstr(OP);
+\end{verbatim}
+becomes
+\begin{verbatim}
+char *opname = Xstr(plus) = Str(plus) = "plus";
+\end{verbatim}
+
+
+\subsection{\#\# (token-pasting operator, token concatenation)}
+
+We use \verb!##! to concatenate two tokens into one token.
+Here, the values (rather than the names) of two macros are to be concatenated.
+
+This is a quite common programming trick to add a prefix or suffix to
+the all the giving functions. Example
+\begin{verbatim}
+// deps/libncurses/include/curses.h
+
+/*
+ * Extra extension-functions, which pass a SCREEN pointer rather than using
+ * a global variable SP.
+ */
+#if 0
+#undef  NCURSES_SP_FUNCS
+#define NCURSES_SP_FUNCS 20120922
+#define NCURSES_SP_NAME(name) name##_sp
+
+
+/* Define the sp-funcs helper function */
+#define NCURSES_SP_OUTC NCURSES_SP_NAME(NCURSES_OUTC)
+typedef int (*NCURSES_SP_OUTC)(SCREEN*, int);
+
+extern NCURSES_EXPORT(SCREEN *) new_prescr (void); /* implemented:SP_FUNC */
+
+extern NCURSES_EXPORT(int) NCURSES_SP_NAME(baudrate) (SCREEN*); /* implemented:SP_FUNC */
+extern NCURSES_EXPORT(int) NCURSES_SP_NAME(beep) (SCREEN*); /* implemented:SP_FUNC */
+extern NCURSES_EXPORT(bool) NCURSES_SP_NAME(can_change_color) (SCREEN*); /* implemented:SP_FUNC */
+extern NCURSES_EXPORT(int) NCURSES_SP_NAME(cbreak) (SCREEN*); /* implemented:SP_FUNC */
+extern NCURSES_EXPORT(int) NCURSES_SP_NAME(vidputs) (SCREEN*, chtype, NCURSES_SP_OUTC); /* implemented:SP_FUNC */
+
+#if 1
+extern NCURSES_EXPORT(char *) NCURSES_SP_NAME(keybound) (SCREEN*, int, int);	/* implemented:EXT_SP_FUNC */
+extern NCURSES_EXPORT(int) NCURSES_SP_NAME(assume_default_colors) (SCREEN*, int, int);	/* implemented:EXT_SP_FUNC */
+extern NCURSES_EXPORT(int) NCURSES_SP_NAME(use_legacy_coding) (SCREEN*, int);	/* implemented:EXT_SP_FUNC */
+#endif
+
+#else
+
+#undef  NCURSES_SP_FUNCS
+#define NCURSES_SP_FUNCS 0
+#define NCURSES_SP_NAME(name) name
+#define NCURSES_SP_OUTC NCURSES_OUTC
+
+#endif
+
+\end{verbatim}
+
+
+
+
+\begin{verbatim}
+#define COMMAND(NAME)  { #NAME, NAME ## _command }
+
+struct command commands[] =
+     {
+       COMMAND (quit),
+       COMMAND (help),
+       ...
+     };
+\end{verbatim}
+
+When a macro is expanded, the two tokens on either side of each \verb!##! operator
+are combined into a single token, which then replaces the \verb!##! and the two
+original tokens in the macro expansion.
+
+Application: the first \verb!#NAME! is replaced by a string, the
+second \verb!NAME ## _command! is replaced by a concatenated value (not a
+string).
+
+\begin{verbatim}
+struct command commands[] = 
+   }
+      {"quit", quit_command},
+      {"shelp", help_command}
+   }
+\end{verbatim}
+\url{https://gcc.gnu.org/onlinedocs/cpp/Concatenation.html}
+ 
+Example:
+\begin{verbatim}
+#define IIF(cond) IIF_ ## cond
+#define IIF_0(t, f) f
+#define IIF_1(t, f) t
+\end{verbatim}
+
+\url{https://github.com/pfultz2/Cloak/wiki/C-Preprocessor-tricks,-tips,-and-idioms}
+then
+\begin{verbatim}
+#define A() 1
+IIF(A())(true, false) 
+\end{verbatim}
+becomes
+\begin{verbatim}
+IFF_A()(true,false)
+\end{verbatim}
+as \verb!A()! is not expanded to 1 due to the inhibition caused by the \verb!##!
+operator.
+
+% \begin{verbatim}
+% IFF_1(true,false)  
+%   ==> true
+% \end{verbatim}
+Two-stage replacment is used
+\begin{verbatim}
+#define CAT(a, ...) PRIMITIVE_CAT(a, __VA_ARGS__)
+#define PRIMITIVE_CAT(a, ...) a ## __VA_ARGS__
+\end{verbatim}
+
+\section{Define an a lias name}
+
+SYNTAX: \verb!#define <new-name> <existing-name>!
+
+\begin{itemize}
+  \item for a value
+
+\begin{verbatim}
+#define true 1
+#define TRUE 1
+\end{verbatim}
+then we can use \verb!true! or \verb!TRUE! in the code.
+
+  \item for a type
+\begin{verbatim}
+#define mybyte byte;
+\end{verbatim}
+
+  \item for a function
+  
+\begin{verbatim}
+#define sin(x) __builtin_sin(x)
+\end{verbatim}
+
+\end{itemize}
+
+\subsection{Detect O/S}
+
+
+Sect.\ref{sec:macro-detect-OS}
+
+
+\section{Detect CPU}
+
+Sect.\ref{sec:macro-detect-CPU} and Sect.\ref{sec:macro-GNU-to-detect-CPU}
+
+\section{Detect compiler}
+
+Sect.\ref{sec:macro-detect-compiler} and Sect.\ref{sec:macro-detect-compiler-version}
+

@@ -1,0 +1,227 @@
+\chapter{Exception Handling}
+\label{chap:Exception_Handling_C-C++}
+
+\section{LBYL style: look before you leap}
+\label{sec:LBYL}
+
+Unlike the coding style EAFP in Python, the style LBYL in C requires the
+programmers to check/test for pre-conditions before making calls or lookups.
+
+In a multi-threaded environment, the LBYL approach can risk introducing a race
+condition between "the looking" and "the leaping".
+Example:
+\begin{verbatim}
+if key in mapping: return mapping[key] 
+\end{verbatim}
+can fail if another thread removes key
+from mapping after the test, but before the lookup.
+
+\section{Exceptions handling (try/catch)}
+\label{sec:exception-handling}
+
+An {\bf exception} is an error that is detectable by the code, and need
+programmers to provide the adequate code to handle it.
+ The code to handle this error is called {\bf exception handler}.
+
+{\bf exception handling} = a mechanism that allows the program to
+  save the current state of execution (in a predefined place), switching the
+  execution to a given function (known as {\it exception handler}), with the
+  exception as the input.
+
+  The aim of an exception handler is to give the program to get a chance to
+  fix the error, e.g. hoping to revert the error caused by the error.
+
+\subsection{LISP}
+
+  During the execution of the program, when a function is called, the parent
+  function is put into {\it call stack} (execution stack, or run-time stack).
+  The call  stack is used to keep track of the point to which each active 
+  subroutine should return control when it finishes executing. It may  needs
+  several information (e.g. return address, current state of the data..). To
+  look for an exception handler, the runtime engine search  back through the
+  call stack until the appropriate exception handler  is found. 
+  
+  For example:
+  $f\cee{->[\text{call}]} g \rightarrow h$, $f$ contains a handler $H$ for
+  exception E. If during the execution, the exception E occurs in $h$, as the
+  handler for E, which is $H$, is in  $f$; then $g$ and $h$ are terminated; and
+  $H$ in $f$ will handler  E. Here, the current state of the program is lost,
+  and there is no  way to recover the execution by resuming current state of the
+   program. 
+   
+ However, one programming language have this capability,  that is
+ {\it Common Lisp} (CLisp) with Condition System. In CLisp,  it doesn't unwind
+  the stack, so the current state is kept. So,  depending on the situation, the
+  exception handler can resume the execution to the saved state.
+
+% Exception are for exceptional conditions, i.e. the cases that cannot be
+% easily handled during normal program execution. This allows the
+% program not to get crashed or terminated. 
+Exceptions were caught by ERRSET keyword in LISP, which return NIL in the case
+of an error in 60s and 70s.
+MacLisp introduced 2 keywords \verb!CATCH! and \verb!THROW! in 1972, and
+reserving ERRSET and ERR for error handling. The first papers on structured
+exception handling were written by Goodenough in 1975.
+
+
+\subsection{C language}
+
+C does not provide direct support for error handling (exception handling).
+Typically, the programmers use the returned value as the indicator of error
+code. The programmers need to check the return values from the function (use -1
+or NULL values).
+
+In the worst case, i.e. cannot recover from the error, then a C programmer
+usually tries to write the error information out (log-file), and then terminate
+the program. Some operating systems (e.g. Linux) provide \verb!<errno.h>! which
+has the global variable \verb!errno! that we can print out the error description
+using \verb!strerror(errno)!.
+
+\begin{verbatim}
+#include <include/asm-generic/errno.h>
+\end{verbatim}
+
+If an exception occur (divide by zero, interrupt, etc.), the host O/S (Unix,
+Linux) of the *NIX processes can raise signal (Sect.\ref{sec:sig_atomic_t}). To
+handle this, we use \verb!signal.h! (See example below).
+
+\verb!longjmp! was in C, paired with \verb!setjmp! in 70s. THROW was in LISP in
+the 70s (See example below).
+
+Example: \url{http://en.wikibooks.org/wiki/C_Programming/Error_handling}
+\begin{Verbatim}
+#include <stdio.h>        /* fprintf */
+#include <errno.h>        /* errno */
+#include <stdlib.h>       /* malloc, free, exit */
+#include <string.h>       /* strerror */
+ 
+extern int errno;
+ 
+int main(void)
+{
+ 
+    /* Pointer to char, requesting dynamic allocation of 2,000,000,000
+     * storage elements (declared as an integer constant of type
+     * unsigned long int). (If your system has less than 2 GB of memory
+     * available, then this call to malloc will fail.)
+     */
+    char *ptr = malloc(2000000000UL);
+ 
+    if (ptr == NULL) {
+        int err = errno;        /* Preserve the errno from the failed malloc(). */
+        puts("malloc failed");  /* This puts() could change the global errno. */
+        puts(strerror(err));
+    } else {
+        /* The rest of the code hereafter can assume that 2,000,000,000
+         * chars were successfully allocated... 
+         */
+        free(ptr);
+    }
+ 
+    exit(EXIT_SUCCESS); /* exiting program */
+} 
+\end{Verbatim}
+
+Example: divide by zero error
+\begin{Verbatim}
+#include <stdio.h> /* for fprintf and stderr */
+#include <stdlib.h> /* for exit */
+int main( void )
+{
+    int dividend = 50;
+    int divisor = 0;
+    int quotient;
+ 
+    if (divisor == 0) {
+        /* Example handling of this error. Writing a message to stderr, and
+         * exiting with failure.
+         */
+        fprintf(stderr, "Division by zero! Aborting...\n");
+        exit(EXIT_FAILURE); /* indicate failure.*/
+    }
+ 
+    quotient = dividend / divisor;
+    exit(EXIT_SUCCESS); /* indicate success.*/
+}
+\end{Verbatim}
+
+Example: In *NIX process (e.g. Unix, Linux), we can stop the O/S from
+terminating your ``divided by zero'' error by blocking SIGFPE signal. However,
+you are recommendded not to interfer with it.
+\begin{Verbatim}
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+ 
+static void catch_function(int signal) {
+    puts("Interactive attention signal caught.");
+}
+ 
+int main(void) {
+    if (signal(SIGINT, catch_function) == SIG_ERR) {
+        fputs("An error occurred while setting a signal handler.\n", stderr);
+        return EXIT_FAILURE;
+    }
+    puts("Raising the interactive attention signal.");
+    if (raise(SIGINT) != 0) {
+        fputs("Error raising the signal.\n", stderr);
+        return EXIT_FAILURE;
+    }
+    puts("Exiting.");
+    return 0;
+}
+\end{Verbatim}
+
+
+Example: using setjmp
+\url{http://en.wikibooks.org/wiki/C_Programming/Error_handling}
+
+\url{http://www.on-time.com/ddj0011.htm}
+\begin{Verbatim}
+#include <stdio.h>
+#include <setjmp.h>
+ 
+jmp_buf test1;
+ 
+void tryjump()
+{
+    longjmp(test1, 3);
+}
+ 
+int main (void)
+{
+    if (setjmp(test1)==0) {
+        printf ("setjmp() returned 0.");
+        tryjump();
+    } else {
+        printf ("setjmp returned from a longjmp function call.");
+    }
+}
+\end{Verbatim}
+
+
+\subsection{C++ language}
+
+C++ added exception handling with \verb!try/catch! block.
+
+We first put the block of code under exception inspection, i.e. put in the
+\verb!try! block. Then, depending on what kind of exceptions occur (via the
+\verb!throw! keyword), the control is transferred to the appropriate exception
+handler, which is defined in each \verb!catch! block. For any unspecified
+exceptions, the default handler is given inside the \verb!cath(...)! statement.
+
+\begin{Verbatim}
+try {
+  // code here
+}
+catch (int param) { cout << "int exception"; }
+catch (char param) { cout << "char exception"; }
+catch (...) { cout << "default exception"; }
+\end{Verbatim}
+
+
+What kind of errors can be throwed?
+\begin{enumerate}
+  \item \verb!std::logic_error! : 
+\end{enumerate}
+

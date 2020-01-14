@@ -1,0 +1,1307 @@
+\chapter{C++/CLI}
+
+\section{C++/CLI}
+\label{sec:VC++_C++/CLI}
+
+A brief discussion of C++/CLI is given in Sect.\ref{sec:C++/CLI}.
+To create a C++/CLI project, since Visual C++ 2005: (1) File/New/Project.. (2)
+select Visual C++, and template CLR Empty
+project.\footnote{\url{http://www.functionx.com/cppcli/classes/Lesson15c.htm}} 
+
+\textcolor{red}{Compiling options}: A C++/CLI project needs to be compiled with
+\verb!/clr! option (Sect.\ref{sec:clr_option}) to control the compiling at
+module-level, and optionally using \verb!#pragma managed! to control at the
+function-level to tell which function should be compiled to run on CLR
+(Sect.\ref{sec:pragma_managed}).
+\begin{itemize}
+  \item  \verb!stdafx.h! is the default precompiled header for the console project to use
+the extended features. Some other files can also be automatically generated. You
+can remove them, not manually, but by turning off in the project properties.
+  
+\end{itemize}
+
+
+\textcolor{red}{Example: Managed C++ vs. C++/CLI}
+\begin{verbatim}
+// Managed C++
+__value class Vector {};  // value class (C++ context, compared to reference
+                         //  class which is .NET context)
+__interface I {};  //interface class
+__gc __abstract  class Shape {};   // abstract class
+__gc __sealed class Shaped2D : public Shape {} ; //derived class
+System::ComponentModel::Container __gc *components;
+Button* button1 = new Button; // managed heap
+int *pi1 = new int;           // native heap
+Int32 *pi2 = new Int32;       // managed heap
+
+
+// C++/CLI
+value class Vector {};
+interface class I {};
+ref class Shape abstract {};
+ref clas Shaped2D sealed :: Shape {};
+System::ComponentModel::Container ^ components;
+Button ^ button1 = gcnew Button;
+int * pi1 = new int;   // (no changed)
+Int32 ^ pi2 = gcnew Int32; 
+\end{verbatim}
+\url{http://msdn.microsoft.com/en-us/library/ms235209.aspx}
+
+Compared to Managed C++ (Sect.\ref{sec:managed_C++}), there are major changes in
+C++/CLI, especially the new keywords are standardized, and no longer use
+preceding two underscores \verb!__!
+
+\begin{itemize}
+  \item  standardize the keywords: 
+  
+  \begin{enumerate}
+    \item removing double underscore in front of all keywords, with one
+  exception: \verb!__identifier! is retained. 
+
+Example: \verb!delegates! keyword : Sect.\ref{sec:delegates}  
+\url{http://msdn.microsoft.com/en-us/library/ms235298.aspx}
+
+     \item \verb!__gc! is replaced by \verb!ref! keyword in class (Sect.\ref{sec:ref_class}).
+
+NOTE: To define a managed class or managed struct, we use \verb!ref class! or
+  \verb!ref struct!.
+
+NOTE: \verb!delete! to delete a managed object (which also call Dispose()
+  implicitly), and make sure assigning \verb!nullptr! to it after that
+\begin{verbatim}
+delete pictureBox1->Image;
+pictureBox1->Image = nullptr;
+
+//reload
+pictureBox1->Image = pictureBox1->Image->FromFile(...);
+\end{verbatim}
+
+     \item \verb!__gc *! is replaced by hats \verb!^! keyword, to declare
+  a handle, i.e. a reference to a managed object. 
+
+{\bf NOTE}: There are two types of pointers in Managed C++: \verb!__nogc!
+pointers (normal C++ pointers), and \verb!__gc! pointers (referencing to managed
+object - .NET reference types). In C++/CLI, there is only one pointer, i.e. the
+normal C++ pointers. To access managed objects in C++/CLI, we use a {\it handle}
+with the new syntax \verb!ClassName ^!, rather than \verb!ClassName *!.
+This C++/CLI handle has nothing to do with Win32 HANDLEs and this handle is a
+reference to a managed object on the CLI heap.
+
+% \verb!^! symbol: a type decorator, which roughly correlates to \verb!*!
+%   in C++. However, \verb!^! means the object is an C++/CLR object, not a
+%   traditional C++ object.
+\begin{verbatim}
+Dog ^ mydog = gcnew Dog();
+
+ // pass by address
+void MyFunction(Dog ^ dog)
+\end{verbatim}
+
+The object is allocated on the so-called {\bf managed heap}, and passing
+argument using \verb!^! means passing by address, similar to by reference like
+in pointers.
+\begin{verbatim}
+// pass by reference
+void MyFunction(Dog &dog);
+\end{verbatim}
+  
+Accordingly, to allocate the real memory for that handle, \verb!new! is replaced
+by \verb!gcnew! (and in C++/CLI, \verb!new! has only one meaning - allocating a
+regular C++ pointer).
+  
+{\bf IMPORTANT}: Structure are value types, so we don't use \verb!gcnew!. 
+  
+  \end{enumerate}
+
+% 
+%   
+%   \item  \verb!ref! keyword : reference class, 
+  
+
+  \item \verb!%! symbol: tracking referenence to handle (roughly correlates to \verb!&! in C++ (Sect.\ref{sec:reference-to-pointer}))
+  
+Example:
+\begin{verbatim}
+void func(ClassA^% thObj)
+{
+  //Modify what obj2 is referencing, to g_obj
+  thObj=g_obj; // g_obj is a global object.
+  
+  //You can instantiate a new class
+  thObj=gcnew ClassA();
+  
+  //Modify the variable thObj is referencing, through a its member function, SetInt().
+  thObj->SetInt(3);
+}
+
+
+int main()
+{
+  ClassA^ obj = gcnew ClassA;
+  ClassA^% obj2=&obj;
+  
+  func(obj2);
+  ....
+  return 0;
+
+    array<String^> ^arr = gcnew array<String^>(10);
+    int i = 0;
+ 
+   // String^ is a handle
+   // String^% is a reference to handle
+    for each(String^% s in arr)
+        s = i++.ToString();
+} 
+\end{verbatim}
+  
+  
+
+  \item Type cast: C++/CLI provides 3 different operators \verb!static_cast!,
+  \verb!dynamic_cast!, \verb!safe_cast!.
+  
+  \begin{itemize}
+    \item \verb!static_cast! : the fastest of the thre operators, but it is the
+    most dangerous (as it assumes the programmer know what he/she is doing, and
+    it does no validity)
+ \begin{verbatim}
+ static_cast<int> (var);
+ 
+ static_cast<ClassA ^> (var);
+ \end{verbatim}
+ 
+    \item \verb!dynamic_cast!: it is slower than \verb!static_cast! as it
+    verifies that the type casting is valid, i.e. if it is not a valid
+    conversion, return \verb!nullptr!. 
+    
+    \item \verb!safe_cast!: the closest match the conversion behavior of all
+    other .NET supported languages.
+\begin{verbatim}
+if (dynamic_cast<ClassA ^> (ClassB) != 0)
+{
+  //ClassB is of type ClassA
+}
+\end{verbatim}
+  \end{itemize} 
+\end{itemize}
+
+Example:
+\begin{verbatim}
+ref class Block {};                // reference class
+value class Vector {};             // value class
+interface class I {};        // interface class
+ref class Shape abstract {};       // abstract class
+ref class Shape2D sealed: Shape{}; // derived class
+\end{verbatim}
+
+% The changes from Managed C++ to C++/CLI
+% \begin{itemize}
+%   \item the double score \verb!__! in front of all keywords have been removed
+%   
+%   \item 
+% \end{itemize}
+
+
+In C++/CLI, managed objects can move around in memory as the garbage collector
+runs. This means you can't get the real address of a member (without pinning) or
+even embed anything except primitive types (i.e. int) into your class.  
+
+
+{\bf SUMMARY}: To declare and define a reference object of a data type to be
+managed by CLR, we need to declare that reference object using (1) .NET type,
+(2) using hat keyword (\verb!^!), and (3) allocate the memory for that object
+using \verb!gcnew!. 
+
+
+\subsection{Mapping C\# to C++/CLI}
+
+Table.\ref{tab:compare_C++/CLI_Csharp} shows the comparison
+between using C\# code and C++/CLI for managed code.
+
+
+\begin{table}[hbt]
+\begin{center}
+\caption{Techniques and its purpose}
+\begin{tabular}{p{4cm}cc} 
+\hline
+Operation & C++/CLI & C\# \\
+\hline\hline
+namespace separation & \verb!::! & \verb!.! \\
+access method & \verb!::! & \verb!.! \\
+access data member & \verb!->!  & \verb!.! \\
+ & \verb!this->components! & \verb!this.components! \\
+create managed object & \verb!gcnew! & \verb!new! \\
+create unmanaged object & \verb!new! & (not availale) \\ 
+pragma & \verb!#pragma region RegionName! & \verb!#region RegionName! \\
+ & \verb!#pragma endregion!   & \verb!#endregion! \\
+object of reference type & \verb!Type ^ obj = gcnew Type()! & \verb!Type obj = new Type()! \\
+after scope modifier & \verb!private: Type ^obj;! & \verb!private Type obj;! \\
+floating literal & use dot at least & suffix \verb!f! or \verb!F! \\ 
+      & \verb!8.! or \verb!8.2! & \verb!8F! or \verb!8.2F! \\
+      & \verb!8.e0! & \\
+type of an object & \verb!ClassType::typeid! & \verb!typeof(ClassType)! \\    
+null & \verb!0! (Managed C++ only) & null \\
+  & \verb!#include <stddef.h>! (add NULL definition) & \\
+  & \verb!nullptr! (C++11 - use in C++/CLI) & \\   
+\end{tabular}
+\end{center}
+\label{tab:compare_C++/CLI_Csharp}
+\end{table}
+
+To indicate a null object, 
+\begin{itemize}
+  \item Managed C++ allows using either 0 or NULL
+  \item C++/CLI requires using \verb!nullptr!. 
+  In the new syntax, 0 no longer represents a null address but is treated as an integer.
+\end{itemize}
+\url{https://msdn.microsoft.com/en-us/library/ms235261.aspx}
+
+Example
+\begin{verbatim}
+// C#
+System.ComponentModel.Container components;
+this.components = new System.ComponentModel.Container();
+
+// C++/CLI
+System::ComponentModel::Container ^components;
+this->components = gcnew System::ComponentModel::Container();
+
+\end{verbatim}
+\verb!gcnew! is for .NET reference objects; objects created with \verb!gcnew!
+are automatically garbage-collected; it is important to use \verb!gcnew! with
+CLR types
+
+Example: to implement a callback
+\begin{verbatim}
+// C#
+private void loadFieldToolStripMenuItem_Click(object sender, EventArgs e)
+{
+}
+
+// C++/CLI
+private: System::Void loadFieldToolStripMenuItem_Click(System::Object ^sender,
+\ System::EventArgs ^e) {
+}
+
+\end{verbatim}
+
+Example: 
+\begin{verbatim}
+// C#
+System::ComponentModel::ComponentResourceManager resources =
+ new System::ComponentModel::ComponentResourceManager(typeof(Form1));
+this.imFruitSmall.ImageStream = 
+(<System::Windows::Forms::ImageListStreamer)(resources->GetObject(L"imageList.ImageStream")));
+
+
+
+// C++/CLI (old)
+System::ComponentModel::ComponentResourceManager^ resources =
+ gcnew System::ComponentModel::ComponentResourceManager(typeid<Form1>);
+this->imFruitSmall->ImageStream = 
+(stdcli::language::safe_cast<System::Windows::Forms::ImageListStreamer^ >
+ (resources->GetObject(L"imageList.ImageStream")));
+
+// C++/CLI (new)
+System::ComponentModel::ComponentResourceManager^ resources =
+ gcnew System::ComponentModel::ComponentResourceManager(Form1::typeid);
+this->imFruitSmall->ImageStream = 
+(cli::safe_cast<System::Windows::Forms::ImageListStreamer^ >
+ (resources->GetObject(L"imageList.ImageStream")));
+
+\end{verbatim}
+
+IMPORTANT: 
+\begin{enumerate}
+  \item \verb!stdcli::language! namespace is removed in C++/CLI 2012, and is
+  replaced by \verb!cli!
+  \item \verb!typeid<object>! is replaced with \verb!object::typeid!
+  \item \verb!->! is replaced by \verb!.!
+
+\begin{verbatim}
+// C#
+this->staticColorFV->DrawingArea =
+((System::Drawing::RectangleF)(resources->GetObject("staticColorFV->DrawingArea")));
+
+// C++/CLI
+this->staticColorFV->DrawingArea =
+(cli::safe_cast<System::Drawing::RectangleF>(resources->GetObject(L"staticColorFV.DrawingArea")));
+\end{verbatim}  
+\end{enumerate}
+\url{https://social.msdn.microsoft.com/forums/vstudio/en-US/4e75804b-b803-463f-8334-9d3ce5afa331/unable-to-use-c-express-beta1-project-in-beta2}
+
+When you compile, you may get the error
+\begin{verbatim}
+DataVisualization is not a member of 
+\end{verbatim}
+even though you already add
+\begin{verbatim}
+using
+\end{verbatim}
+in the code. The reason is that you need to add the reference to the assemblies
+\begin{verbatim}
+using namespace System::Windows::Forms::DataVisualization;
+using namespace System::Windows::Forms::DataVisualization::Charting;
+\end{verbatim}
+
+When you compile, you may get the error
+\begin{verbatim}
+operator = 'function is unavailable in ....
+\end{verbatim}
+this is because you declare the variable of .NET type without using \verb!^!
+prefix.
+
+To check the type of an object, we use \verb!::typeid! in C++/CLI, while in C\#
+we use \verb!typeof()! operator.
+\begin{verbatim}
+MyObject^ mo = gcnew MyObject();
+Object^ o = mo;
+
+if( o->GetType() == MyObject::typeid )
+{
+    // Do somethine with the object
+}
+else
+{
+    // Try something else
+}
+\end{verbatim}
+\url{http://stackoverflow.com/questions/2410721/how-to-check-an-objects-type-in-c-cli}
+
+You need to use dynamic cast
+\begin{verbatim}
+// C#
+((System.ComponentModel.ISupportInitialize)(this.trackBar1)).BeginInit();
+
+// C++/CLI
+(dynamic_cast<System::ComponentModel::ISupportInitialize^>(this->trackBar1))->BeginInit();
+\end{verbatim}
+\url{http://msdn.microsoft.com/en-us/library/system.componentmodel.isupportinitialize.aspx}
+
+
+Reference: 
+\begin{enumerate}
+  \item \url{http://blogs.msdn.com/b/hsutter/archive/2003/11/23/53519.aspx}
+
+  \item \url{http://en.wikipedia.org/wiki/C++/CLI}
+\end{enumerate}
+
+\subsection{namespace}
+\label{sec:C++/CLI_namespace}
+
+Using .NET namespace in C++/CLI can be done using \verb!using namespace! keyword
+and the namespace are separated using \verb!::!
+
+\begin{verbatim}
+// C#
+using Tietronix.SolarDataTypes;
+
+// C++/CLI
+using namespace Tietronix::SolarDataTypes;
+\end{verbatim}
+
+
+\subsection{enum class vs. enum}
+\label{sec:enum-class-C++/CLI}
+
+\verb!enum class! is a new feature from C++11 (Sect.\ref{sec:enum_class-C++11}).
+To create a .NET-compatible enumeration, we use \verb!enum class!, not the
+old C++ \verb!enum! type (Sect.\ref{sec:enum-C}). Also, later Visual C++ requires
+using
+\begin{verbatim}
+public enum class
+\end{verbatim}
+to disambiguate from the \verb!enum class! contextual keyword which is part of
+C++11 (and therefore creates a native type).
+
+Example:
+\begin{verbatim}
+// C++/CLI
+public enum class X { A, B, C };
+
+// to use it in C++/CLI
+X::A
+\end{verbatim}
+
+\subsection{array from C\# to C++/CLI}
+
+The way to define an array in C\# is using []
+\begin{verbatim}
+// C#
+System::Windows::Forms::DataGridViewColumn 
+  object = new System::Windows::Forms::DataGridViewColumn[] {...};
+
+object abc = new object[] {"None", "By Pies"};   
+\end{verbatim}
+
+However, in C++/CLI, we need to use \verb!array<ValueDataType>! or
+\verb!array<ReferenceDataType^>!
+
+\begin{verbatim}
+System::Windows::Forms::DataGridViewColumn 
+ ^object = gcnew array<System::Windows::Forms::DataGridViewColumn^> {...};
+ 
+Object ^abc = gcnew array<Object^> {"None", "By Pies"}; 
+\end{verbatim}
+
+
+Example:
+\begin{verbatim}
+using namespace System;
+
+array<double> ^ SingleFamilyValues = { 550550, 1215080, 625550, 850450 };
+
+array<double> ^ SingleFamilyValues =
+	gcnew array<double> { 550550, 1215080, 625550, 850450 };
+	
+	
+array<double, 2> ^ MarketValues = gcnew array<double, 2>(2, 4);
+	
+    MarketValues[0,0] = 550550;
+    MarketValues[0,1] = 1215080;
+    MarketValues[0,2] = 625550;
+    MarketValues[0,3] = 850450;
+
+    MarketValues[1,0] = 483045;
+    MarketValues[1,1] = 912834;
+    MarketValues[1,2] = 328555;
+    MarketValues[1,3] = 600425;	
+\end{verbatim}
+
+To explicitly indicate an array is one-dimensional array, we can use either (\textcolor{red}{a single list of items})
+\begin{verbatim}
+array<DataType, 1> ^ VariableName = gcnew array<DataType>(Dimension);
+
+array<DataType, 1> ^ VariableName = gcnew array<DataType, 1>(Dimension);
+\end{verbatim}
+Example:
+\begin{verbatim}
+ array<__wchar_t, 1> ^ HouseTypes = gcnew array<__wchar_t>(4)
+	{ L'S', L'C', L'S', L'T' };
+    array<int, 1> ^ Bedrooms = gcnew array<int>(4) { 5, 2, 3, 3 };
+    array<Byte, 1> ^ Stories = gcnew array<Byte>(4) { 3, 1, 3, 2 };
+    array<double, 1> ^ Bathrooms = gcnew array<double>(4)
+	{ 3.5, 1, 2.5, 1.5 };
+    array<bool, 1> ^ HasGarage = gcnew array<bool>(4)
+	{ true, true, false, false };
+    array<double, 1> ^ Values = gcnew array<double>(4)
+	{ 550500, 115000, 425000, 350000 };
+\end{verbatim}
+
+
+To define two dimensional array, we use (\textcolor{red}{two lists of items})
+\begin{verbatim}
+array<DataType, 2> ^ VariableName = { { Members-List1 }, { Members-List2 } };
+
+array<DataType, 2> ^ VariableName = gcnew array<DataType, 2>(2, Dimension);
+\end{verbatim}
+The value 2 is called the rank of the array. The rank of an array specifies the number of sub-lists that the array contains. 
+The array elements are created inside of curly brackets.
+The main array is in fact made of two sub-lists, each sub-list must be created inside its own curly brackets.  
+
+Example:
+\begin{verbatim}
+ array<double, 2> ^ MarketValues = {
+              // List 1 
+             { 550550, 1215080, 625550, 850450 },
+             // List 2
+             { 483045,  912834, 328555, 600425 } 
+         };
+
+array<double, 2> ^ MarketValues = gcnew array<double, 2>
+    {
+        { 550550, 1215080, 625550, 850450 },
+        { 483045,  912834, 328555, 600425 }
+    };
+    
+    
+\end{verbatim}
+
+To define multi-dimensional array, we can define 
+\begin{enumerate}
+  \item using the technique of a two-dimensional array
+  
+\begin{verbatim}
+array<DataType, 2> ^ VariableName = gcnew array<DataType, 2>(Rank, Dimension)
+{
+    { Members-1 },
+    { Members-2 },
+    { Members-n } };
+\end{verbatim}
+The Rank factor specifies the number of sub-lists that the array will contain. The Dimension factor represents the number of elements that each sub-list will contain
+  
+  \item using the rank in the \verb!<>! operator to specify the number of pages of an array
+\begin{verbatim}
+array<DataType, Lists> ^ Variable = 
+	gcnew array<DataType, Lists>(Lists, Sub-Lists, Elements)
+\end{verbatim}
+
+Example: the array will have 3 lists. Each list will have 2 sub-lists and each
+sub-list will have 4 elements.
+\begin{verbatim}
+array<double, 3> ^ MarketValues = gcnew array<double, 3>(3, 2, 4)
+\end{verbatim}
+\end{enumerate}
+then assign: To initialize the array when creating it, create the square
+brackets for each list. Inside the square brackets of a list, create the square
+brackets for the sub-list(s). Inside the square brackets of the sub-list,
+specify the value of each element, separating them with commas.
+
+\begin{verbatim}
+   array<double, 3> ^ MarketValues = gcnew array<double, 3>(3, 2, 4)
+    {
+        // First List
+        {
+            // First Sub List
+            {
+                2250550, // 1st List - 1st Sub List - 1st Element
+                1215080, // 1st List - 1st Sub List - 2nd Element
+                1625550, // 1st List - 1st Sub List - 3rd Element
+                850450   // 1st List - 1st Sub List - 4th Element
+            },
+            // Second Sub-List
+            {
+                558750, // 1st List - 2nd Sub List - 1st Element
+                503150, // 1st List - 2nd Sub List - 2nd Element
+		362650, // 1st List - 2nd Sub List - 3rd Element
+		435755  // 1st List - 2nd Sub List - 4th Element
+            }
+        },
+        // Second List
+        {
+            // First Sub-List
+            {
+                483045, // 2nd List - 1st Sub List - 1st Element
+	        622440, // 2nd List - 1st Sub List - 2nd Element
+                808445, // 2nd List - 1st Sub List - 3rd Element
+		600425  // 2nd List - 1st Sub List - 4th Element
+	    },
+	    // Second Sub-List
+	    {
+		283045, // 2nd List - 2nd Sub List - 1st Element
+                412834, // 2nd List - 2nd Sub List - 2nd Element
+		328555, // 2nd List - 2nd Sub List - 3rd Element
+		300425  // 2nd List - 2nd Sub List - 4th Element
+	    }
+	},
+	// Third List
+	{
+	    // First Sub-List
+	    {
+		 624550,  // 3rd List - 1st Sub List - 1st Element
+		 85655,   // 3rd List - 1st Sub List - 2nd Element
+		 1250755, // 3rd List - 1st Sub List - 3rd Element
+		 904685   // 3rd List - 1st Sub List - 4th Element
+	    },
+	    // Second Sub-List
+	    {
+		 324550, // 3rd List - 2nd Sub List - 1st Element
+		 15655,  // 3rd List - 2nd Sub List - 2nd Element
+		 147576, // 3rd List - 2nd Sub List - 3rd Element
+		 92885   // 3rd List - 2nd Sub List - 4th Element
+	    }
+	}
+    };
+\end{verbatim}
+\url{http://www.functionx.com/cppcli/arrays/multidimension.htm}
+
+\subsection{fixed (C\#) to pin\_ptr or interior\_ptr (C++/CLI) to \_\_pin (Managed C++)}
+
+The location of a managed object can be changed at any time once the garbage
+collection is carried out. Thus, it is impossible to use native pointer pointing
+to managed object. To resolve this problem, there are some solutions, either in C\#, C++/CLI or Managed C++.
+
+Managed C++ used \verb!__pin! to indicate the CLR not moving the location of the managed object during garbage collection. 
+
+C\# allows pinning the location of a managed object during the execution of a block of statement (not the whole program)
+\begin{verbatim}
+Point pt = new Point();
+// Using fixed allows the address of pt members to be
+// taken, and "pins" pt so it isn't relocated.
+fixed ( int* p = &pt.x )
+{
+    *p = 1; 
+}
+\end{verbatim}
+\url{https://msdn.microsoft.com/en-us/library/f58wzh21(v=vs.80).aspx}
+
+C++/CLI provides \verb!pin_ptr! keyword and \verb!interior_ptr! keyword
+\begin{itemize}
+  
+  \item interior pointer: the value of the pointer is updated at runtime to
+  reflect the new location of the object's that is pointed to every time the
+  managed object is relocated.
+\begin{verbatim}
+interior_ptr< type > var = [address];
+\end{verbatim}  
+  The physical address pointed to by the interior pointer never remains the same, but it always points to the same object. 
+  
+  \item pinning pointer: the value of the pointer is not changed, and it also prevents the GC from relocating the object, i.e. it always points to the same object.
+  
+ NOTE: We should use pinning pointer if we want to pass the poitner to an unmanaged function. 
+   
+\end{itemize}
+
+\textcolor{red}{interior\_ptr}
+\begin{Verbatim}
+ref struct CData
+{
+    int age;
+};
+
+  CData^ d = gcnew CData();
+    d->age = 100;
+    
+interior_ptr<int> pint = &d->age; // ((2))
+\end{Verbatim}
+
+With System::String, we can use \verb!PtrToStringChars! helper function
+(declared in header file \verb!<vcclr.h>!) to get an interior pointer to the
+underlying string buffer of a System::String object.
+\begin{verbatim}
+#include <vcclr.h>
+\end{verbatim}
+
+As it returns a \verb!const! interior pointer to the first character of the
+System::String object, we need to \verb!const_cast! to convert to a
+non-\verb!const! pointer, which allows us to loop through the string using
+\verb!while! loop
+
+\begin{Verbatim}
+
+String^ str = "Nish wrote this book for Manning Publishing";
+interior_ptr<Char> ptxt = const_cast< interior_ptr<Char> >(
+    PtrToStringChars(str)); // ((1))
+
+interior_ptr<Char> ptxtorig = ptxt; // ((2))
+
+while((*ptxt++)++); // ((3))
+Console::WriteLine(str); // ((4))
+while((*ptxtorig++)--); // ((5))
+Console::WriteLine(str); // ((6))    
+\end{Verbatim}
+
+\begin{verbatim}
+#using <mscorlib.dll>
+#include <vcclr.h>  // PtrToStringChars()
+
+__const_Char_ptr p = PtrToStringChars(str);
+\end{verbatim}
+
+\textcolor{red}{pin\_ptr}
+\begin{verbatim}
+// compile with: /clr 
+
+array<int>^ arr;   // CLR integer array
+arr = gcnew array<int>(SIZE);
+
+pin_ptr<int> p = &arr[0];   // pin pointer to first element in arr
+
+// using unmanaged pointer 
+int* np = p;   // pointer to the first element in arr
+
+// and pass to the unmanaged function
+native_function(np);   // pass pointer to native function
+\end{verbatim} 
+
+The difference:
+\begin{itemize}
+  \item \verb!fixed! (C\#) creates its own scope of execution
+  
+  \item \verb!pint_ptr! (C++/CLI) scope is from its declaration until the end of the enclosing block
+\end{itemize}
+
+\subsection{<app.config>: persistable settings}
+
+In .NET, <app.config> is the file that can be used to store configuration
+settings for a given .NET assembly. You first need to add the file to the
+project, add some data to it. After successfully compiling the project, the file
+is automatically copied to the target folder of the project and renamed into the
+name \verb!<appName>.exe.config!.
+
+In C++/CLI, we can also create this file
+\begin{verbatim}
+Right-clock on Project
+   -> add -> new item 
+       -> configuration file (app.config)
+\end{verbatim}
+and add some settings in XML-based format. The major predefined
+configuration section is \verb!<configuration></configuration>!
+
+Example:
+\begin{verbatim}
+<configuration>
+  <appSettings>
+    <add key="name" value="pyright"/>
+    <add key="firstname" value="nico"/>
+  </appSettings>
+</configuration>
+\end{verbatim}
+The information is stored in the form of key/value pair. For more information on
+this file structure, please read the C\# Manual Book.
+
+In the code, we can read the setting from the file, or save to it
+\begin{verbatim}
+// read the value using 'key' name as the index 
+String ^name = Configuration::ConfigurationManager::AppSettings["name"];
+String ^firstName = 
+    Configuration::ConfigurationManager::AppSettings["firstname"];
+Console::WriteLine("My name's {0} {1}", firstName, name);
+\end{verbatim}
+We can also use the numerical index, but it can be confused if the order change
+\begin{verbatim}
+String ^name = Configuration::ConfigurationManager::AppSettings[0];
+\end{verbatim}
+To iterate all values, we do
+\begin{verbatim}
+for each(String ^aValue in ConfigurationManager::AppSettings)
+{
+    Console::WriteLine("User: {0} - {1}", 
+        aValue, ConfigurationManager::AppSettings[aValue]);
+}
+\end{verbatim}
+
+Unfortunately, C++/CLI has no knowledge about configuration file management, and
+thus the file, if created, is not automatically copied to the target
+destination and renamed properly. To enable this in C++/CLI, we need to add
+\verb!System.Configuration! reference to your code
+\begin{verbatim}
+right click on project -> references 
+    -> add new references.
+        at .NET tab, choose System.Configuration
+\end{verbatim}
+and then (3) add post-build events
+that copy the file, rename it into the target folder. 
+\begin{verbatim}
+right-click project properties 
+   -> configuration properties -> build events 
+         -> post build event 
+\end{verbatim}
+at \verb!Command Line! add 
+
+\begin{verbatim}
+copy app.config "$(TargetPath).config"
+\end{verbatim}
+
+
+\subsection{byte in C\# to unsigned char in C++/CLI}
+
+C\# has two types: byte or System.Byte. However, C++ does not have \verb!byte!
+data type; instead it has \verb!unsigned char! which is equivalent to
+\verb!System.Byte!. So we need to either (1) switch to using \verb!System.Byte!
+or \verb!unsigned char!, or (2) define new type in C++/CLI code
+
+\begin{verbatim}
+typedef unsigned char byte;
+\end{verbatim}
+
+\subsection{string}
+
+In .NET, \verb!string! and \verb!System.String! are the same, and both are
+reference type. 
+
+In C++, \verb!std::string! is ISO C++ data type. In C++/CLI, we use
+\verb!System::String^! 
+
+Suppose we have two functions:
+\begin{verbatim}
+void display( String^ );
+void display( const string& );
+\end{verbatim}
+when we pass a string literal, which one is used?
+\begin{verbatim}
+display( "which one?" );
+\end{verbatim}
+
+Under C++/CLI, a string literal goes through a hierarchical sequence of standard
+conversions, as follows (slightly simplified),
+\begin{enumerate}
+  \item as \verb!const char*! is used for a string literal, the compiler search
+  for the version of the function that accept \verb!const char *! first. If not,
+  then it discard \verb!const! and try to find the version of the function that
+  accept \verb!char *!.
+  
+  In terms of string literal, C++/CLI by default uses the same as ISO-C++, i.e.
+\begin{verbatim}
+const char *
+\end{verbatim}
+   
+  \item If there is no version accepting \verb!char *!, then it searchs for
+  \verb!String^!.
+  
+  \item If there is no version accepting \verb!String^!, then it searchs for the
+  one that accepts a \verb!String^! base classes, e.g. \verb!Object^! or an
+  interface. 
+  
+  \item If there is none of the above, then it searchs for the best matches as
+  a \verb!bool! parameter. 
+\end{enumerate}
+\url{http://blogs.msdn.com/b/slippman/archive/2004/05/20/135879.aspx}
+% However, if we pass a string literal in a context in which a
+% \verb!System::String^! Unicode string literal is required
+
+{\bf Empty string}: An empty string is a zero length string, a string that is
+equal to null (""), or not assigned. C++/CLI uses
+\verb!String::IsNullOrEmpty(s)! to check if a string is empty. 
+\url{http://msdn.microsoft.com/en-us/library/system.string.isnullorempty(v=vs.110).aspx}
+To check for null string, we compare with \verb!nullptr!
+
+\begin{verbatim}
+String^ s;
+//s = ""; //Uncomment to test 2nd case.
+if (String::IsNullOrEmpty(s))
+{
+  MessageBox::Show("empty string");
+}
+
+static String^ GetValue(String^ section, String^ key, String^ defaultValue)
+{
+    if (defaultValue == nullptr)
+        // special case handling
+    ....
+}
+\end{verbatim}
+\url{http://www.prestwood.com/ASPSuite/KB/CrossRef.asp?SyntaxID=56&LangID=14}
+\subsection{Construct a decimal value}
+
+\begin{verbatim}
+// C#
+int[ ] bits;
+decimal decimalNum = new decimal( bits );
+decimal decimalNum = new decimal( new int[ ] { 0, 0, 0, 0 } );
+
+
+// C++/CLI
+array<int> ^bits;
+Decimal decimalNum = Decimal(bits);
+Decimal decimalNum = Decimal(gcnew array<Int32> {0,0,0,0};);
+ 
+\end{verbatim}
+\url{http://msdn.microsoft.com/en-us/library/t1de0ya1(v=vs.80).aspx?cs-save-lang=1&cs-lang=cpp#code-snippet-4}
+
+Example:
+\begin{verbatim}
+array<String^>^ gc1 = gcnew array<String^>{"one", "two", "three"};
+array<String^>^ gc2 = {"one", "two", "three"};
+\end{verbatim}
+\url{http://msdn.microsoft.com/en-us/library/dtbydz1t.aspx}
+
+
+\subsection{Default value: method argument}
+
+If the method belong to a managed type, then it is not allowed, or you will get
+C3222 error \url{http://msdn.microsoft.com/en-us/library/zk03y5fe.aspx}
+\begin{verbatim}
+// error C3222
+public ref class ManagedType
+{
+	void SaveFieldConfigurationAs(bool saveFieldSubset = false)
+	{
+	}
+}
+\end{verbatim}
+The solution is to create 2 overloadded functions: one without full parameters,
+and one without optional arguments. Inside this second overloaded function,
+call the first one and pass the default value.
+
+\begin{verbatim}
+public ref class ManagedType
+{
+  private:
+	void SaveFieldConfigurationAs()
+    {
+		SaveFieldConfigurationAs(false);
+	}
+	void SaveFieldConfigurationAs(bool saveFieldSubset)
+	{
+	}
+}
+\end{verbatim}
+% , and It is not allowed to pass
+% default value to managed type
+% \begin{verbatim}
+% // COMPILER ERROR
+% private: void SaveFieldConfigurationAs(Boolean saveFieldSubset = false)
+% \end{verbatim}
+% 
+% We can use default value for unmanaged type only
+% \begin{verbatim}
+% private: void SaveFieldConfigurationAs(bool saveFieldSubset = 0)
+% \end{verbatim}
+
+We can use C\# 4.0 feature, i.e. the new attribute
+\verb!Optional! and C\# 2.0 feature, i.e. \verb!DefaultParameterValue!
+attribute. However, we cannot use that in C++/CLI, e.g. the following code
+\begin{verbatim}
+public ref class MyClass1
+{
+ public:
+  MyClass1([System::Runtime::InteropServices::Optional]
+           [System::Runtime::InteropServices::DefaultParameterValue(2)]
+           int myParam1)                                            
+  {
+    System::Console::WriteLine(myParam1);
+  }
+};
+\end{verbatim}
+
+The reason is that the C\# compiler don't use the [DefaultParameterValue] for
+setting the correct default value in the metadata; it uses \verb!.param!
+directive to get the value embedded in the metadata (Check the specs
+in Partition II, Chapter 15.4.1; but 15.4.1.4 is silent about it. The .para m
+directive) that is visible in C\#.
+So in C\# the deault parameter is visible but only with the system default value. 
+In the case of boolean type, \textcolor{red}{a workaround solution is using
+Nullable} as for nullable type, the default is always ``null'' (.HasValue ==
+false)
+
+\begin{verbatim}
+// in C++/CLI header file
+String^ test([Optional] Nullable<bool> boolTest);
+
+// in C++/CLI .cpp file
+String^ YourClass::test(Nullable<bool> boolTest) 
+{ 
+if (!boolTest.HasValue) { boolTest = true; } 
+return (boolTest ? gcnew String("True") : gcnew String("False")); 
+}
+
+
+// when we use it in C#
+MessageBox.Show(YourClass.test());
+\end{verbatim}
+\url{https://visualstudio.uservoice.com/forums/121579-visual-studio/suggestions/5639618-c-cli-support-for-optional-parameters-for-using}
+
+
+
+\url{http://stackoverflow.com/questions/15454394/why-c-cli-has-no-default-argument-on-managed-types}
+
+\subsection{Event handler}
+\label{sec:event_handler_C++/CLI}
+
+In C++/CLI, the EventHandler delegate type requires an object of type
+\verb!EventArgs! as the second argument, not a string.
+
+There are 4 options:
+\begin{enumerate}
+  \item create an instance of \verb!System::EventHandler!, if the underlying
+  delegate is a global handler and has the standard signature for .NET events
+  (object + event args)
+  
+\begin{verbatim}
+delegate void MyOwnEventHandler(Object^ sender, EventArgs^ e) { }  
+myEventSource->MyEvent += gcnew EventHandler(MyOwnEventHandler); 
+\end{verbatim}
+  
+  \item create an instance of \verb!System::EventHandler! if the underlying
+  delegate has the standard signature for .NET events and the event handler is a
+  class method
+\begin{verbatim}
+ref class EventReceiver {
+public:
+   void Handler(Object^ sender, EventArgs^ e) {  }
+   
+   void something()
+   {
+      // (1)  use inside the class
+      myEventSource->MyEvent += gcnew EventHandler(this, \
+                               &EventReceiver::Handler);
+   }
+};
+
+// (2) use outside the class
+myEventSource->MyEvent += gcnew EventHandler(myEventReceiver, \
+                               &EventReceiver::Handler);
+\end{verbatim}
+  
+  \item define a delegate and create the instance of that delegate, if the event
+  is a custom one (you define yourself as a class member)
+  
+\begin{verbatim}
+delegate void Del(int, float);
+ref class EventReceiver {
+public:
+    void Handler(int i , float f) {  }
+};
+
+
+myEventSource->MyEvent += gcnew Del(myEventReceiver, &EventReceiver::Handler);
+\end{verbatim}
+
+  \item create an instance of \verb!System::EventHandler! generic that takes
+  a \verb!MyEventArgs! arg as parameter
+\begin{verbatim}
+ref class EventReceiver {
+public:
+   void Handler(Object^ sender, MyEventArgs^ e) {  }
+};
+myEventSource->MyEvent += gcnew EventHandler<MyEventArgs^>(this, &EventReceiver::DataReceived);
+\end{verbatim}
+\end{enumerate}
+BEST:
+\url{http://stackoverflow.com/questions/4942311/how-do-i-assign-an-event-handler-to-an-event-in-c-cli}
+
+
+\begin{verbatim}
+// C#
+someObj.SomeEvent += new EventHandler(Blah_SomeEvent);
+
+private void Blah_SomeEvent(object sender, EventArgs e)
+{
+}
+
+// C++/CLI
+someObj->SomeEvent+= gcnew EventHandler(this, &Blah_SomeEvent);
+\end{verbatim}
+
+\url{http://manski.net/2011/04/cpp-cli-cheat-sheet/}
+\begin{verbatim}
+// C#
+class SomeClass 
+{
+  private void loadFieldToolStripMenuItem_Click(object sender, EventArgs e)
+  {
+  }
+  public void SomeClass::RegisterHandler(){
+    textBox.TextChanged += gcnew EventHandler(this->TextChanged_Handler); 
+  }
+}
+
+// C++/CLI
+ref class SomeClass 
+{
+  private: void loadFieldToolStripMenuItem_Click(Object ^sender, EventArgs ^e)
+  {
+  }
+  
+  public: void SomeClass::RegisterHandler(){
+    textBox->TextChanged += gcnew EventHandler(this, &SomeClass::TextChanged_Handler);
+  }
+}  
+\end{verbatim}
+
+\url{http://msdn.microsoft.com/en-us/library/58cwt3zh.aspx}
+
+
+\subsection{User interface}
+
+It is possible to use Winforms in C++/CLI applications (Check the book on GUI
+Development, and chapter on Winforms)
+
+\begin{verbatim}
+#include "MainForm.h"
+
+using namespace System;
+using namespace System::Windows::Forms;
+
+[STAThread]
+void main(array<String^>^ arg) 
+{
+   Application::EnableVisualStyles();
+   Application::SetCompatibleTextRenderingDefault(false);
+   
+   //Create the form instance
+   CUDAFluxGUI::MainForm form;
+   
+   Application::Run(%form);
+
+}
+\end{verbatim}
+
+\subsection{Delete a UI control}
+
+During design, we saw that, if you have added a control to your application but
+you don't want that control anymore, you could delete it. In some rare cases,
+you may also want to allow the user to delete a control (instead of hiding it).
+When a control is deleted, the Control::ControlRemoved event is fired.   
+
+\begin{verbatim}
+ublic: event ControlEventHandler^ ControlRemoved;
+\end{verbatim}
+This event is carried by a ControlEventHandler delegate through the
+ControlEventArgs class (Sect.\ref{sec:event_handler_C++/CLI}).
+
+\subsection{Link .NET dll to C++/CLI project}
+
+You have two options: (1) \verb!#using! statement; (2) add references.
+
+The first option requires
+\begin{itemize}
+  \item Name the DLL, with or without path (recommend not to use path as the
+  location of the DLL during compiling and running of the application can be
+  different)
+  
+\begin{verbatim}
+#using "CUDAFluxGUIComponent.DLL"
+\end{verbatim}
+You may need to add \verb!/AI! and path name to the DLL in your project's
+property
+\begin{verbatim}
+C/C++
+  CommandLine Arguments
+\end{verbatim}
+or 
+\begin{verbatim}
+C/C++
+  General
+    Using (#using) directive
+\end{verbatim}
+\end{itemize}
+
+For the second option, you just need to add (1) compile dependencies, and (2)
+add references to the DLL. Then the Visual Studio implicitly add \verb!/FU!
+compiling option and the folder path to the DLL. 
+
+In order to use the class from the DLL, make sure it is \verb!public!.
+Otherwise, you may get the error
+\begin{verbatim}
+
+\end{verbatim}
+
+\subsection{Link native LIB to C++/CLI}
+
+Just add the reference to the .LIB file.
+
+\url{http://stackoverflow.com/questions/4002269/linking-unmanaged-c-dll-with-managed-c-class-library-dll?lq=1}
+
+\subsection{Link native DLL to C++/CLI  project}
+
+Suppose you have a C++ code in another DLL project
+\begin{verbatim}
+// In the unmanged file (in the unmanged dll project)
+using std::vector;
+namespace populationwin32 
+{
+  class PopulationWin32
+  {
+  public:
+    PopulationWin32();
+  // ...
+  };
+}
+\end{verbatim}
+
+
+\textcolor{red}{IMPORTANT: }
+
+In your current C++/CLI project, you want to call the class defined in that
+project. You may get error 
+\begin{verbatim}
+Error   1   error C2653: 'populationwin32' : is not a class or namespace name
+\end{verbatim}
+
+The reason is that you need to tell the compiler that the code being used is
+defined in another library, and the interface (i.e. header file) to that code
+\begin{enumerate}
+  \item Add the path to the header files
+\url{http://msdn.microsoft.com/en-us/library/t9az1d21(v=vs.80).aspx}
+
+  \item Add \verb!#include! to the header file in your C++/CLI code
+\begin{verbatim}
+#include "PopulationWin32.h"
+\end{verbatim}
+\end{enumerate}
+
+
+The header file of the DLL
+\begin{verbatim}
+#ifdef  MYDLL_EXPORTS 
+#define DLLCALL __declspec(dllexport)   /* Should be enabled before compiling 
+                                           .dll project for creating .dll*/
+#else
+#define DLLCALL __declspec(dllimport)  /* Should be enabled in Application side
+                                          for using already created .dll*/
+#endif
+
+// Interface Class
+class ImyMath {
+public:
+    virtual ~ImyMath() {;}
+    virtual int Add(int a, int b) = 0;
+    virtual int Subtract(int a, int b) = 0;
+};
+
+// Concrete Class
+class MyMath: public ImyMath {
+public:
+    MyMath() {}
+    int Add(int a, int b);
+    int Subtract(int a, int b);
+    int a,b;
+};
+
+//  Factory function that will return the new object instance. (Only function
+//  should be declared with DLLCALL)
+extern "C" /*Important for avoiding Name decoration*/
+{
+    DLLCALL ImyMath* _cdecl CreateMathObject();
+};
+
+// Function Pointer Declaration of CreateMathObject() [Entry Point Function]
+typedef ImyMath* (*CREATE_MATH) ();
+\end{verbatim}
+
+The DLL source file
+\begin{verbatim}
+#include "dllHeader.h"
+
+// Create Object
+DLLCALL ImyMath* _cdecl CreateMathObject() {
+    return new MyMath();
+}
+
+int MyMath::Add(int a, int b) {
+    return a+b;
+}
+
+int MyMath::Subtract(int a, int b) {
+    return a-b;
+}
+\end{verbatim}
+
+The code to use the DLL
+\begin{verbatim}
+ #include <iostream>
+#include <windows.h>
+#include "dllHeader.h"
+
+int main()
+{
+    HINSTANCE hDLL = LoadLibrary(L"MyDLL.dll"); // L".\Debug\MyDLL.dll"
+
+    if (hDLL == NULL) {
+        std::cout << "Failed to load library.\n";
+    }
+    else {
+        CREATE_MATH pEntryFunction = (CREATE_MATH)GetProcAddress(hDLL,"CreateMathObject");
+        ImyMath* pMath = pEntryFunction();
+        if (pMath) {
+            std::cout << "10+10=" << pMath->Add(10, 10) << std::endl;
+            std::cout << "50-10=" << pMath->Subtract(50, 10) << std::endl;
+        }
+        FreeLibrary(hDLL);
+    }
+    std::cin.get();
+    return 0;
+}
+\end{verbatim}
+\url{http://stackoverflow.com/questions/27998/exporting-a-c-class-from-a-dll/28022#28022}
+
+\subsection{Link a DLL that uses CUDART with C\#/C++/CLI}
+
+Suppose you have C++/CLI code or C\# code and want to use CUDA-capable Thrust
+library. As soon as you include Thrust's header file (no need to call a
+function), you may get linker errors.
+
+In C\# or C++/CLR, we cannot link anything compiled with /MT. 
+
+Using \verb!/MD cudart!, we can use \verb!cudart! in a DLL that we then link
+with a C\#, C++/CLR application. 
+An easier way is to use P/Invoke into any native DLL, regardless of linker
+setting. However, if it really does get rid of the P/Invoke
+overhead (especially when Marshalling is required to use), that could be a
+pretty big deal for using CUDA through .NET.
+\url{https://devtalk.nvidia.com/default/topic/408277/-mt-versus-md-dlls-for-cuda/}
+
+
+
+

@@ -1,0 +1,49 @@
+\chapter{GObject system}
+\label{chap:GObject}
+
+\section{GObject}
+\label{sec:GObject}
+
+To help bridging C language and an object-oriented language like C++, the
+concept of an "object" needs to be introduced. 
+
+After GIM 0.6 (Sect.\ref{sec:GTK+}), the designers realized that for future
+development and progress, the entire toolkit needed to be rewritten to be
+object-oriented. However, they don't want to use C++, so a new system is
+developed to add an object oriented system to C.
+
+There are several reasons why GObject is used
+\begin{enumerate}
+  \item to avoid the controversial idea of multiple inheritance in C++
+  
+ GObject system is built to only support single inheritance, which can
+ drastically simplify the inheritance hierarchies.
+  
+  \item to make language interoperability easier
+  
+C++ just isn't that great at interop. However, interoperability with C is almost
+taken for granted.
+
+  \item to avoid many overkill feature of C++; while GTK+ only needs
+  some object oriented features in C.
+  
+  \item to be language independent
+  
+GObjects is intended to be language independent. It has dynamic typing, and you
+should it compare with a run-time system like COM, .NET or CORBA, rather than
+with specific languages. If you go into languages, then the features are more at
+the Objective-C than the C++ side.
+
+The GObject type system does things that you can't do easily in C++ (at that
+day). For one thing, it allows creation of new classes at runtime, and does this
+in a way that is language-independent - you can define a new class in Python at
+runtime, then manipulate instances of that class within a function written in C,
+which need not even be aware that Python was ever involved.
+\end{enumerate}
+\url{http://stackoverflow.com/questions/9747468/why-was-the-gobject-system-created}
+
+
+% For example: java.lang.Object,
+% GObject, QObject, python's base Object, or whatever.
+
+

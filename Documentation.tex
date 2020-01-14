@@ -1,0 +1,760 @@
+
+\chapter{Source code documentation (C++)}
+\label{chap:source-code-docum}
+
+
+A documentation part of the code can be inlined with the code by putting them
+inside the comments. C++ support 2 forms of comments
+\begin{itemize}
+  \item single-line comment: start with \verb!//!
+  \item multi-line comment: start with \verb!/*! and end with \verb!*/!
+  
+\end{itemize}
+
+There are different styles for writing documentation and there are different
+tools to extract the information written in these styles. Here are some styles
+\begin{enumerate}
+  \item XML style: each line starts with three forward slases (\verb!///!), and
+  then there comes a number of tags, e.g. \verb!<summary>...</summary>!. More
+  information: Sect.\ref{sec:Documentation_XMLstyle}.
+    
+  \item JavaDoc-style
+  \item C/C++-style
+\end{enumerate}
+
+A quite comprehensive list of tools for document generation:
+\url{http://engtech.wordpress.com/2006/07/05/inline-source-code-documentation-language-independent/}
+
+You can automate the task of template generation by using some add-ins depending
+on the IDE and the style you use
+\begin{enumerate}
+  \item Visual Studio IDE and XML comment style:
+  \begin{itemize}
+    \item GhostDoc: \url{http://submain.com/products/ghostdoc.aspx}
+    (Ctrl-Shift-D)
+    \item Atominer Pro Documentation:
+    \url{https://visualstudiogallery.msdn.microsoft.com/7912CCF4-60B8-4132-BACE-5ACACEB7233B/}
+    (10\$)
+  \end{itemize} 
+  \item 
+\end{enumerate}
+\url{http://www.hlrnet.com/frprdocu.htm}
+
+
+\section{Visual Studio}
+
+Visual Studio has a built-in tool to extract the documentation written in
+XML-comment style. You compile the code with \verb!/doc! option, the compiler
+then search and generate an XML documentation file. Then, using this file, we
+can create a final document (PDF, HTML, \ldots) using a custom tool
+
+\url{http://msdn.microsoft.com/en-us/library/b2s063f7.aspx}
+\begin{enumerate}
+  \item Sandcastle
+  \item Doxygen
+\end{enumerate}
+
+\section{ROBOdoc}
+\label{sec:robodoc}
+
+
+ROBOdoc\footnote{\url{http://www.xs4all.nl/~rfsber/Robo/stabledownload.html}}
+allows us to document the source code from any programming
+language. To install RoboDOC, we can either download the source code, compile
+ourself or using a binary package
+\begin{verbatim}
+// Ubuntu
+apt-get install robodoc
+\end{verbatim}
+
+
+Each source file (.c, .f95, etc.) needs to follow some rules:
+\begin{itemize}
+\item headers (Sect.\ref{sec:headers}): At each subroutine/function, the
+documentation is called a header
+\item items (Sect.\ref{sec:items}): inside each header
+\item sections (Sect.\ref{sec:sections})
+\end{itemize}
+
+\subsection{Headers and header types}
+\label{sec:headers}
+
+Each header contains 3 different elements (a beginner marker, a number
+of items (Sect.\ref{sec:items}), an end marker). 
+
+\begin{verbatim}
+/****f* financial.library/StealMoney
+  *  NAME
+  *    StealMoney -- Steal money from the Federal Reserve Bank. (V77)
+  *  SYNOPSIS
+  *    error = StealMoney( userName, amount, destAccount, falseTrail )
+  *  FUNCTION
+  *    Transfer money from the Federal Reserve Bank into the
+  *    specified interest-earning checking account.  No records of
+  *    the transaction will be retained.
+  *  INPUTS
+  *    userName    - name to make the transaction under.  Popular
+  *                  favorites include "Ronald Reagan" and
+  *                  "Mohamar Quadaffi".
+  *    amount      - Number of dollars to transfer (in thousands).
+  *    destAccount - A filled-in AccountSpec structure detailing the
+  *                  destination account (see financial/accounts.h).
+  *                  If NULL, a second Great Depression will be
+  *                  triggered.
+  *    falseTrail  - If the DA_FALSETRAIL bit is set in the
+  *                  destAccount, a falseTrail structure must be
+  *                  provided.
+  *  RESULT
+  *    error - zero for success, else an error code is returned
+  *           (see financial/errors.h).
+  *  EXAMPLE
+  *    Federal regulations prohibit a demonstration of this function.
+  *  NOTES
+  *    Do not run on Tuesdays!
+  *  BUGS
+  *    Before V88, this function would occasionally print the
+  *    address and home phone number of the caller on local police
+  *    976 terminals.  We are confident that this problem has been
+  *    resolved.
+  *  SEE ALSO
+  *    CreateAccountSpec(),security.device/SCMD_DESTROY_EVIDENCE,
+  *    financial/misc.h
+  ******
+  * You can use this space for remarks that should not be included
+  * in the documentation.
+  */
+\end{verbatim}
+
+The beginner marker is in the
+first line which tells
+\begin{itemize}
+\item the header type or the element (f = function, c=class, d=constant (from
+define), h=module, m=method, s=structure, t=types, u=unit-test, v=variable,
+*=generic header for everything else).
+
+Header types:
+\begin{verbatim}
+c	Header for a class
+d	Header for a constant (from define)
+f	Header for a function
+h	Header for a module in a project
+m	Header for a method
+s	Header for a structure
+t	Header for a types
+u	Header for a unit test
+v	Header for a variable
+*	Generic header for everything else
+\end{verbatim}
+
+You can use two-character header where the first one is 'i' and the second one
+is any of the above character. i=internal. An internal header type is special to
+document internal function that you don't want client to see (i.e. a
+programmer's manual rather than a user's manual). So, if you want to include
+them in the manual, you need to run robodoc with \verb!--internal! option, or
+\verb!--internalonly!.
+
+You can also define your own header-type by modifying \verb!robodoc.rc! file.
+If you want to define a new header type, use the configuration file,
+and add three new information (for each header type) 
+\begin{enumerate}
+\item the single character
+\item title for this type as used in the master index
+\item name of the file in which the index of this type is stored. 
+\item (optional) sorting priority - which decides whether order of the
+  header to appear in the generated file
+\end{enumerate}
+For example:
+\begin{verbatim}
+headertypes:
+    J  "Projects"          robo_projects    2
+\end{verbatim}
+
+\item the name of the element (e.g. StealMoney)
+\item the module where the element belong to (e.g. financial.library)
+\end{itemize}
+\begin{verbatim}
+****f* financial.library/StealMoney  
+\end{verbatim}
+ROBOdoc use ``/'' as the separator between the module name and element
+name. If multiple elements have the similar documentation, we can
+group them using comma (``,'') and can span multiple lines
+\begin{verbatim}
+****f* financial.library/StealMoney, Steal_Money
+\end{verbatim}
+
+The default header marker, line marker, and end line marker are
+\begin{verbatim}
+
+/****       C, C++
+ *
+ ***/
+
+//****      C++
+//
+//***
+\end{verbatim}
+
+The header marker block and the end marker can be changed to fit to
+your programming language. For example:
+\begin{verbatim}
+header markers:
+    !>****
+end markers:
+    !_****
+\end{verbatim}
+
+
+
+\subsection{Items}
+\label{sec:items}
+
+Inside a header (Sect.~\ref{sec:headers}), there is a number of items.
+Each item begins with an item name, e.g. NAME, SYNOPSIS, followed by
+an item body (at the new line). Each line of an item (name/body) starts with a
+remark marker, e.g. \verb!*! for C/C++ (Sect.~\ref{sec:remarks-comments}).
+\begin{verbatim}
+  *  FUNCTION
+  *    Transfer money from the Federal Reserve Bank into the
+  *    specified interest-earning checking account.  No records of
+  *    the transaction will be retained.
+\end{verbatim}
+
+
+\begin{verbatim}
+/****f* financial.library/StealMoney
+  *  NAME
+  *
+  *  SYNOPSIS
+  *
+  *  FUNCTION
+  *
+  *  INPUTS
+  *
+  *  RESULT
+  *
+  *  EXAMPLE
+  *
+  *  NOTES
+  *
+  *  BUGS
+  *
+  *
+  *  SEE ALSO
+  *
+  ******
+\end{verbatim}
+
+Some items you may want not to be extracted by default. So, you need
+to add them to the list of ``ignore items'' in the configuration file
+(Sect.~\ref{sec:conf-file-robod}).
+
+
+\subsection{Sections}
+\label{sec:sections}
+
+\subsection{Remarks (comments)}
+\label{sec:remarks-comments}
+
+Inside the code, you may have comment (remarks) that you don't want it
+to be added to the documentation. You can tell ROBOdoc to recognize
+such lines using ``remark markers'' block
+\begin{verbatim}
+remark markers:
+  !!$
+\end{verbatim}
+The remark marker is also used to start the item name and item body. 
+
+
+If you want to intervene the code with the 
+
+If you want block comment, you define ``remark begin markers'' and
+``remark end markers''. However, it's worthy to know that Fortran have
+no support for block comment. 
+
+\subsection{Configuration file (robodoc.rc)}
+\label{sec:conf-file-robod}
+
+ROBODoc can be configured with a configuration file, with the default
+name is \verb!robodoc.rc!. ROBODoc searches the your current directory
+for the configuration file. If it can't find it there it will search
+in \$HOME/, then \$HOMEDRIVE\$HOMEPATH/, and finally in
+/usr/share/robodoc/.  You can also tell ROBOdoc to use a configuration
+file with different name
+\begin{verbatim}
+robodoc --rc  htmlsingle.rc
+robodoc --rc  rtfsingle.rc
+robodoc --rc  htmlmulti.rc
+\end{verbatim}
+
+\begin{framed}
+  This file lists out the names of items, ignore items, source items,
+  frequently used options, headertypes, ignore files, accept files,
+  header markers, remark markers, end markers, remark begin markers,
+  remark end markers, and translations for English terms.
+
+  Each name, followed by semicolon (``:''), marks the start of a
+  block. Inside each block, you can define a number of values, which
+  must be preceded by at least one space. 
+
+\end{framed}
+
+\begin{verbatim}
+items:
+    NAME
+    FUNCTION
+    SYNOPSIS
+    INPUTS
+    OUTPUTS
+    SIDE EFFECTS
+    HISTORY
+    BUGS
+    EXAMPLE
+ignore items:
+    HISTORY
+    BUGS
+item order:
+    FUNCTION
+    SYNOPSIS
+    INPUTS
+    OUTPUTS
+source items:
+    SYNOPSIS
+preformatted items:
+    INPUTS
+    OUTPUTS
+format items:
+    FUNCTION
+    SIDE EFFECTS
+options:
+    --src ./source
+    --doc ./doc
+    --html
+    --multidoc
+    --index
+    --tabsize 8
+headertypes:
+    J  "Projects"          robo_projects    2
+    F  "Files"             robo_files       1
+    e  "Makefile Entries"  robo_mk_entries
+    x  "System Tests"      robo_syst_tests
+    q  Queries             robo_queries
+ignore files:
+    README
+    CVS
+    *.bak
+    *~
+    "a test_*"
+accept files:
+    *.c
+    *.h
+    *.pl
+header markers:
+    /****
+    #****
+remark markers:
+    *
+    #
+end markers:
+    ****
+    #****
+header separate characters:
+    ,
+header ignore characters:
+    [
+remark begin markers:
+    /*
+remark end markers:
+    */
+source line comments:
+    //
+keywords:
+    if
+    do
+    while
+    for
+\end{verbatim}
+
+
+For example, the default setting for Fortran is
+\begin{verbatim}
+__****f* ModuleName/Foo
+__ FUNCTION
+__   Foo computes the foo factor
+__   using a fudge factor.
+__ SYNOPSIS
+int Foo( int fudge )
+__ INPUTS
+__   fudge -- the fudge factor
+__ SOURCE
+
+ more source code..
+
+__****
+\end{verbatim}
+
+
+
+\subsection{A complete sample in C/C++}
+\label{sec:complete-sample-cc++}
+
+\begin{verbatim}
+/****f* financial.library/StealMoney
+  *  NAME
+  *    StealMoney -- Steal money from the Federal Reserve Bank. (V77)
+  *  SYNOPSIS
+  *    error = StealMoney( userName, amount, destAccount, falseTrail )
+  *  FUNCTION
+  *    Transfer money from the Federal Reserve Bank into the
+  *    specified interest-earning checking account.  No records of
+  *    the transaction will be retained.
+  *  INPUTS
+  *    userName    - name to make the transaction under.  Popular
+  *                  favorites include "Ronald Reagan" and
+  *                  "Mohamar Quadaffi".
+  *    amount      - Number of dollars to transfer (in thousands).
+  *    destAccount - A filled-in AccountSpec structure detailing the
+  *                  destination account (see financial/accounts.h).
+  *                  If NULL, a second Great Depression will be
+  *                  triggered.
+  *    falseTrail  - If the DA_FALSETRAIL bit is set in the
+  *                  destAccount, a falseTrail structure must be
+  *                  provided.
+  *  RESULT
+  *    error - zero for success, else an error code is returned
+  *           (see financial/errors.h).
+  *  EXAMPLE
+  *    Federal regulations prohibit a demonstration of this function.
+  *  NOTES
+  *    Do not run on Tuesdays!
+  *  BUGS
+  *    Before V88, this function would occasionally print the
+  *    address and home phone number of the caller on local police
+  *    976 terminals.  We are confident that this problem has been
+  *    resolved.
+  *  SEE ALSO
+  *    CreateAccountSpec(),security.device/SCMD_DESTROY_EVIDENCE,
+  *    financial/misc.h
+  ******
+  * You can use this space for remarks that should not be included
+  * in the documentation.
+  */
+\end{verbatim}
+
+References:
+\begin{itemize}
+\item
+  \url{http://www.sesp.cse.clrc.ac.uk/Publications/tools_report_2005/node16.html}
+\end{itemize}
+
+
+\section{Doxygen (Doxymacs)}
+\label{sec:doxygen-doxymacs}
+
+Doxygen is a mature tool, equivalent to Javadoc. It can be used from its
+graphical wizard, from the command line or as part of a make process.
+With C++, doxygen supports 2 style of comments.
+\begin{verbatim}
+/**/ multi-line comment
+// until the end of line comment
+\end{verbatim}
+However, you needs to add more details for Doxygen to recognize, which can be in
+different forms
+\footnote{\url{http://www.stack.nl/~dimitri/doxygen/manual/docblocks.html\#cppblock}}
+
+\begin{enumerate}
+  \item Use two \verb!*! (JavaDoc style) and the intermediate \verb!*! for
+  each new line is required as well
+\begin{verbatim}
+/**
+ * ... text ...
+ */
+\end{verbatim}
+
+  \item Use \verb/*!/ (Qt style)
+\begin{verbatim}
+/*!
+ * ... text ...
+ */
+ 
+ /*!
+ ... text ...
+*/
+\end{verbatim}
+
+  \item Use block of at least two \verb!///! or  \verb.//!. We need a blank line
+  to ends the documentation block
+\begin{verbatim}
+///
+/// ... text ...
+///
+
+//!
+//!... text ...
+//!
+\end{verbatim}
+  \item More visible way (with two slashes to the end of )
+\begin{verbatim}
+/********************************************//**
+ *  ... text
+ ***********************************************/
+ 
+/////////////////////////////////////////////////
+/// ... text ...
+///////////////////////////////////////////////// 
+\end{verbatim}
+  \item 
+\end{enumerate}
+
+If you use multi-line commment, to disable code, you cannot use /* and */. So
+you need to use
+\begin{verbatim}
+#if 0 / #endif
+\end{verbatim} 
+
+
+Remember that
+\begin{enumerate}
+  \item Entities that are members of classes are only documented if their class
+  is documented. 
+  
+  \item Entities declared at namespace scope are only documented if their
+  namespace is documented. 
+  
+  \item Entities declared at file scope are only documented if their file is
+  documented. 
+  
+  So to document functions at file scope, we need this below line in the header
+  file in which it is declared
+  \begin{verbatim}
+  /** @file */
+  \end{verbatim}
+  or
+  \begin{verbatim}
+  /*! \file */
+  \end{verbatim}
+\end{enumerate}
+
+
+
+\url{http://www.stack.nl/~dimitri/doxygen/history.html}
+
+\subsection{Tips}
+Avoid the temptation to comment too much. Describe what you need, and no more.
+Doxygen gives you lots of tags, but you don't have to use them all.
+\begin{verbatim}
+You don't always need a @brief and a detailed description.
+You don't need to put the function name in the comments.
+You don't need to comment the function prototype AND implementation.
+You don't need the file name at the top of every file.
+You don't need a version history in the comments. (You're using a version control tool, right?)
+You don't need a "last modified date" or similar.
+
+You should tell the return code, and any exceptions that the function can raise. 
+\end{verbatim}
+
+Doxygen work well with C-style code. However, it also support
+different programming language (Fortran, ...). Doxygen uses a configuration file
+to control its behavior. This file contains entities called tags
+\begin{enumerate}
+  \item \verb!PROJECT_NAME!:
+  \item \verb!INPUT=./src!
+  \item \verb!OUTPUT_DIRECTORY!:
+  \item \verb!STRIP_FROM_PATH!:
+  \item \verb!OPTIMIZE_FOR_FORTRAN=YES!:
+  \item \verb!FILE_PATTERNS = *.f95!
+  \item \verb!IMAGE_PATH=./images!: location where we put images to be included
+  in the source code using \verb!\image! command
+  \item \verb!GENERATE_HTML=YES! : generate navigable pages using a browser
+  
+  We can also export the documentation in LaTeX, Doc, HTML, etc.
+\end{enumerate}
+
+
+
+Documentation should be added into the header files, using the style
+\begin{verbatim}
+!> @file
+!! This is the information about this file
+
+!> @brief a test module
+!------------------------------------------------------------------------------
+! NASA/GSFC, Software Integration & Visualization Office, Code 610.3
+!------------------------------------------------------------------------------
+!
+! MODULE: Module Name
+!
+!> @author
+!> Module Author Name and Affiliation
+!
+! DESCRIPTION: 
+!> Brief description of module.
+!
+! REVISION HISTORY:
+! DD Mmm YYYY - Initial Version
+! TODO_dd_mmm_yyyy - TODO_describe_appropriate_changes - TODO_name
+!------------------------------------------------------------------------------
+
+module MyModule_mod
+   
+   use AnotherModule_mod
+   
+   implicit none
+   
+   public MyModule_type            ! TODO_brief_description
+ 
+   public someFunction             ! TODO_brief_description
+   
+   ! NOTE_avoid_public_variables_if_possible
+   
+contains
+ 
+   !---------------------------------------------------------------------------  
+   !> @author 
+   !> Routine Author Name and Affiliation.
+   !
+   ! DESCRIPTION: 
+   !> Brief description of routine. 
+   !> @brief
+   !> Flow method (rate of change of position) used by integrator.
+   !> Compute \f$ \frac{d\lambda}{dt} , \frac{d\phi}{dt},  \frac{dz}{dt} \f$
+   !
+   ! REVISION HISTORY:
+   ! TODO_dd_mmm_yyyy - TODO_describe_appropriate_changes - TODO_name
+   !
+   !> @param[in] inParam      
+   !> @param[out] outParam      
+   !> @return returnValue
+   !---------------------------------------------------------------------------  
+   
+   function someFunction
+      use AnotherModule  
+      
+      real, intent(in) :: inParam        
+      real, intent(out) :: outParam       
+      real, intent(inout) :: inOutParam   !TODO_description
+      real :: returnValue                 
+      
+      real :: someVariable                !> @var Variable description
+ 
+      ! TODO_insert_code_here
+ 
+   end function someFunction
+   
+end module MyModule_mod
+\end{verbatim}
+
+To run doxygen
+\begin{verbatim}
+doxygen doxyfile.conf
+\end{verbatim}
+
+RULES:
+\begin{enumerate}
+  \item Comments relevant for Doxygen start with \verb.!>.
+  \item The documentation for subroutine/function should be placed above it.
+  Paragraphs are separated by a blank line. The first paragraph is used as a
+  short description in the overview tables.
+  
+  \item The tags start with either \verb!\! or \verb!@!. Here are examples
+\begin{verbatim}
+@author
+@authors
+@version
+@warning = some warning related to the code
+@param   = documentation on parameters. The documentation for parameters can be
+placed right next to them
+   subroutine ...(...)
+      logical intent(IN):: test !> what 'test' means here
+
+@bug 
+@deprecated
+@details
+@return
+@see   = refers to another entity
+@todo      
+\end{verbatim}
+
+   \item To add LaTeX code, put them between \verb!\f$! and \verb!\f$!.
+   
+\begin{verbatim}
+\f$ \frac{d\lambda}{dt} , \frac{d\phi}{dt},  \frac{dz}{dt} \f$
+\end{verbatim}
+
+\end{enumerate}
+
+IMPORTANT THINGS TO AVOID: 'in-body' comments (comment starting with \verb.!>.
+in the body of the subroutine/function) don't seem to work for Fortran.
+
+
+\begin{enumerate}
+  \item Multi-line comment:
+  \begin{verbatim}
+  /*
+   * This is the description
+   * for the following function
+   */
+   void do_this(int argc, char **argv)
+  \end{verbatim}
+  \item Single-line comment:
+\end{enumerate}
+
+
+References:
+\begin{itemize}
+\item \url{http://www.stack.nl/~dimitri/doxygen/install.html}
+\end{itemize}
+
+\subsection{Doxygen with IDE}
+
+\begin{itemize}
+  \item Eclipse IDE: Eclipse CDT has doxygen support (even if awkward) and will
+  create empty doxygen comments for you if you request it to
+  
+  \item Visual Studio: you need to use 
+
+  \item 
+\end{itemize}
+\subsection{Doxygen in Windows}
+
+We can use \verb!DoxyWizard! tool to create the configuration
+file called \verb!doxyfile!. 
+
+There are reports that Doxygen doesn't generate documentation for C function or
+C++ global functions (i.e. those not belonging to a class).
+\footnote{\url{http://linux.m2osw.com/doxygen-does-not-generate-documentation-my-c-functions-or-any-global-function}}
+Doxygen ignores the documentation of global entities (like functions) if 
+the file itself which contains them is not documented. This behavior 
+comes as a surprise to many. A quote from 
+\url{http://www.stack.nl/~dimitri/doxygen/docblocks.html\#structuralcommands}
+
+Question 3: \url{http://www.star.bnl.gov/public/comp/sofi/doxygen/faq.html}
+\begin{verbatim}
+To document a member of a C++ class, you must also document the class 
+itself. The same holds for namespaces. To document a global C function, 
+typedef, enum or preprocessor definition you must first document the 
+file that contains it (usually this will be a header file, because that 
+file contains the information that is exported to other source files). 
+\end{verbatim} 
+
+Let's repeat that, because it is often overlooked: to document global 
+objects (functions, typedefs, enum, macros, etc), you must document the 
+file in which they are defined. In other words, there must at least be a 
+
+\begin{verbatim}
+/*! \file */
+\end{verbatim} 
+
+or a 
+
+\begin{verbatim}
+/** @file */ 
+\end{verbatim}
+
+line in this file. 
+
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "fortran_manual"
+%%% End: 

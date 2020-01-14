@@ -1,0 +1,156 @@
+%%
+%% GenerateData.tex
+%% Login : <hoang-trong@hoang-trong-laptop>
+%% Started on  Thu Oct  1 12:07:44 2009 Hoang-Trong Minh Tuan
+%% $Id$
+%% 
+%% Copyright (C) 2009 Hoang-Trong Minh Tuan
+%%
+
+\chapter{Generate Data}
+\label{chap:generate-data}
+
+The Mersenne Twister algorithm (Sect.\ref{sec:PRNG_Mersenne-Tiwstter}) is
+available in C++ language since C++11 standard.
+
+In early version of C++, the header file \verb!cstdlib! (C++) or \verb!stdlib.h! provides function for PRNGs
+\begin{itemize}
+  \item \verb!RAND_MAX! - a macro that extends to an integer constant
+  
+  \item \verb!std::rand()! - a function returning a PRN in the interval \verb!(0, RAND_MAX)!
+  
+  \item \verb!std:srand()! - pass a seed to the PRNG used by \verb!std:rand()!
+\end{itemize}
+The algorithms underlying even this minimal support have typically been unspecified, and
+hence their use has historically been nonportable. 
+\url{http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3551.pdf}
+
+\section{C++11: <random>}
+\label{sec:C++11_random}
+
+
+C++11 provides a new header file for PRNG 
+\begin{lstlisting}
+#include <random>
+\end{lstlisting}
+In C++11, there is a clear difference between the {\bf engine} and the {\bf distribution}.
+\begin{itemize}
+  \item the {\bf engine}'s role is to return unpredictable (random) bits, ensuring the probability (or likelihood) of obtaining
+  a 0 bit is always the same as that of obtaining a 1 bit.
+  
+The purpose of the engine is to serve as a source of randomness. The sequence would be in uniform distribution.  
+  
+  \item the {\bf distribution}'s role is to convert the bits in uniformly distributed sequence into the number of proper distribution.
+\end{itemize}
+The terms engine and distribution are applied not only to types meeting certain requirements specified in the C++11
+standard, but also to objects of such types.
+
+\subsection{Create an engine}
+
+The engine controls the sequence of PRNG.
+The two engines initialized of the same state always return the same two sequence of PRNGs.
+Such replication can be very useful while debugging a program or reproducing research, for example.
+
+To escape replication, the engine's seed must vary from run to run
+\begin{itemize}
+  \item traditional approach: use system clock, \verb!time(0)!, or access to system-specific resource, \verb!/dev/urandom!
+  
+  \item C++11 approach: use \verb!std::random_device! as the seed
+\end{itemize}
+
+There are two ways to initialize an engine: implicit vs. explicit (which we can
+also provide a seed). The type of the seed must be the same as (or convertible
+to) the type of the values produced by the engine.
+
+
+\begin{verbatim}
+#include <random>
+
+std::default_random_engine e1; // implicitly default-initialized
+static std::default_random_engine e{};  // explicit default-initialized
+
+std::default_random_engine e3{13607};
+
+std::random_device rdev{};
+std::default_random_engine e{rdev()};
+\end{verbatim}
+
+An engine's state can be reset any time after it has been initialized
+\begin{lstlisting}
+void f( std::default_random_engine & e4, std::random_device & rd )
+{
+  e4.seed(13607); // e4 state now as if initialized by 13607
+
+  e4.seed(); // now as if default-initialized
+
+  e4.seed(rd()); // now as if initialized via the device-obtained seed
+}
+\end{lstlisting}
+
+List of all engines:
+\begin{itemize}
+  \item light-weight use:   \verb!std::default_random_engine!
+  \item knowledge use: 
+\begin{itemize}
+  
+  \item \verb!std::mt19937!, \verb!std::mt19947_64!: mersenne twister
+  
+  \item \verb!minstd_rand0, minstd_rand!: linear congruential engines
+  
+  \item \verb!ranlux24_base, ranlux48_base!: subtract with carry engine
+  
+   \item \verb!ranlux24, ranlux48!: discard block engine
+   \item \verb!knuth_b! : shuffle order engine
+\end{itemize}
+  \item for expert (researcher): the following templates can be configured via template parameters 
+
+\begin{verbatim}
+linear_congruential_engine 
+discard_block_engine
+mersenne_twister_engine 
+independent_bits_engine
+subtract_with_carry_engine 
+shuffle_order_engine
+
+\end{verbatim}
+\end{itemize}
+
+\subsection{Create a distribution}
+
+{\bf Uniform distribution}:
+\begin{lstlisting}
+int lbound = 1;
+int ubound = 6;
+static std::uniform_int_distribution<int> d{lbound, ubound};
+\end{lstlisting}
+
+\url{http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3551.pdf}
+
+\subsection{Return a PRN based on the created distribution and engine}
+
+We pass the engine to the distribution.
+
+\begin{lstlisting}
+#include <random>
+int roll_a_fair_die( )
+{
+  static std::default_random_engine e{};
+  static std::uniform_int_distribution<int> d{1, 6};
+  return d(e);
+}
+\end{lstlisting}
+
+
+
+
+\section{File with given sizes}
+
+Create file at a given size, containing only zeros
+\begin{verbatim}
+dd if=/dev/zero bs=1024 count=<number-of-kilobytes> > myfile
+\end{verbatim}
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "fortran_manual"
+%%% End: 

@@ -1,0 +1,48 @@
+\chapter{Benchmark}
+
+
+\section{Linux shell ``time": whole program}
+
+
+\begin{lstlisting}
+$ time ./a.out
+\end{lstlisting}
+
+
+\section{clock(): <time.h>}
+\label{sec:clock()_C}
+
+
+\verb!clock()! is standard in C language, whichmeasures the CPU time, and the
+return a floating number of type \verb!clock_t!, as the number of clocks
+ellapsed.
+The number of clocks per second is architecture-specific, and can be checked via
+\verb!CLOCKS_PER_SEC! constant.
+
+\begin{lstlisting}
+#include <time.h>
+
+int main()
+{
+    clock_t tic = clock();
+
+    my_expensive_function_which_can_spawn_threads();
+
+    clock_t toc = clock();
+
+    printf("Elapsed: %f seconds\n", (double)(toc - tic) / CLOCKS_PER_SEC);
+
+    return 0;
+}
+\end{lstlisting}
+
+
+\section{gettimeofday(): <sys/time.h>}	
+
+
+\section{C++ Boost library: Chrono}
+
+Sect.\ref{sec:Boost.Chrono}
+
+
+\section{C++11: }

@@ -1,0 +1,639 @@
+\chapter{Array}
+%\section{Array}
+\label{sec:array}
+
+To see the difference between a pointer and an array, read
+Sect.\ref{sec:pointer_array}.
+
+There are different ways to create an array, each with its purpose of use
+\begin{enumerate}
+  \item fixed (compile-time known size) array whose elements of intrinsic type -
+  Sect.\ref{sec:array-fixed-size-intrinsic}
+  
+  \item \textcolor{red}{std::array} (Sect.\ref{sec:std::array}) - fixed (compile-time known size)
+  container whose elements can be of any type
+  
+  \item \textcolor{red}{std::valarray} (Sect.\ref{sec:std::valarray}) - dynamic (run-time known size)
+   
+  It is intended to bring some of the speed of Fortran to C++, as you can't make
+  a valarray of pointers, (this avoid pointer aliasing -
+  Sect.\ref{sec:pointer-aliasing}), so the compiler can make assumptions about
+  the code and optimise it better.
+   
+   
+  \item \textcolor{red}{std::vector} (Sect.\ref{sec:std::vector})
+  
+  
+  \item \textcolor{red}{std::list} (Sect.\ref{sec:std::list})
+\end{enumerate}
+\begin{verbatim}
+//create on stack/ data segment
+// x point to a locate on stack/data segment
+// x cannot point to anywhere else
+int x[10];
+
+//C++
+// x a pointer pointing to a memory 
+//   allocated on heap (free store)
+// x can point to somewhere else
+int* x = new int[10];
+  
+   //need to delete
+delete []x;
+
+/////////////////////////////
+const int num_rows = 7;
+const int num_columns = 5;
+
+
+int box[num_rows][num_columns];
+\end{verbatim}
+
+\section{Type of indexing: int vs size\_t vs ptrdiff\_t ? }
+
+In C++, the default size for array indices is \verb!size_t!
+(Sect.\ref{sec:size_t}) which is a 64 bits unsigned 64-bits integer on most
+x86-64 platforms. However, the motivation for using an unsigned type as index or
+size in the standard is based on constraints only relevant to 16 bit machines.
+
+The design behind \verb!size_t! goes all the way back to the 1970s in C, when the
+\verb!unsigned! type was added as a way to convert some abuses of pointer arithmetic
+over to integer arithmetic.
+
+The fact \verb!unsigned! can’t be negative also means it can’t represent error
+conditions easily in the same type, leading to hacks like \verb!ssize_t!, which is
+essentially '\verb!size_t!, but signed'.
+Unsigned types also work out poorly for down-counting loops.
+\begin{verbatim}
+int a[N];
+for (unsigned i = N - 1; i >= 0; --i) { // an unfinite loop
+   // do something with a[i]
+}
+\end{verbatim}
+
+
+The natural type for any integral type in C++ is \verb!int!. If you're worried
+about the sizes being so big that they don't fit into an int, \verb!ptrdiff_t!
+would be appropriate. This is, after all, the type of the results of subtraction
+of pointers or iterators. (The fact that v.size() has a different type than
+\verb!v.end() - v.begin()! is really a design flaw in the standard library.)
+
+
+A number of different sources suggest that \verb!unsigned! \verb!size_t! is
+largely considered a design mistake in C; and C++ has inherited that mistake and
+propagated it into many library interfaces.
+
+A proposed solution: gsl::index
+\url{https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md#es107-dont-use-unsigned-for-subscripts-prefer-gslindex}
+
+\url{https://www.quora.com/Why-do-some-C-programs-use-size_t-instead-of-int-What-are-the-advantages}
+
+\url{http://soundsoftware.ac.uk/c-pitfall-unsigned.html}
+
+The types \verb!size_t! and \verb!ptrdiff_t! enable you to write well-portable code.
+\begin{itemize}
+  \item  for size : use \verb!size_t! 
+  \item for any arrithmetic operation: use \verb!ptrdiff_t!
+  
+  there exists a type \verb!ptrdiff_t!, which is a signed integer that can hold the difference of two array indices
+  
+\end{itemize}
+
+As an alternative to these two types, Windows-developers can use types 
+\verb!DWORD_PTR!, \verb!SIZE_T!, \verb!SSIZE_T!
+
+\url{https://www.viva64.com/en/a/0050/}
+
+
+
+
+\section{array with compile-time size}
+\label{sec:array-fixed-size-intrinsic}
+
+Example:
+\begin{verbatim}
+string myinput;
+string mylist[]={"a", "b", "c"};
+\end{verbatim}
+
+
+Example: find if a string is in the array of strings
+\begin{lstlisting}
+  std::string *begin = mylist;
+  std::string *end = mylist + 3;
+
+  if (std::find(begin, end, "b") != end)
+  {
+    std::cout << "find" << std::endl;
+  }
+
+if (std::find_if(std::begin(mylist), std::end(mylist),
+     [](const std::string& s){ return s == "b";}) != std::end(mylist))
+\end{lstlisting}
+
+\section{(a pointer to an array) or (an array whose elements are
+pointer to\ldots) }
+\label{sec:pointer-to-an-array}
+\label{sec:array-whose-elements-are-pointers}
+
+One question is the precedence rule between * and [] operator.
+Here, \verb!x! is a declarator-id, with the symbol \verb!*! means 'a pointer to'
+and \verb![]! means 'array of'. So, the question is x is 'an array of pointer'
+or 'a pointer pointing to an array'. 
+
+The nearest precedence chart for C and C++ states that [] operator has higher
+precedence than \verb!*!. 
+
+\begin{verbatim}
+  // declare and allocate an array 
+  // whose elements contains a value of type <type>
+<type> x[N];
+
+ // declare and allocate an array of pointers
+ // [] has higher precedence than *, so 'x' is an array  
+ // each element must be dereference individually, i.e. *x[i]
+<type> * x[N];
+
+ // unless it is wrapped by parentheses, then 
+ //  'x' is a pointer
+ // declare a pointer (without allocating) to an array of ints
+<type> (* x)[N];
+(<type> * x)[N];
+
+\end{verbatim}
+
+Thus, the declaration *x[N] means that \verb!x! is an
+array before it's a pointer. This can be changed using parentheses which has the
+highest precedence of all
+
+
+% \begin{verbatim}
+%   // x is a pointer to
+% (int* x) [N];
+% \end{verbatim}
+
+\section{copy C-array}
+\label{sec:copy_C-array}
+
+There is no simple fast way to do array copy. In C, we have to traverse each
+element
+\begin{verbatim}
+// copy array a to b
+for (int i = 0; i < size; i++)
+   b[i] = a[i];
+\end{verbatim}
+
+However, if we wrap the array inside a struct, we can copy the entire array
+with  a single assignment statement (Sect.\ref{sec:struct})
+\begin{verbatim}
+struct s_tag { int a[100];}
+
+struct s_tag a,b;
+
+b = a; // easily
+\end{verbatim}
+
+Another option is to treat the array as a contiguous memory region, and we use
+functions in Sect.\ref{sec:memcpy()}.
+
+\section{2D C-array (higher dimension)}
+\label{sec:C_array_2D}
+
+C doesns't have true multi-dimensional array.
+A multidimensional array is basically just a normal, flattened, array (in
+memory) with some extra syntatic sugar for accessing.
+
+\begin{verbatim}
+int arr[slow][fast];
+
+// In 2D:
+// arr[0][0], arr[0][1],...,arr[0][fast-1],arr[1][0]...
+//  ...   arr[slow-1][0],...,arr[slow-1][fast-1]
+
+
+// In 3D:
+int arr[slower][slow][fast];
+\end{verbatim}
+
+So, to index an elemenent, we cannot use  \verb!a[i,j]!, but it has to be
+\begin{verbatim}
+a[i][j]
+\end{verbatim}
+In C, a two-dimensional array \verb!a[X][Y]! is indeed a 1D array of 'X'
+elements, each element is a 1D array of 'Y' elements. 
+
+Example:
+\begin{verbatim}
+int x[10] = {0,1,2,3,4,5,6,7,8,9};
+int y[2][5] = {{0,1,2,3,4},{5,6,7,8,9}};
+\end{verbatim}
+
+
+%Instead, it's an array of 'array'
+RULE:
+\begin{verbatim}
+type name[size1][size2]...[sizeN];
+// with size1 is the slowest changing
+//      sizeN is the fastest changing
+\end{verbatim}
+
+
+\textcolor{red}{Passing to a function}: The knowledge about the size of the
+'array elements' is important. That's why we will see that when passing a 2D
+array to a function, we need to tell, minimum, the value of the faster changing
+dimension (Sect.\ref{sec:function_pass-array}). With more than two dimensions, all but the
+first dimension are required.
+\begin{verbatim}
+func(int a[][7], int b[][5][6])
+{
+ //	...
+}
+\end{verbatim}
+
+As the fastest changing dimension is on the right-side, so if the convention is
+that left-side refers to row, and right-side refers to column, then C-array is
+row-based, i.e. we need to provide data row-by-row
+\begin{verbatim}
+  // [row][col]
+int a[3][4] = {  
+ {0, 1, 2, 3} ,   /*  initializers for row indexed by 0 */
+ {4, 5, 6, 7} ,   /*  initializers for row indexed by 1 */
+ {8, 9, 10, 11}   /*  initializers for row indexed by 2 */
+};
+
+ // or just
+int a[3][4] = {0,1,2,3,4,5,6,7,8,9,10,11};
+
+ // we don't need to know how big the array 'x'
+ // the minimum is it's an array pointing to 'WHAT'
+ // here 'WHAT' is an array of 7 elements
+int x[][7];
+
+\end{verbatim}
+
+When we loop through elements, loop through column 
+\begin{verbatim}
+int i, j;
+for(i = 0; i < 5; i++)
+{
+    for(j = 0; j < 7; j++)
+       a2[i][j] = 0;
+}
+    
+\end{verbatim}
+
+We will talk about how to pass multi-dimensional array to function
+(Sect.\ref{sec:function_pass-array}), or how to address it using pointers
+(Sect.\ref{sec:pointer-2Darrays}).
+
+
+\section{maximum number of dimension in array}
+
+GCC allows arrays of up to 29 dimensions although actually using an array of
+more than three dimensions is very rare.
+
+To see how to work with high-dimensional array, read Sect.\ref{sec:C_array_2D}.
+
+\url{http://www.nongnu.org/c-prog-book/online/x697.html}
+
+
+\section{std::vector (C++, dynamics size)}
+
+Sect.\ref{sec:std::vector}
+
+
+\section{VLA (size at compile-time)}
+\label{sec:VLA}
+
+Variable-length array is a C99 feature (GCC accepts this as an extension in
+C90). IMPORTANT: This is NOT a feature of C++ (C++ standard states that array
+size must be a constant expression (8.3.4.1 -
+Sect.\ref{sec:constant-expression})). Even though the size of the array is
+unknown until runtime, the size then CANNOT be changed, i.e. a crucial feature
+known as {\it immutable size}. The advantage of using VLA is the ability to
+create small-size array with unknown size at compile time, without wasting space
+or calling instructions.
+
+The potential of creating a large array on stack (which has less space
+available), rather than on the heap (Sect.\ref{sec:heap_stack}) is a problem as
+C99 VLA has no way to indicate a failure. One solution is to use \verb!alloca()!
+function, which dynamically allocate memory on stack, not on heap
+(Sect.\ref{sec:alloca}).
+
+In C++, you are suggested to use \verb!std::vector! (Sect.\ref{sec:stl_vector})
+as an alternative to VLA. Neverthelss, vector is not the same as VLA, as
+vector still use dynamic memory (heap). 
+
+Example: VLA in C99
+\begin{verbatim}
+void foo(int n) {
+    int values[n]; //Declare a variable length array
+}
+void foo(int x, int y, int z) {
+    int values[x][y][z]; //Declare a variable length array
+}
+
+
+ FILE *
+     concat_fopen (char *s1, char *s2, char *mode)
+     {
+       char str[strlen (s1) + strlen (s2) + 1];
+       strcpy (str, s1);
+       strcat (str, s2);
+       return fopen (str, mode);
+     }
+\end{verbatim}
+
+\begin{framed}
+The advantage of using variable length array (VLA) is that data on heap, so it
+stays close to each other. Data is also on the cache.
+\end{framed}
+
+GCC has an extension to accept VLA as a member of a \verb!struct! or
+\verb!union!
+\begin{Verbatim}
+   void
+     foo (int n)
+     {
+       struct S { int x[n]; };
+     }
+\end{Verbatim}
+
+\section{array with alloca()}
+\label{sec:alloca}
+
+
+In C language, dynamically allocated array with malloc/calloc resides on heap,
+which requires an explicit call to free memory.
+
+However, for small size arrays, we can try to dynamically allocated it on stack.
+Allocate data on stack is much faster (as the program just adjust the value
+of the stack pointer). Even though it's fast (especially useful for small-sized
+array), there are certain number of important factors
+\begin{enumerate}
+  \item data will be automatically freed when the stack unwinds
+  \item the implementation of \verb!alloca()! is machine and compiler-dependent.
+  So, using it is discouraged for portable code.
+  \item it was expected to be part of C++/1x but then was
+  dropped.\url{http://www.stroustrup.com/C++11FAQ.html#C99}
+\end{enumerate}
+\textcolor{red}{In C++, variable-length array is preferred} (Sect.\ref{sec:VLA}).
+
+Stack sizes: Most compilers including Visual Studio let you specify the stack size
+\begin{itemize}
+
+  \item  In Visual Studio the default stack size is 1 MB i think, so with a
+  recursion depth of 10,000 each stack frame can be at most ~100 bytes which
+  should be sufficient for a DFS algorithm.
+
+  \item On some (all?) linux flavours the stack size isn't part of the
+  executable but an environment variable in the OS
+  
+  You can then check the stack size with ulimit -s and set it to a new value
+  with for example ulimit -s 16384.
+  
+  \item In Linux, stacks for threads are often smaller.
+  
+  You can change the default at link time, or change at run time also. 
+\begin{verbatim}
+glibc i386, x86_64 7.4 MB
+Tru64 5.1 5.2 MB
+Cygwin 1.8 MB
+Solaris 7..10 1 MB
+MacOS X 10.5 460 KB
+AIX 5 98 KB
+OpenBSD 4.0 64 KB
+HP-UX 11 16 KB
+\end{verbatim}
+  
+\end{itemize}
+
+\verb!alloca()! function dynamically allocate memory on stack. Thus, there is no
+need to free the memory with pointer pointed to data allocated using
+\verb!alloca()!.
+
+
+{\bf Example}: using \verb!alloca()!
+\begin{Verbatim}
+#include <malloc.h>
+
+void foo (int n)
+{
+    int *values = (int *)alloca(sizeof(int) * n);
+}
+
+int OverflowMyStack(int start) {
+    if (start == 0)
+        return 0;
+
+    char * p = (char *)_alloca(4096);
+    *p = '0';
+    return OverflowMyStack(start - 1);
+}
+
+int main () {
+    return OverflowMyStack(512);
+} 
+\end{Verbatim}
+
+\section{std::array (size known at compile-time): C++11}
+\label{sec:std::array}
+
+
+In \verb!<array>! header file, \verb!std::array! is a container holding an array
+of data elements of any type (i.e. templated). The pointer pointing to the
+internal data structure referencing to this array of data elements can be directly accessed via using
+\verb!data()! member function. The limitation is that it only supports static
+initialization, i.e. the size must be specify at compile-time.
+
+Check Sect.\ref{sec:Allocator} for knowing about Allocator.
+\begin{verbatim}
+#include <array>
+#include <iostream>
+int main()
+{
+ //with known-size of 10 elements, 
+ //...data are allocated on the stack
+std::array<int, 10> vals{};
+ 
+for (int count=0; count < vals.size(); ++count)
+  vals[count]=count+1;
+  
+std::cout<<"the first value is: "    
+  <<vals.front()<<std::endl;  
+std::cout<<"the last value is: "<<vals[(vals.size()-1)]  
+  <<std::endl;
+  
+std::cout<<"the total number of elements is: " <<vals.size()<<std::endl;
+
+// directly access to its internal array structure
+int* alias=vals.data(); 
+std::cout<<"the third element is: "<<alias[2]<<std::endl;
+}
+\end{verbatim}
+
+Example: check if a string present in an array of strings
+\begin{lstlisting}
+std::array<std::string, 3> mylist = { "a", "b", "c" };
+
+if (std::find(std::begin(mylist), std::end(mylist), "b") != std::end(mylist))
+{
+  cout << "find" << endl;
+}
+\end{lstlisting}
+
+\section{std::dynarray (C++14)}
+\label{sec:dynarray-C++14}
+
+C++14 provides two new mechanisms with array-like objects and arrays whose size
+known at runtime
+\begin{enumerate}
+  \item a class template to simulate dynamics array \verb!std::dynarray<T>! with
+  elements of type T that are stored contiguously, i.e. \verb!&a[n] = @a[0]+n!.
+  
+  The objects are created on free-store or on the stack, and there is no way
+  which one is being used.
+  
+  
+  \item a core language features: runtime-sized arrays with automatic storage
+  duration
+\end{enumerate}
+The two proposals were approved in Apr-2013 (Bristol meeting) and the new
+standard header file must be included \verb!<dynarray>!.
+
+\verb!std::dynarray! constructor takes a parameter indicating the number of
+elements, and \textcolor{red}{the size must be known at compile-time and thus
+cannot be changed}. There is no default constructor as the is no accepted
+default size for a dynarray object. The size zero is allowed.
+
+\verb!std::dynarray! provides random access and reverse iterators. 
+
+\section{std::valarray (C++98)}
+\label{sec:std::valarray}
+
+\verb!std::valarray! is the class for representing and manipulating arrays of values.
+It supports element-wise mathematical operations and various forms of
+generalized subscript operators, slicing and indirect access.
+
+
+valarray is kind of an orphan that was born in the wrong place at the wrong
+time. During the standardization of C++98, valarray was designed to allow some
+sort of fast mathematical computations. However, around that time Todd
+Veldhuizen invented expression templates and created blitz++, and similar
+template-meta techniques were invented, which made valarrays pretty much
+obsolete before the standard was even released
+
+\begin{mdframed}
+
+  It is intended to bring some of the speed of Fortran to C++ (for the code
+  running on vector-processor, of course), i.e. let some FORTRAN
+  vector-processing goodness rub off on C++.
+  However, this requires compiler implementation to take advantage of this.
+  However, the necessary compiler support never really happened.
+  Until recently:
+  \begin{itemize}
+  \item  Intel has implemented an optimized version of valarray for their compiler. 
+  
+  It uses the Intel Integrated Performance Primitives (Intel IPP) to improve performance
+  
+  \item 
+  \end{itemize}
+
+  Why std::valarray is faster (if the compiler knows how to optimize the code, on the vector-processor)? 
+  
+  as you can't make a valarray of pointers, (this avoid pointer aliasing -
+  Sect.\ref{sec:pointer-aliasing}), so the compiler can make assumptions about
+  the code and optimise it better.
+  
+It's an attempt at optimization, fairly specifically for the machines that
+were used for heavy-duty math when it was written -- specifically, vector
+processors like the Crays. For a vector processor, what you generally wanted to
+do was apply a single operation to an entire array, then apply the next
+operation to the entire array, and so on until you'd done everything you needed
+to do. As such, valarrays (value arrays) are intended to bring some
+of the speed of Fortran to C++. You wouldn't make a valarray of pointers so the
+compiler can make assumptions about the code and optimise it better. (The main
+reason that Fortran is so fast is that there is no pointer type so there can be
+no pointer aliasing.)
+\url{https://stackoverflow.com/questions/1602451/c-valarray-vs-vector}
+
+  It is intended to bring some of the speed of Fortran to C++, as you can't make
+  a valarray of pointers, (this avoid pointer aliasing -
+  Sect.\ref{sec:pointer-aliasing}), so the compiler can make assumptions about
+  the code and optimise it better.
+\end{mdframed}
+
+Both std::vector and std::valarray store the data in a contiguous block.
+However, they access that data using different patterns, and more importantly,
+the API for std::valarray encourages different access patterns than the API for
+std::vector.
+
+For more convenience, use \verb!std::vector! (Sect.\ref{sec:std::vector}).
+
+How to construct/declare a
+valarray variable: \url{http://stdcxx.apache.org/doc/stdlibug/22-2.html}
+
+Example:
+\begin{lstlisting}
+#include <valarray>
+#include <algorithm>
+#include <iterator>
+#include <iostream>
+
+int main()
+{
+    std::valarray<int> a { 1, 2, 3, 4, 5};
+    std::valarray<int> b = a;
+    std::valarray<int> c = a + b;
+    std::copy(begin(c), end(c),
+        std::ostream_iterator<int>(std::cout, " "));
+}
+// output: 2, 4, 6, 8, 10
+\end{lstlisting}
+
+Reference : \url{http://en.cppreference.com/w/cpp/numeric/valarray}
+
+Valarrays also have classes which allow you to slice them up in a reasonably
+easy way although that part of the standard could use a bit more work. You get
+\verb!slice!, \verb!slice_array!, \verb!gslice! and \verb!gslice_array! to play
+with pieces of a valarray, and make it act like a multi-dimensional array. You
+also get \verb!mask_array! to "mask" an operation (e.g. add items in x to y, but
+only at the positions where z is non-zero). To make more than trivial use of
+valarray, you have to learn a lot about these ancillary classes, some of which
+are pretty complex and none of which seems (at least to me) very well
+documented.
+
+Resizing them is destructive and they lack iterators until C++11.
+Since C++11, iterators is added to valarray
+\url{http://www.cplusplus.com/reference/valarray/valarray/begin/}
+
+\url{http://stackoverflow.com/questions/1602451/c-valarray-vs-vector}
+
+\section{Blitz++}
+\label{sec:Blitz++}
+
+Blitz++ is a C++ class library for scientific computing which provides
+performance on par with Fortran 77/90. It uses template techniques to achieve
+high performance. Blitz++ provides dense arrays and vectors, random number
+generators, and small vectors (useful for representing multicomponent or vector
+fields).
+
+\url{https://sourceforge.net/projects/blitz/}
+
+
+\section{Loop throught high-dimensional array quickly}
+\label{sec:loop-through-array}
+
+\url{http://nadeausoftware.com/articles/2012/06/c_c_tip_how_loop_through_multi_dimensional_arrays_quickly}
+
+
+\section{Element-wise operations}
+
+We have a number of options
+\begin{enumerate}
+  \item std::valarray - Sect.\ref{sec:std::valarray}
+  
+  \item std::transform on vectors - Sect.\ref{sec:std::transform}
+  
+  \item Blitz++ - Sect.\ref{sec:Blitz++}
+\end{enumerate}

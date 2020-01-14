@@ -1,0 +1,96 @@
+\chapter[Intel Cilk]{Intel Cilk (parallel programming language)}
+\label{chap:Intel_Cilk}
+
+Like Intel TBB, Intel Cilk (Cilk++, CilkPlus) also target parallelism on
+multicore processors. Intel Cilk Plus offers a competitive alternative for
+parallel programming that is far easier to use than MPI.  
+It is intended to complement TBB and OpenMP, enabling programmers to parallelize
+applications that may be too complex or cumbersome to fit into one of these frameworks.
+The tradeoff is that Cilk Plus may not be as finely tuned for specific
+programming patterns or environments as TBB or OpenMP. 
+
+\begin{mdframed}
+
+In general, one should not expect to see performance improvements by convert an
+existing parallel code in TBB or OpenMP to Cilk Plus.   TBB, OpenMP and MPI
+continue to be good choices for writing High Performance Computing applications.
+
+\end{mdframed}
+
+Cilk is a pure programming language, started from MIT since 1990s, originally
+based on ANSI C, with additional keywords target to parallelism.
+Cilk became Cilk++ as the product of a new company, Cilk Arts, in 2006, and then
+acquired by Intel in 2009. The final name is Intel Cilk Plus.
+
+Intel Cilk Plus 
+\begin{itemize}
+  \item  eliminate the need for several of the original Cilk keywords while adding the
+ability to spawn functions and to deal with variables involved in reduction operations.
+
+  \item add array extensions, being incorporated in a commercial compiler (from
+Intel), and compatibility with existing debuggers
+  
+\end{itemize}
+
+The idea of Cilk: {\it the programmers expose and tell the compiler which parts
+(elements) that can be safely parallelized; and the run-time environment (i.e.
+the scheduler) will decide during execution how to actually divide the work
+between processors}, i.e. the program runs without rewriting on different number
+of co-processors (including 1).
+
+Keywords: we need to include the header file, and use
+\begin{verbatim}
+_Cilk_spawn 
+_Cilk_sync
+cilk_spawn 
+cilk_sync
+\end{verbatim}
+The functions that uses this must be defined with \verb!cilk! keyword.
+
+The two main purposes of the keywords are (1) spawn a new thread, (2) sync
+between the threads.
+
+\section{\_Cilk\_spawn}
+
+\verb!_Cilk_spawn!
+
+\begin{verbatim}
+cilk int fibonacy(int n)
+{
+  if (n<2) return n;
+  else
+  {
+    int x, y;
+    x = spawn fibonacy(n-1)
+    y = spawn fibonacy(n-2)
+    
+    sync;
+    return x+y;
+  
+  }
+
+}
+\end{verbatim}
+
+% 
+% \section{Inlet (advanced)} (no longer available in Cilk Plus)
+% 
+% By default, the spawn process put the returned value into the memory variable to
+% the parent's frame. The alternate way is to use {\bf inlet}.
+% 
+% 
+% An inlet is a function internal to a Cilk procedure which handles the results
+% of a spawned procedure call as they return.
+% A function is an inlet if it has the \verb!inlet! keyword.
+% If an \verb!abort! keyword is used inside the inlet, it tells the scheduler that
+% any other procedures spawned off by the parent procedure can safely be aborted.
+% 
+% IMPORTANT: All the inlets of a procedure are guaranteed to operate atomically
+% with regards to each other and to the parent procedure, thus avoiding the bugs
+% that could occur if the multiple returning procedures tried to update the same
+% variables in the parent frame at the same time.
+% 
+
+\section{Hyperobjects}
+\label{sec:CilkPlus_hyperobjects}
+

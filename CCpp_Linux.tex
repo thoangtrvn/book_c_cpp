@@ -1,0 +1,1268 @@
+\chapter{C/C++ in Linux: glibc, libstdc++/libc++}
+\label{chap:CCpp_Linux}
+
+Chap.\ref{chap:CCpp_Windows} will discuss APIs' implementation of C/C++ standard
+specification for Windows O/S.
+In this chapter, we will discuss API's implementaiton of C/C++ standard
+specification for Linux-based O/S and how to write portable code across platform
+(Sect.\ref{sec:CCpp_portable-code}).
+
+The Linux kernel is written in C language and the access to the underlying CPU
+platform is exposed to users through a set of C-language-based APIs implemented
+in a library, which can be either
+\begin{enumerate}
+  \item POSIX C library (Sect.\ref{sec:POSIX-C-library})
+  
+  \item C standard library (Sect.\ref{sec:C-standard-library})
+\end{enumerate}
+
+%{\bf glibc}.
+
+\section{How the Linux O/S runs a program (ld-linux.so.2)}
+\label{sec:how-linux-run-a-program}
+
+The GNU dynamic loader (e.g. \verb!/lib/ld-linux.so.2!) is one of the main
+components of the user space in a Linux-based system.
+
+The main task of the dynamic loader is to handle the interaction between the
+program and the system's shared libraries by relocating unresolved symbols.
+
+
+Your executable program is compiled with a given version of GCC
+(Sect.\ref{sec:GCC}) which indeed utilizes the APIs as provided by the standard
+C or C++ library, i.e. uses a given version of \verb!libstdc.so! or
+\verb!libstdc++.so! (Sect.\ref{sec:libstdc++}), this \verb!libstdc++.so! was
+compiled and is depending upon a particular version of another library, e.g.
+\verb!libgcc_s.o! for example. So, always there is a chain of version
+dependency.
+  
+  
+\textcolor{red}{Now, what is actually your executable program?}
+\begin{itemize}
+  
+  \item Under Linux, and on most modern Unix(es), an executable program is just
+  the same kind of file of a shared object or shared library
+  
+  And exactly as shared library, they can also export symbols (Sect.\ref{sec:symbol-shared-library}).
+  
+  \item 
+\end{itemize}
+
+% \begin{itemize}
+%   \item 
+%   \item the extension for a given compiler is written in C++, which may takes
+%   advantage of newer C++ features so it is compiled by a newer version GCC or in
+%   other case compiled by an older version of GCC, which in either cases depends
+%   on a different version B of \verb!libstdc++.so!
+% \end{itemize}
+
+
+Issues when you try to run your program
+\begin{enumerate}
+  \item no available dynamically linked library, e.g. \verb!libstdc++.so!, for the program to use
+  
+\begin{verbatim}
+$> ./myapp   
+
+./myapp: error while loading shared libraries: libstdc++.so.6: cannot open shared object file: No such file or directory
+\end{verbatim}
+SOLUTION: Copy \verb!libstdc++.so.6! 
+
+
+  \item not the same version of the libstdc++ used to compile the program
+\begin{verbatim}
+$> ./myapp  
+
+./myapp: /usr/lib64/libstdc++.so.6: version `GLIBCXX_3.4.15` not found ( required by myapp )
+\end{verbatim}
+EXPLAIN:  As gcc evolves, so do the contents of libstdc++ library, i.e. 
+
+SOLUTION: use the right version, e.g. \verb!libstdc++-4.5.1.so!
+\begin{verbatim}
+libstdc++.so.6       ---> libstdc++-4.5.1.so
+\end{verbatim}
+
+We may want to specify the path of the shared library via \verb!LD_LIBRARY_PATH!
+\begin{verbatim}
+$>LD_LIBRARY_PATH=libs/ ./myapp   
+
+Hello!
+\end{verbatim}
+
+We can check the library dependencies, i.e. one library file uses which other
+library files
+\begin{verbatim}
+$>LD_LIBRARY_PATH=libs/ ldd ./myapp  
+
+linux-vdso.so.1 => (0x00007fffbe9f2000) 
+libstdc++.so.6 => libs/libstdc++.so.6 (0x00007fcb13b85000) 
+libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fcb1379b000) 
+libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007fcb13496000) 
+/lib64/ld-linux-x86-64.so.2 (0x00007fcb13e8b000) 
+libgcc_s.so.1 => libs/libgcc_s.so.1 (0x00007fcb13280000)
+\end{verbatim}
+
+We can check the ELF
+\begin{verbatim}
+$> readelf -d myapp
+[...]
+0x00000001 (NEEDED)                     Shared library: [libtest.so]
+0x00000001 (NEEDED)                     Shared library: [libc.so.6]
+\end{verbatim}
+
+  \item to eliminate the use of \verb!LD_LIBRARY_PATH! every time you run the program:
+  (1) put that setting in the \verb!~/.bashrc! file, (2) compile your program and specify the user-defined path to look for the 
+  shared library via \verb!rpath! option
+  
+\begin{verbatim} 
+ // only look for shared library in the default system search path 
+ //   (defined in ld.so and ldconfig)
+g++ -o myapp myapp.cpp
+
+ // use rpath option
+ // with the special token $ORIGIN which causes ld.so to locate
+ //    the shared libraries relative to the location of the binary 'myapp'
+g++ -Wl,-rpath=\$ORIGIN//lib myapp.cpp -o myapp
+
+ // more flexible
+g++ -Wl,-rpath=\$ORIGIN//lib --enable-new-dtags myapp.cpp -o myapp
+\end{verbatim}
+Sect.\ref{sec:linker} explains how to hard-code a path to a shared library.
+
+We can check the \verb!.dynamic ELF! section
+\begin{verbatim}
+$> readelf -d main
+[...]
+0x00000001 (NEEDED)                     Shared library: [libtest.so]
+0x00000001 (NEEDED)                     Shared library: [libc.so.6]
+0x0000000f (RPATH)                      Library rpath: [$ORIGIN]
+\end{verbatim}
+The \$ORIGIN variable within the \verb!DT_RPATH! value refers to the current execution directory of the main program.
+
+The general drawback using \verb!DT_RPATH! is that you cannot overwrite this
+embedded path setting with \verb!LD_LIBRARY_PATH!. This limits the flexibity of
+using shared libraries. There are two options: (1) remove the shared library
+from the given path, (2) use \verb!-enable-new-dtags! compiling option which set
+the value in \verb!DT_RUNPATH!.
+In the later option, the dynamic loader searches the \verb!LD_LIBRARY_PATH!
+before the embedded path in the executable.
+\url{http://blog.lxgcc.net/?tag=dt_runpath}
+
+  \item we have the right version of \verb!libstdc++.so.6!, but this library depends on another 
+  library whose version is not correct
+\begin{verbatim}
+$> ./myapp
+
+myapp: /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.14' not found (required by libs/libstdc++.so.6)
+\end{verbatim}  
+EXPLAIN: \verb!libstdc++.so.6! requires version 2.14 of \verb!libc.so.6!, but the system cannot find this version.
+
+SOLUTION: we may do the similar approach, i.e. copy the right version of
+\verb!libc.so.6!.
+
+
+   \item But chances are you will broke your system if you change the
+   \verb!libc.so.6!
+versions as other programs, e.g. the Linux kernel, may depends on the existing
+version of libc.so.6.
+
+\begin{verbatim}
+$> ./myapp  
+
+FATAL: kernel too old  
+Segmentation fault
+\end{verbatim}
+SOLUTION: No solution as replacing the Linux kernel is not a good option.
+  
+\end{enumerate}
+\url{http://www.crankuptheamps.com/blog/posts/2014/03/04/Break-The-Chains-of-Version-Dependency/}
+
+\subsection{libc.so.6}
+
+32-bit version
+\begin{verbatim}
+/lib/i386-linux-gnu/libc.so.6
+\end{verbatim}
+
+64-bit version
+\begin{verbatim}
+/lib/x86_64-linux-gnu/libc.so.6
+\end{verbatim}
+
+This 
+\begin{verbatim}
+/usr/lib/x86_64-linux-gnu/libc.so
+\end{verbatim}
+ is not a library, but a linker script file, which refers to the above symlinks.
+ 
+ 
+ First, regardless of libc version installed, the linker will always search for
+ libc.so, because the compiler driver will always pass to the linker the -lc
+ options. The name libc stays the same and denotes to most recent version of the
+ library. The symlinks libc.so.6 are named after the soname of the library,
+ which, more or less corresponds to the ABI version of the library. The
+ executables, linked against libc.so in fact contain runtime dependencies on
+ libc.so.6.
+
+The file is created when you compile glibc 
+\begin{verbatim}
+#>cat /usr/lib64/libc.so
+ 
+/* GNU ld script
+   Use the shared library, but some functions are only in
+   the static library, so try that secondarily.  */
+OUTPUT_FORMAT(elf64-x86-64)
+GROUP ( /lib64/libc.so.6 /usr/lib64/libc_nonshared.a  AS_NEEDED ( /lib64/ld-linux-x86-64.so.2 ) )
+\end{verbatim}
+
+
+
+\section{IMPORTANT: Understanding GNU C library (glibc) and its variants
+(Linux libc, eglibc)}
+\label{sec:POSIX-C-library}
+\label{sec:library-implement-standard-C-language}
+
+\verb!libc! refers to a specific implementation of the standard library
+functionality described in ISO C and POSIX standards, optionally with common
+extensions, intended for use on a Linux-based systems.
+
+Whereas the kernel (Linux) governs access to hardware, memory, filesystems, and
+the privileges for accessing these resources, the C library is responsible for
+providing the actual C function interfaces userspace applications see, and for
+constructing higher-level buffered stdio, memory allocation management, thread
+creation and synchronization operations, and so on using the lower-level
+interfaces the kernel provides, as well as for implementing pure library
+routines of the C language like strstr, snprintf, strtol, exp, sqrt, etc.
+
+A libc-type library is the core library that sits between user space and the
+kernel. The first implementation of such library was named {\bf glibc}
+(Sect.\ref{sec:glibc}) \verb!glibc! was first written mainly by Roland McGrath
+from 1980s.
+
+Then, a fork of glibc version, used in early Linux kernel, is \verb!libc!
+(Linux libc) library.
+
+\subsection{glibc (version 1, 2)}
+\label{sec:glibc}
+\label{sec:GLIBC}
+
+{\bf glibc} is the first implementation of the standard specification for C
+language (Sect.\ref{sec:library-implement-standard-C-language}).
+Nowadays, Glibc is used in majority of distribution: Fedora-like, RHEL,
+Debian-like, SuSE, Gentoo, Archlinux.
+
+By 1988, glibc was supposed to have all features based on the standardization of
+ANSI C language (Sect.\ref{sec:ANSI-C}). By 1992, features for ANSI C-1989 and
+POSIX.1-1990 were also added. So, glibc is also known as POSIX C library.
+glibc is known as GNU C library as it was first used by the GNU operating
+systems and is managed by FSF (Free Software Foundation).
+
+NOTE: {\bf glibc} is just one implementation of the C language specification
+(Sect.\ref{sec:libc}). 
+
+Nowadays, glibc version 2.x is not a single \verb!*.so! file - there are many.
+It includes \verb!libc! (libc.so.6), and other essential libraries (\verb!libm!
+for math, \verb!libpthread! for p-thread). Because of that, glibc is considered
+as the C standard library (Sect.\ref{sec:C-standard-library}) and is being used
+for Linux-like O/S or GNU/FreeBSD O/S. This library is also used by the Linux
+kernel so is considered as a critical component of the Linux O/S.
+
+Since 1995, Ulrich Drepper made his first contribution to the glibc project and
+later become the main contributor. 
+
+Since 2001, the development of glibc has been overseen by a committee, with
+Drepper as the lead contributor.
+
+Since 2012, the steering committee voted to disband itself and remove Drepper in
+favor of a community-driven development process due to  the long standing
+controversies around Drepper's leading style and external contribution
+acceptance.
+
+SUMMARY: glibc implements (more details see
+Sect.\ref{sec:glibc-2.0})
+\begin{enumerate}
+  \item C library described in ANSI,c99,c11 standards. It includes macros,
+  symbols, function implementations etc.(printf(),malloc() etc)
+  
+  \item POSIX C standard library. The "userland" glue of system calls.
+  (open(),read() etc. 
+  
+  Actually glibc does not "implement" system calls. kernel does it. But glibc
+  provides the user land interface to the services provided by kernel so that
+  user application can use a system call just like a ordinary function.
+  
+  \item  some nonstandard but usefull stuffs.
+\end{enumerate}
+
+To tell the compiler to use a particular version of Standard C, we use \verb!-std=!
+\begin{verbatim}
+-std=c11
+-std=gnu99
+-std=c99
+\end{verbatim}
+
+
+\subsection{-- glibc 2.x (libc6)}
+\label{sec:glibc-2.0}
+\label{sec:glibc-2.x}
+
+In Jan 1997, {\bf glibc 2.0} (or known as libc6 in Linux kernel -
+Sect.\ref{sec:libc}) was released with (1) better internationlization, (2)
+multilingual function, (3) IPv6 capability, (4) 64-bit data access, (5)
+multithreaded support, (6) code more portable, (7) future version compatibility,
+(8) more complete POSIX standards compliance than Linux libc
+(Sect.\ref{sec:libc}).
+
+Different versions of glibc 2.x
+\begin{enumerate}
+
+  \item glibc 2.3.4 (Dec. 2004): the standard for operating systems (O/S)
+  following LSB-3.0 standard (Sect.\ref{sec:LSB_C-lang})
+  
+  \item glibc 2.4 (Mar 2006): with partial inotify support
+  
+  It is the standard for operating systems (O/S)
+  following LSB-4.0 standard (Sect.\ref{sec:LSB_3.1}).
+   
+
+  \item glibc 2.5: full inotify support
+  
+\begin{verbatim}
+* New Linux interfaces: splice, tee, sync_file_range, vmsplice (glibc 2.5)
+* RFC 3542: Advanced socket interface for IPv6 (glibc 2.5)
+* Support for the ELF .gnu.hash section (glibc 2.5)
+* Real-time priority inheritance mutexes and priority protected mutexes
+	(glibc 2.5)
+\end{verbatim}
+  
+  \item glibc 2.6
+
+\begin{verbatim}
+* New Linux interfaces: epoll_pwait, sched_getcpu (glibc 2.6)
+* New generic interfaces: strerror_l (glibc 2.6) 
+\end{verbatim}
+
+  \item glibc 2.7 (Oct 2007): used by Ubuntu 8.04 (Debian 5)
+
+\begin{verbatim}
+* New Linux interfaces: mkostemp, mkostemp64 (glibc 2.7)
+* New Linux interfaces: signalfd, eventfd, eventfd_read, eventfd_write
+	(glibc 2.7)
+\end{verbatim}
+
+
+  \item glibc 2.9 (Nov 2008)
+    
+  \item glibc 2.11 (Oct 2009): used by Ubuntu 10.04 [NOTE: Debian 6 used eglibc]
+  
+  \item glibc 2.15 (Mar 2012): used by Ubuntu 12.04 and 12.10 
+  
+  \item glibc 2.16 (Jun 2012): support ISO C11, x32 API, and SystemTap
+  
+  \item glibc 2.17 (Dec 2012): support 64-bit ARM, and used by Ubuntu
+  13.04, RHEL 7.
+  
+  \item glibc 2.18 (Aug 2013): improve C++11 support, etc.
+  
+  \item glibc 2.19 (Feb 2014): ???
+  \url{http://en.wikipedia.org/wiki/GNU_C_Library}
+\end{enumerate}
+
+Check which version of glibc is being supported in the current libc.so.6 library
+\begin{verbatim}
+$>strings /lib64/libc.so.6 | grep 'LIBC'
+
+GLIBC_2.2.5
+GLIBC_2.2.6
+GLIBC_2.3
+GLIBC_2.3.2
+GLIBC_2.3.3
+GLIBC_2.3.4
+GLIBC_2.4
+GLIBC_2.5
+GLIBC_2.6
+GLIBC_2.7
+GLIBC_2.8
+GLIBC_2.9
+GLIBC_2.10
+GLIBC_2.11
+GLIBC_2.12
+GLIBC_PRIVATE
+LIBC_FATAL_STDERR_
+\end{verbatim}
+
+
+\subsection{-- version (GLIBCXX, GLIBCPP)}
+\label{sec:glibc-version}
+\label{sec:GLIBCXX}
+\label{sec:GLIBCPP}
+
+\url{https://lwn.net/Articles/492624/}
+
+The most static part of GLIBC is the portion that implements standards.
+Standards support is important because it allows people and code to move between
+different architectures and platforms. The "new-ish" standards support that the
+GLIBC community is working on now is the C11 support, which he guesses will be
+available in GLIBC 2.16 or 2.17.
+
+One of the more interesting features in C11 is the C-level atomic operations
+(Sect.\ref{sec:C11_atomic_op}).
+
+\begin{enumerate}
+  \item  Glibc in 3.0.0 to 3.0.4, they are not versioned.
+  
+  
+  \item Glibc in 3.1.0 to 3.3.3: they use \verb!GLIBCPP!
+
+{\tiny
+\begin{verbatim}
+GCC 3.1.0: GLIBCPP_3.1, CXXABI_1
+
+GCC 3.1.1: GLIBCPP_3.1, CXXABI_1
+
+GCC 3.2.0: GLIBCPP_3.2, CXXABI_1.2
+
+GCC 3.2.1: GLIBCPP_3.2.1, CXXABI_1.2
+
+GCC 3.2.2: GLIBCPP_3.2.2, CXXABI_1.2
+
+GCC 3.2.3: GLIBCPP_3.2.2, CXXABI_1.2
+
+GCC 3.3.0: GLIBCPP_3.2.2, CXXABI_1.2.1
+
+GCC 3.3.1: GLIBCPP_3.2.3, CXXABI_1.2.1
+
+GCC 3.3.2: GLIBCPP_3.2.3, CXXABI_1.2.1
+
+GCC 3.3.3: GLIBCPP_3.2.3, CXXABI_1.2.1
+
+GCC 3.4.0: GLIBCXX_3.4, CXXABI_1.3
+
+GCC 3.4.1: GLIBCXX_3.4.1, CXXABI_1.3
+\end{verbatim}
+}
+   \item Glibc 3.3.4+:
+   
+{\tiny 
+\begin{verbatim}
+GCC 3.4.2: GLIBCXX_3.4.2
+
+GCC 3.4.3: GLIBCXX_3.4.3
+
+GCC 4.0.0: GLIBCXX_3.4.4, CXXABI_1.3.1
+
+GCC 4.0.1: GLIBCXX_3.4.5
+
+GCC 4.0.2: GLIBCXX_3.4.6
+
+GCC 4.0.3: GLIBCXX_3.4.7
+
+GCC 4.1.1: GLIBCXX_3.4.8
+
+GCC 4.2.0: GLIBCXX_3.4.9
+
+GCC 4.3.0: GLIBCXX_3.4.10, CXXABI_1.3.2
+
+GCC 4.4.0: GLIBCXX_3.4.11, CXXABI_1.3.3
+
+GCC 4.4.1: GLIBCXX_3.4.12, CXXABI_1.3.3
+
+GCC 4.4.2: GLIBCXX_3.4.13, CXXABI_1.3.3
+
+GCC 4.5.0: GLIBCXX_3.4.14, CXXABI_1.3.4
+
+GCC 4.6.0: GLIBCXX_3.4.15, CXXABI_1.3.5
+
+GCC 4.6.1: GLIBCXX_3.4.16, CXXABI_1.3.5
+
+GCC 4.7.0: GLIBCXX_3.4.17, CXXABI_1.3.6
+
+GCC 4.8.0: GLIBCXX_3.4.18, CXXABI_1.3.7
+
+GCC 4.8.3: GLIBCXX_3.4.19, CXXABI_1.3.7
+
+GCC 4.9.0: GLIBCXX_3.4.20, CXXABI_1.3.8
+
+GCC 5.1.0: GLIBCXX_3.4.21, CXXABI_1.3.9
+
+GCC 6.1.0: GLIBCXX_3.4.22, CXXABI_1.3.10
+
+GCC 7.1.0: GLIBCXX_3.4.23, CXXABI_1.3.11
+
+GCC 7.2.0: GLIBCXX_3.4.24, CXXABI_1.3.11
+
+GCC 8.0.0: GLIBCXX_3.4.25, CXXABI_1.3.11
+\end{verbatim}
+}
+\url{https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html}
+\end{enumerate}
+
+To know which glibc library is being used
+\begin{verbatim}
+%> /sbin/ldconfig -p | grep stdc++
+
+libstdc++.so.6 (libc6) => /usr/lib/libstdc++.so.6
+\end{verbatim}
+
+In each library, every API is associated with a given 
+\verb!GLIBCXX_*!.  So, \verb!GLIBCXX_*! don't apply to the entire library, but
+to each symbol (symbol versioning), e.g.
+\begin{verbatim}
+std::char_traits<wchar_t>::eq@@GLIBCXX_3.4.5 
+std::ios_base::Init::~Init()@@GLIBCXX_3.4 
+\end{verbatim}
+ 
+Then, using that path, to know which GLIBC versions the library supports
+\begin{verbatim}
+%> strings /usr/lib/glibstdc++.so.6 | grep GLIBC
+
+GLIBCXX_3.4
+GLIBCXX_3.4.1
+GLIBCXX_3.4.2
+GLIBC_2.2.5
+GLIBC_2.3
+GLIBC_2.4
+GLIBC_2.3.4
+GLIBC_2.3.2
+GLIBCXX_FORCE_NEW
+GLIBCXX_DEBUG_MESSAGE_LENGTH
+\end{verbatim}
+
+NOTE: The fact that your program needs \verb!GLIBCXX_3.4.9! probably means that
+it has been linked against a symbol that has been introduced/has changed
+semantics on \verb!GLIBCXX_3.4.9!.
+
+NOTE: In earlier version of glibc, \verb!GLIBCPP! was used instead
+\begin{verbatim}
+// libdatestamp.cxx
+#include <cstdio>
+
+int main(int argc, char* argv[]){
+#ifdef __GLIBCPP__
+    std::printf("GLIBCPP: %d\n",__GLIBCPP__);
+#endif
+#ifdef __GLIBCXX__
+    std::printf("GLIBCXX: %d\n",__GLIBCXX__);
+#endif
+   return 0;
+}
+\end{verbatim}
+
+\subsection{-- update + troubleshooting}
+
+To update glibc
+\begin{verbatim}
+sudo apt-get install libstdc++6
+
+sudo ldconfig
+\end{verbatim}
+or you may need to add the repository path using this PPA 
+\begin{verbatim}
+apt-get install python-software-properties  !! to use add-apt-repository
+sudo add-apt-repository ppa:ubuntu-toolchain-r/test 
+sudo apt-get update
+sudo apt-get upgrade
+sudo apt-get dist-upgrade
+\end{verbatim} 
+
+When you add a new PPA, you may get the error
+\begin{verbatim}
+W: GPG error: http://ppa.launchpad.net lucid Release: The following signatures
+couldn't be verified because the public key is not available: NO_PUBKEY 1E9377A2BA9EF27F
+\end{verbatim}
+This is a new feature of \verb!apt-get! to guarantee the authenticity of
+servers. SOLUTION: notice the number (e.g. 1E9377A2BA9EF27F) and
+run\footnote{\url{http://en.kioskea.net/faq/809-debian-apt-get-no-pubkey-gpg-error}}
+\begin{verbatim}
+gpg --keyserver pgpkeys.mit.edu --recv-key  1E9377A2BA9EF27F     
+gpg -a --export 1E9377A2BA9EF27F | sudo apt-key add -
+\end{verbatim}
+You may get the error
+\begin{verbatim}
+gpg: requesting key BA9EF27F from hkp server pgpkeys.mit.edu
+\end{verbatim}
+This is due to proxy server setting. An alternate solution is using
+\begin{verbatim}
+apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80
+         --recv-keys 1E9377A2BA9EF27F
+\end{verbatim}
+\url{http://askubuntu.com/questions/53146/how-do-i-get-add-apt-repository-to-work-through-a-proxy}
+
+If you still cannot find the newer verstion, run
+\begin{verbatim}
+aptitude
+\end{verbatim}
+search for libstdc++, and select the dependency.
+
+\url{http://stackoverflow.com/questions/10354636/how-do-you-find-what-version-of-libstdc-library-is-installed-on-your-linux-mac}
+
+\subsection{-- glibc.i586, glibc.i686, glibc.x86\_64}
+
+Glibc is a relatively special case, where the compiler optimizations
+used to compile it can actually have a significant effect across the
+system, even if the other items are not compiled with the same set of
+optimizations.
+
+
+\begin{verbatim}
+On 32-bit x86
+===
+Pick One:
+* i586 (good)
+* i686 (better, but only if your hardware supports i686)
+
+On 64-bit x86_64
+===
+Pick one:
+* x86_64 (only option)
+
+On a Multilib system (32bit and 64bit libs installed side by side)
+===
+* Pick One from the 32-bit x86 list (i586 or i686)
+* Pick One from the 64-bit x86_64 list (x86_64)
+\end{verbatim}
+
+To get \verb!glibc.i686! (on a 64-bit system), run
+\begin{verbatim}
+// Any commands: RedHat, CentOS
+yum install /lib/ld-linux.so.2
+
+sudo yum install glibc.i686
+
+sudo yum install glibc.i386
+
+
+// Debian (Ubuntu)
+sudo apt-get install ia32-libs
+\end{verbatim}
+
+\subsection{-- glibXext: glibC with X components}
+\label{sec:glibXext}
+
+If you're intending on running an GUI application using 32-bit libs, install
+some X components:
+
+NOTE: If you don't use \verb!sudo!, run \verb!su -! to acquire superuser
+authority first
+\begin{verbatim}
+su -c 'yum install glibc.i686 libXext.i586'
+\end{verbatim}
+
+\subsection{Linux libc (libc4, libc5)}
+\label{sec:libc}
+\label{sec:Linux-libc}
+
+In early 1990s, a folk of \verb!glibc! version 1 (Sect.\ref{sec:glibc}) written
+for Linux kernel was released under the name {\bf Linux libc}. Linux libc was
+released from version 2 to 5, which existed in  various versions (libc5, libc5).
+
+With the mature of \verb!glibc! version 2, the development for Linux libc was
+then stopped and Linux kernel switched to using glibc 2.0
+(Sect.\ref{sec:glibc-2.0}). The last Linux libc is {\it libc.so.5}. It means
+that {\bf libc.so.6} in Linux O/S indeeds refers to glibc 2.x.
+
+Example:
+\begin{verbatim}
+libc.so.6 ---> glibc.so.2.4
+\end{verbatim}
+
+\begin{itemize}
+  \item libc.so.6
+  
+  \item libc.so.6.1: used by DEC Alpha 64-bit and Intel IA64 architectures.
+\end{itemize}
+
+\subsection{eglibc (embedded system Linux-kernel, Ubuntu < 15.04)}
+\label{sec:eglibc}
+
+NOTE: {\bf eglibc} is a variant of GNU glibc optimized for use in embeded
+devices, and maintain source- and binary-compatible with standard glibc. In
+2009, Debian project decided to move from standard glibc to eglibc. Then from
+2014, Debian project switched back to standard glibc; as eglibc is no longer
+being developed.  
+
+Ubuntu (until 14.04) is still using eglibc 2.19. Ubuntu won't convert to glibc
+until Ubuntu 15.04. Check with
+\begin{verbatim}
+ldd --version
+\end{verbatim}
+
+\subsection{uClib (embedded-system Linux kernel)}
+\label{sec:uClibc}
+
+In embedded systems, we use uClib.
+
+Later uClibc versions added the two typedefs (\verb!typedef long __kernel_long_t!; and
+\verb!typedef unsigned long __kernel_ulong_t;!) to
+\verb!libc/sysdeps/linux/i386/bits/kernel_types.h! (actually to all
+\verb!libc/sysdeps/linux/*/bits/kernel_types.h!), as they were added to by kernels 3.4
+and later.
+
+
+\url{http://stackoverflow.com/questions/18598995/building-uclibc-linux-3-10-2-debian-jessie-x86-64-fails-due-to-missing-types}
+
+\subsection{newlib (embedded-system Linux kernel)}
+\label{sec:newlib}
+
+Newlib is a cross-platform C Standard Library (developed by RedHat) for
+embedded systems.
+
+\subsection{bionic (Android Linux kernel)}
+\label{sec:bionic}
+
+A derivation of BSD's standard C library code targetting Android O/S
+for Linux kernel is called Bionic libc. Bionic libc is much smaller than
+GNU C library (glibc) and somewhat smaller than uClibc. It is designed
+for CPU at relatively low clock frequencies.
+
+\subsection{musl}
+\label{sec:musl}
+
+musl is a new general-purpose implementation of the C library. It is
+lightweight, fast, simple, free, and aims to be correct in the sense of
+standards-conformance and safety.
+\url{http://www.etalabs.net/compare_libcs.html}
+
+\verb!musl! requires Linux kernel 2.6 or later.
+\verb!musl! library has been compiled on (these supported) cpu architecture:
+i386, \verb!x86_64!, arm, mips, microblaze, or powerpc
+
+As of 2015, Linux distributions that use musl as the standard C library include
+Alpine Linux, Dragora 3, OpenWRT, Sabotage, Morpheus Linux and
+optionally prebuilt for Void Linux.
+
+
+To build \verb!musl!, you will also need a C99 compiler with support for
+gcc-style \verb!__asm__! statements and assembly source files, and weak symbol
+support in the linker. gcc 3.3 or later (with the GNU assembler and linker) and
+clang 3.2 or later are known to work. Users have also had success building musl
+with PCC and Firm/cparser.
+
+\url{https://www.musl-libc.org/faq.html}
+
+\url{https://wiki.musl-libc.org/functional-differences-from-glibc.html}
+
+\section{Compile glibc}
+
+
+\subsection{Install multiple versions of glibc}
+\label{sec:glibc-install}
+
+Each distro of a Linux-based O/S comes with a shared library of a particular
+version of glibc. 
+
+Even though it is common to have many versions of a library, the story is quite
+different with glibc. glibc consists of many pieces (200+ shared libraries)
+which all must match for the O/S to boot and run normally.
+Thus, installing multiple versions of glibc is not trivial.
+
+To compile:
+\begin{enumerate}
+  \item download and extract the glibc with right version
+  
+  \item run
+\begin{verbatim}
+mkdir glibc
+mv glibc-2.16.0.tar.gz ./glibc
+cd glibc
+tar -xvf glibc-2.16.0.tar.gz
+mkdir build
+cd build
+../glibc-2.16.0/configure --prefix=$HOME/bin --libdir=$HOME/bin/lib64
+\end{verbatim}
+\end{enumerate}
+For cross-compilation, read
+\url{http://www.linuxfromscratch.org/clfs/view/1.0.0/mips64/cross-tools/glibc-64.html}
+
+
+One of the pieces is \verb!ld-linux.so.2! (Sect.\ref{sec:ld-linux.so.2}), and it
+must match libc.so.6, or you'll see the errors you are seeing.
+\begin{verbatim}
+/myapp: /lib/i686/libc.so.6: version `GLIBC_2.3' not found (required by ./myapp)
+./myapp: /lib/i686/libpthread.so.0: version `GLIBC_2.3.2' not found (required by ./myapp)
+
+\end{verbatim}
+
+So compile them and put these files in one folder, called newglibc
+\begin{verbatim}
+libpthread.so.0
+libm.so.6
+libc.so.6
+ld-2.3.3.so
+ld-linux.so.2 -> ld-2.3.3.so
+\end{verbatim}
+
+
+\subsection{Cross-compile glibc}
+
+Three important ./configure flags:
+
+\begin{verbatim}
+--build= 
+       The system performing the build. 
+       Looks like yours is x86_64-pc-linux-gnu.
+--host= 
+       The system on which the generated objects will be used. 
+       You want to set  this to i386-pc-linux-gnu.
+       
+--target= 
+      If you are building a compiler, the system for which the built compiler
+    will generate objects.
+\end{verbatim}
+
+
+So, when you build a glibc library, it's important that you need to know (1)
+which kernel version the glibc is running on (which can be specified using
+\verb!--enable-kernel=2.4.3! it means glibc will cut out any code to support
+kernel interfaces older than whatever value you specified, e.g. for Linux kernel
+2.4.3, passing to \verb!./configure!. NOTE: we can skip this if we compile for
+the current kernel on the current machine), (2) what gcc version you want to
+compile the glibc library, (3) the target machine (i.e. 32-bit or 64-bit,
+x86/x86-64 or arm)
+
+\begin{verbatim}
+./glibc-2.6
+./build
+\end{verbatim}
+We use \verb!--host=!, \verb!--build=! options.
+
+
+Suppose target machine is 32-bit and host machine is 64-bit
+\begin{verbatim}
+mkdir build
+cd build
+../glibc-2.6/configure --prefix=$HOME/glibc32-2.6 \
+     CC="gcc -m32" CXX="g++ -m32" \
+     CFLAGS="-O2 -march=i686" \
+     CXXFLAGS="-O2 -march=i686" \
+     i686-linux-gnu
+\end{verbatim}
+
+or
+\begin{verbatim}
+../glibc-2.6/configure --prefix=$HOME/glibc32-2.6 \
+     --host=i686-linux-gnu \
+     --build=i686-linux-gnu \
+     CC="gcc -m32" CXX="g++ -m32" \
+     CFLAGS="-O2 -march=i686" \
+     CXXFLAGS="-O2 -march=i686"
+\end{verbatim}
+To perform a cross-compile, you must specify both --build= and --host=. When you
+only specify --host=, it will still attempt to build a native (\verb!x86_64!)
+glibc.
+
+
+% \section{LSB in C}
+% \label{sec:LSB_C-lang}
+% 
+% LSB is Linux Standard Base, and ISO standard for GNU/Linux. The purpose is to
+% keep hundreds of Linux distros compatible. Thus, LSB encompasses several
+% standards, including POSIX. For more information, read the book Sys-Admin
+% (Chapter 1). Here, we focus on LSB in C language.
+
+
+% \section{LSB in C++}
+
+
+
+\section{Write portable code}
+\label{sec:CCpp_portable-code}
+
+The choice of APIs to use depending upon the 
+library file that implements the C standard library
+(Sect.\ref{sec:C-standard-library}). In Linux, it is glibc, but in another O/S,
+it can be different.
+
+To write portable code,   it is important to be able to detect 
+\begin{enumerate}
+  \item  the underlying O/S
+(Sect.\ref{sec:macro-detect-OS}) or 
+
+  \item CPU architecture
+(Sect.\ref{sec:macro-detect-CPU}).
+
+  \item the type of compiler being used to compile the code
+(Sect.\ref{sec:macro-detect-compiler}). Some compiler may provide advanced
+features than others.
+
+  \item the compiler verion (Sect.\ref{sec:macro-detect-compiler-version}).
+  
+Newer C/C++ language may provides new constructs and/or functions to help
+writing code shorter or run faster.
+    
+\end{enumerate}
+
+\url{http://nadeausoftware.com/articles/2012/01/c_c_tip_how_use_compiler_predefined_macros_detect_operating_system}
+
+\subsection{Macro to detect O/S}
+\label{sec:macro-detect-OS}
+
+Macros are often used to detect the O/S and to choose the correct code to compile at compile-time.
+ANSI C defines a number of macros, and Microsoft C++ implements several more.
+
+\begin{itemize}
+  \item \verb!_WIN32! (Windows 32-bit) and \verb!_WIN64! (Windows 64-bit): they are both non-POSIX 
+
+\begin{lstlisting}
+#if defined(_WIN64)
+    /* Microsoft Windows (64-bit) */
+#elif defined(_WIN32)
+    /* Microsoft Windows (32-bit) */
+#endif
+\end{lstlisting}
+  
+  NOTE: There is no \verb!WIN32! macro. If it is being used elsewhere, either the code is wrong, or
+  the macro has been explicitly defined by the programmer elsewhere.
+  
+  \item \verb!_AIX! (IBM AIX):
+  
+\begin{lstlisting}
+#if defined(_AIX)
+	/* IBM AIX. ------------------------------------------------- */
+
+#endif
+\end{lstlisting}
+
+  \item Apple O/S:
+\begin{lstlisting}
+#if defined(__APPLE__) && defined(__MACH__)
+    /* Apple OSX and iOS (Darwin) */
+#include <TargetConditionals.h>
+#if TARGET_IPHONE_SIMULATOR == 1
+    /* iOS in Xcode simulator */
+#elif TARGET_OS_IPHONE == 1
+    /* iOS on iPhone, iPad, etc. */    
+#elif TARGET_OS_MAC == 1
+    /* OS X */
+#endif
+#endif
+\end{lstlisting}
+
+  \item Linux-based OS:
+\begin{lstlisting}
+#if defined(__linux__)
+    /* Linux  */
+#endif
+\end{lstlisting}
+
+ 
+  \item Unix-style OS:
+\begin{lstlisting}
+#if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
+    /* UNIX-style OS. ------------------------------------------- */
+
+#endif
+\end{lstlisting}
+
+In a Unix-style OS, you can then check if it is POSIX-compliant
+\begin{lstlisting}
+#include <unistd.h>
+#if defined(_POSIX_VERSION)
+    /* POSIX compliant */
+#endif
+\end{lstlisting}
+
+or a BSD-derived system
+\begin{lstlisting}
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#include <sys/param.h>
+#if defined(BSD)
+    /* BSD (DragonFly BSD, FreeBSD, OpenBSD, NetBSD). ----------- */
+
+#endif
+#endif
+\end{lstlisting}
+
+  \item Cygwin POSIX under Windows:
+\begin{lstlisting}
+#if defined(__CYGWIN__) && !defined(_WIN32)
+    /* Cygwin POSIX under Microsoft Windows. */
+#endif
+\end{lstlisting}
+
+Cygwin 1.7.22 is the first 64-bit release. Before that, Cygwin POSIX libraries
+are 32-bit-only, so 64-bit POSIX applications cannot be built. So, the macro
+\verb!__CYGWIN64__! is not defined until Cygwin 1.7.22.
+
+\end{itemize}
+
+The full list
+\begin{lstlisting}
+_AIX, __APPLE__, __CYGWIN32__, __CYGWIN__, __DragonFly__, __FreeBSD__,
+__gnu_linux, hpux, __hpux, linux, __linux, __linux__, __MACH__, __MINGW32__,
+__MINGW64__, __NetBSD__, __OpenBSD__, _POSIX_IPV6, _POSIX_MAPPED_FILES,
+_POSIX_SEMAPHORES, _POSIX_THREADS, _POSIX_VERSION, sun, __sun, __SunOS, __sun__,
+__SVR4, __svr4__, TARGET_IPHONE_SIMULATOR, TARGET_OS_EMBEDDED, TARGET_OS_IPHONE,
+TARGET_OS_MAC, UNIX, unix, __unix, __unix__, WIN32, _WIN32, __WIN32, __WIN32__,
+WIN64, _WIN64, __WIN64, __WIN64__, WINNT, __WINNT, __WINNT__
+\end{lstlisting}
+
+
+\subsection{-- BSD 4.4}
+
+To distinguish between 4.4 BSD-derived systems and the rest of the world, you
+should use the following code.
+\begin{verbatim}
+#include <sys/param.h>
+#if (defined(BSD) && BSD >= 199306)
+/* BSD-specific code goes here */
+#else
+/* non-BSD-specific code goes here */
+#endif
+
+\end{verbatim}
+
+
+\begin{verbatim}
+#define __USE_BSD 1
+#define __unix__ 1
+#define __linux 1
+#define __unix 1
+#define __linux__ 1
+#define _POSIX_SOURCE 1
+#define __STDC_HOSTED__ 1
+#define __STDC_IEC_559__ 1
+#define __gnu_linux__ 1
+#define __USE_SVID 1
+#define __USE_XOPEN2K 1
+#define __USE_POSIX199506 1
+#define _G_USING_THUNKS 1
+#define __USE_XOPEN2K8 1
+#define _BSD_SOURCE 1
+#define unix 1
+#define linux 1
+#define __USE_POSIX 1
+#define __USE_POSIX199309 1
+#define __SSP__ 1
+#define _SVID_SOURCE 1
+#define _G_HAVE_SYS_CDEFS 1
+#define __USE_POSIX_IMPLICITLY 1
+\end{verbatim} 
+\url{http://stackoverflow.com/questions/4575098/documentation-concerning-platform-specific-macros-in-linux-posix}
+
+
+\subsection{-- Windows: \_WIN32}
+
+\verb!_WIN32!
+
+\subsection{-- POSIX-compliant platforms}
+
+Test the following macros
+\begin{verbatim}
+Cygwin      __CYGWIN__
+DragonFly   __DragonFly__
+FreeBSD     __FreeBSD__
+Haiku       __HAIKU__
+Interix     __INTERIX
+IRIX        __sgi (TODO: get a definite source for this)
+Linux       linux, __linux, __linux__
+Mac OS X    __APPLE__
+MirBSD      __MirBSD__ (__OpenBSD__ is also defined)
+Minix3      __minix
+NetBSD      __NetBSD__
+OpenBSD     __OpenBSD__
+Solaris     sun, __sun
+\end{verbatim}
+
+
+\subsection{-- XOPEN or POSIX}
+\label{sec:_XOPEN_SOURCE}
+\label{sec:_POSIX_C_SOURCE}
+
+In early versions of UNIX-based O/S, the APIs may be implemented based on XPG
+(i.e. X/Open Portability Guide - Sect.\ref{sec:XPG}) or POSIX
+(Sect.\ref{sec:POSIX}).
+
+When 
+\begin{verbatim}
+  /* source code */
+#define _XOPEN_SOURCE <some number>
+
+  # compile
+cc -D_XOPEN_SOURCE=<some number>
+\end{verbatim}
+it tells your compiler to include definitions for some extra functions that are
+defined in the X/Open and POSIX standards. This will give you some extra
+functionality that exists on most recent UNIX/BSD/Linux systems, but probably
+doesn't exist on other systems such as Windows.
+
+\begin{verbatim}
+500 - X/Open 5, incorporating POSIX 1995
+600 - X/Open 6, incorporating POSIX 2004
+700 - X/Open 7, incorporating POSIX 2008
+\end{verbatim}
+\url{http://man7.org/linux/man-pages/man7/feature_test_macros.7.html}
+
+Check \verb!usr/include/features.h! file
+\begin{verbatim}
+#XOPEN_SOURCE	Includes POSIX and XPG things.  Set to 500 if
+#			Single Unix conformance is wanted.
+#_XOPEN_SOURCE_EXTENDED XPG things and X/Open Unix extensions.
+_XOPEN_SOURCE	Includes POSIX and XPG things.
+           = 500	Single Unix conformance
+           = 600	X/Open 2000 conformance
+           
+_XOPEN_SOURCE_EXTENDED (together with _XOPEN_SOURCE)
+               XPG things and X/Open Unix extensions.
+
+ _LARGEFILE_SOURCE	Some more functions for correct standard I/O.
+_LARGEFILE64_SOURCE	Additional functionality from LFS for large files.
+_FILE_OFFSET_BITS=N	Select default filesystem interface.
+    __USE_LARGEFILE64	Define LFS things with separate names.
+    __USE_FILE_OFFSET64	Define 64bit interface as default.
+
+
+_POSIX_C_SOURCE   If ==1, like _POSIX_SOURCE; if >=2 add IEEE Std 1003.2;
+ 			if >=199309L, add IEEE Std 1003.1b-1993;
+ 			if >=199506L, add IEEE Std 1003.1c-1995
+
+__USE_POSIX199506	Define IEEE Std 1003.1, .1b, .1c and .1i things.
+__USE_XOPEN		Define XPG things.
+__USE_XOPEN_EXTENDED	Define X/Open Unix things.
+__USE_XOPEN2K	Define X/Open 2000 things.
+__USE_UNIX98		Define Single Unix V2 things.
+
+#if defined _BSD_SOURCE || defined _SVID_SOURCE
+# define __USE_MISC     1   
+           /* which means Define things common to BSD and SystemV Unix. */ 
+#endif
+\end{verbatim}
+
+\verb!__USE_MISC!:
+\url{http://stackoverflow.com/questions/10231885/what-is-use-misc-macro-used-for}
+
+Full list: 
+\url{http://www.netbsd.org/docs/pkgsrc/fixes.html#fixes.build.cpp}
+
+% NOTE: XPG = X/Open Portability Guide (Sect.\ref{sec:XPG}) - the specification;
+% with XPG3 (1988) was aimed to converge to POSIX.
+ 
+\url{http://sourceware.org/ml/libc-alpha/2000-02/msg00005.html}
+
+
+\subsection{Macro to detect CPU architecture}
+\label{sec:macro-detect-CPU}
+
+Some macros can receive more than two possible values, and the meaning of the
+value depends on the compiling option
+
+In Windows:
+\begin{itemize}
+  
+  \item x86 CPU: \verb!_M_IX86! (can be 600 (default: Blend if compile with /GB,
+  or (Pentium Pro, II, III) if compile with /G6), 500 (Pentium), 300 (8-386),
+  400 (80486))
+  
+  
+  \item x64 CPU: \verb!_M_X64!
+  
+  
+  \item Intel IA64 CPU: \verb!_M_IA64!
+\end{itemize}
+\url{https://msdn.microsoft.com/en-us/library/b0084kay(VS.80).aspx}
+
+
+\subsection{-- GNU macros: i386, MIPS, SPARC}
+\label{sec:macro-GNU-to-detect-CPU}
+
+\begin{verbatim}
+i386        i386, __i386, __i386__
+MIPS        __mips
+SPARC       sparc, __sparc
+\end{verbatim}
+
+{\bf Alpha CPUs}
+\begin{verbatim}
+
+\end{verbatim}
+
+{\bf PowerPC CPUs}
+\begin{verbatim}
+#if defined(__powerpc__) || defined(__ppc__) || defined(__PPC__)
+	/* POWER ---------------------------------------------------- */
+
+#if defined(__powerpc64__) || defined(__ppc64__) || defined(__PPC64__) || \
+	defined(__64BIT__) || defined(_LP64) || defined(__LP64__)
+	/* POWER 64-bit --------------------------------------------- */
+
+#else
+	/* POWER 32-bit --------------------------------------------- */
+
+#endif
+#endif
+\end{verbatim}
+\url{http://nadeausoftware.com/articles/2012/02/c_c_tip_how_detect_processor_type_using_compiler_predefined_macros}
+
+\subsection{Macro to detect compiler type}
+\label{sec:macro-detect-compiler}
+
+Print out the list of all macros
+\begin{verbatim}
+gcc -E -dM - < /dev/null |less
+\end{verbatim}
+
+\begin{itemize}
+  \item \verb!__GNUC__! : GNU C compiler
+  
+\begin{lstlisting}
+#ifdef __GNUC__
+// do my gcc specific stuff
+#else
+// ... handle this for other compilers
+#endif
+\end{lstlisting}
+\end{itemize}
+
+The full list
+\begin{lstlisting}
+__clang__, 
+__GNUC__, __GNUG__, 
+__HP_aCC, __HP_cc, 
+__IBMCPP__, __IBMC__, 
+__ICC, __INTEL_COMPILER, 
+_MSC_VER, 
+__PGI, 
+__SUNPRO_C, __SUNPRO_CC
+\end{lstlisting}
+
+
+
+\subsection{-- compiler version: GCC, MIPSpro, SUNPro, SunPro C++}
+\label{sec:macro-detect-compiler-version}
+
+In Windows and use Visual Studio: we check \verb!_MSC_VER! macro which reports
+
+\begin{verbatim}
+GCC         __GNUC__ (major version), __GNUC_MINOR__
+MIPSpro     _COMPILER_VERSION (0x741 for MIPSpro 7.41)
+SunPro      __SUNPRO_C (0x570 for Sun C 5.7)
+SunPro C++  __SUNPRO_CC (0x580 for Sun C++ 5.8)
+\end{verbatim}
+
+The full list
+\begin{itemize}
+  \item Clang - Sect.\ref{sec:clang}
+  
+  \item GNU C Compiler (gcc)- Sect.\ref{sec:GCC}
+  
+  \item Intel C Compiler (icc) - Sect.\ref{sec:icc}
+  
+  \item PGI C compiler (pgcc) - Sect.\ref{sec:pgcc} 
+  
+  \item XL C compiler (xlcc) - Sect.\ref{sec:xlcc}
+\end{itemize}
+
+\begin{lstlisting}
+  // Clang (LLVM-based compiler)
+__clang_major__, __clang_minor__, __clang_patchlevel__, __clang_version__,
+__GNUC_MINOR__, __GNUC_PATCHLEVEL__, __GNUC__, __GNUG__, 
+__INTEL_COMPILER_BUILD_DATE, 
+_MSC_BUILD, _MSC_FULL_VER, _MSC_VER, 
+__PGIC_MINOR__, __PGIC_PATCHLEVEL__, __PGIC__, 
+__VERSION__, __xlC_ver__, __xlC__, __xlc__
+\end{lstlisting}
+%__HP_aCC, __HP_cc, __IBMCPP__, __IBMC__, __ICC, __INTEL_COMPILER,
+%__SUNPRO_C, __SUNPRO_CC,
+
+\url{http://stackoverflow.com/questions/2989810/which-cross-platform-preprocessor-defines-win32-or-win32-or-win32}
+

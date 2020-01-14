@@ -1,0 +1,223 @@
+\chapter{Interview Questions}
+
+
+\section{Encapsulation vs. Polymorphism}
+\label{sec:encapsulation}
+\label{sec:polymorphism}
+
+Encapsulation is a mechanism of a programming language to limit the access from
+one class to another. In C++, there are three level of encapsulation: private,
+public and protected:
+\begin{enumerate}
+  \item protected: only the current class and its subclass can have access to
+  its field data and methods.
+  \item public: the field data or method can be access from outside  
+  \item private: only the current class can access to its field data or method
+\end{enumerate}
+
+
+Polymorphism refers to the programming language's ability to process objects
+differently depending on their data type/class it is pointing to. It ties
+closely with the concept {\it inheritance}. Polymorphism is NOT the same as
+method overloading (i.e. methods same name but different output interface) or
+method overriding (i.e. rewrite the content).
+
+
+\section{Compile-time polymorphism vs. Run-time polymorphism}
+
+
+\subsection{runtime polymorphism (dynamic polymorphism)}
+\label{sec:polymorphism-runtime}
+\label{sec:runtime-polymorphism}
+
+{\bf It's about subclassing (and method overriding)}: It's being used in
+pointer, i.e. reference of class X can hold object of class X or an object of
+any sub classes of class X.
+\begin{verbatim}
+X obj = new Y(); // class Y:: X {}
+
+X obj = new X();
+\end{verbatim}
+
+If the derived class Y has override the method defined in X, so at runtime, the
+compiler need to know whether \verb!obj! is pointing to X or Y to call the right
+method. This is known as runtime polymorphism.
+
+\subsection{compile-time polymorphism (static polymorphism)}
+\label{sec:polymorphism-static}
+\label{sec:compile-time-polymorphism}
+
+{\bf It's about method overloading} (C++, Java)
+A class can have more than one methods with same name but with different number
+of arguments or different types of arguments or both. 
+It may or may not have same return type. IMPORTANT: We cannot overload just by
+return type, i.e. at least one parameter must be different. This behavior is
+same in Java and C++.
+
+When the compiler scanning through the code for compiling, the compiler is able
+to figure out the exact method call at compile-time that's the reason it is
+known as compile time polymorphism.
+
+In C++, templating is a case of method overloading
+(Sect.\ref{sec:template-C++98}), i.e. different types can be used in a function
+to represent the same concept, despite being completely unrelated.
+\begin{lstlisting}
+template <typename T>
+T add(const T& lhs, const T& rhs) { return lhs + rhs; }
+\end{lstlisting}
+Here, there is no need for subclassing, except the type T just has to define
+the + operator. 
+
+\begin{mdframed}
+Templates as in C++ do not exist in Java. The best approximation is generics.
+\url{http://stackoverflow.com/questions/2159338/what-is-the-java-equivalent-of-cs-templates}
+\end{mdframed}
+
+\url{http://stackoverflow.com/questions/2128838/compile-time-polymorphism-and-runtime-polymorphism}
+
+\section{Code execute only once}
+
+Suppose that you have a function that get call multiple times, yet there is once
+piece of code in that function that you want to be run only once.
+
+\subsection{pthread\_once\_t (Linux only)}
+
+Use \verb!pthread_once_t!, and make the function/method that you want to call
+once a \verb!static! function/method.
+
+\begin{lstlisting}
+#include <pthread.h>
+
+//1. define a variable as static 
+static pthread_once_t semaphore = PTHREAD_ONCE_INIT;
+
+class FooBar()
+{
+ public:
+   static void test(); //must be static and void
+   int somefunction();
+}
+
+//2. map that variable to the function to be called once
+void FooBar::test()
+{ // code to run once
+}
+int FooBar::somefunction()
+{
+   pthread_once( & semaphore, FooBar::test() );
+   
+   // do others
+   ...
+}
+\end{lstlisting}
+\url{http://stackoverflow.com/questions/6911126/is-it-possible-to-define-the-static-member-function-of-a-class-in-cpp-file-inst}
+
+\url{http://apiexamples.com/c/pthread/pthread_once.html#L0}
+\url{https://www-01.ibm.com/support/knowledgecenter/ssw_aix_71/com.ibm.aix.basetrf1/PTHREAD_ONCE_INIT.htm}
+
+
+\subsection{boost::call\_once, boost::once\_flag (portable, thread-safe)}
+\label{sec:boost::call_once}
+
+We use \verb!boost::call_once!.
+This has become part of C++11 (Sect.\ref{sec:std::call_once-C++11})
+
+
+\begin{lstlisting}
+    static boost::once_flag flag = BOOST_ONCE_INIT;
+    boost::call_once([]{callee();}, flag);  
+\end{lstlisting}
+The first line can be inside or outside a function, since it is static.
+
+\subsection{Define a static class}
+
+Suppose the function you want to call once is \verb!callee()!, to be called by 
+the function \verb!caller()!. The treat is define a static class object; with
+the constructor calls \verb!callee()!.
+
+IMPORTANT: This is not thread-safe in C++03, thread-safe in C++0x. 
+
+\begin{verbatim}
+void caller()
+{
+    static class Once { public: Once(){callee();}} Once_;
+}
+\end{verbatim}
+\url{http://stackoverflow.com/questions/4173384/how-to-make-sure-a-function-is-only-called-once}
+
+\subsection{std::call\_once, std::once\_flag (C++11)}
+\label{sec:std::call_once-C++11}
+
+
+\begin{verbatim}
+template< class Callable, class... Args >
+void call_once( std::once_flag& flag, Callable&& f, Args&&... args );
+\end{verbatim}
+The Callable $f$ is called only once, even if called from several threads.
+
+We need to pass an object of \verb!std::once_flag! along with the function to be
+called $f$ to \verb!call_once()!. Any call to $f$ with the same
+\verb!std::once_flag! object ensures $f$ only run 1 time.
+
+\begin{lstlisting}
+#include <thread>
+#include <mutex>
+
+std::once_flag flag1, flag2;
+
+void may_throw_function(bool do_throw)
+{
+}
+
+void do_once(bool do_throw)
+{
+  try {
+  // do_throw is the argument of may_throw_function
+    std::call_once(flag2, may_throw_function, do_throw);
+  }
+  catch (...) {
+  }
+}
+
+\end{lstlisting}
+\url{http://en.cppreference.com/w/cpp/thread/call_once}
+
+\subsection{constructor attribute GCC}
+
+constructor function \verb!__attribute__! of GCC
+
+\url{http://stackoverflow.com/questions/8412630/how-to-execute-a-piece-of-code-only-once}
+
+\section{Write a function that dynamically allocate a 2D array and return it
+back to the caller}
+
+\begin{lstlisting}
+int ** pdata; // a 2D array [X][Y]
+
+void createData(pdata, int &X, int &Y); 
+
+// free memory
+for(int i = 0; i < X; ++i) {
+    delete [] ary[i];
+}
+delete [] ary;
+
+\end{lstlisting}
+
+NOTE: We can pass by reference
+\begin{verbatim}
+void createData(int** &pdata, int &x, int &y)
+{
+ // do some calculation to find 'x' and 'y'
+ 
+ // allocate memory
+ // Option 1:
+ pdata = new int*[x];
+ for(int i = 0; i < X; ++i) {
+    pdata[i] = new int[Y];
+ }
+ // Option 2:
+ pdata = (int**) malloc(sizeof(int*) * (X));
+}
+
+\end{verbatim}

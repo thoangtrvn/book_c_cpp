@@ -1,0 +1,2912 @@
+\chapter{Containers}
+\label{chap:C++_containers}
+\label{chap:containers}
+
+\section{Introduction}
+\label{sec:containers}
+
+To avoid the tedious job of writing different classes, belonging to the same
+type of data structure, e.g. vector or queue or stack, each can hold a different
+type of data elements, C++ provides the so-called {\bf containers}.
+
+
+Containers is an abstract way that allows programmers to organize data into some
+common data structure, e.g. vector or queue or stack that can accept data
+elements of any type, i.e. the data type of the data element is not defined for
+the container until programmers uses the container.
+
+This is the backbone for {\bf Generic Programming} paradigm which was proposed
+and implemented by Alexander Stepanov in 1979. Although David Musser had
+developed and advocated some aspects of generic programming already by 1971, it
+was limited to a rather specialized area of software development.
+At the time there was no real support in any programming language for generic
+programming.
+
+\begin{mdframed}
+
+The first major language to provide such support was Ada (ANSI standard 1983),
+with its generic units feature.
+
+In 1985, the Eiffel programming language became the first object-oriented
+language to include intrinsic support for generic classes, combined with the
+object-oriented notion of inheritance.
+ 
+In 1987 Stepanov and Musser had developed and published an Ada library for list
+processing that embodied the results of much of their research on generic
+programming.
+
+Ada had not achieved much acceptance outside the defense industry and C++ seemed
+more likely to become widely used and provide good support for generic
+programming even though the language was relatively immature.
+
+More importantly, C/C++ model of computation that allows very flexible access to
+storage via pointers, which is crucial to achieving generality without losing
+efficiency.
+
+In 1993, Stepanov was asked, by Andrew Koenig of Bell Labs, to present that idea
+in front of ANSI/ISO committee for C/C++ standardization.
+Alex and Meng submitted for first draft of the proposal for the meeting in 1994.
+After some modifications, it becomes part of the C++ standard, and the
+implementation of such features is known as C++ standard template library (STL).
+
+\end{mdframed}
+
+A container can belong to one of the two categories
+\begin{enumerate}
+  \item \textcolor{red}{associative container}, i.e. there is no order between elements
+  
+  \item \textcolor{red}{seqiuence container}, i.e. there is an index associated with each element that enables to access
+  the elements using an integer index.
+\end{enumerate}
+
+Any container needs an {\bf allocator} - default is Allocator object
+(Sect.\ref{sec:Allocator}) - to handle memory management for elements in that
+container.
+
+There are two common different implementation of containers
+\begin{enumerate}
+  \item STL (part of C++ language) - Sect.\ref{sec:STL_containers}
+
+
+The C++ Standard Template Library in C++ 98 implemented a number of containers
+(Sect.\ref{sec:C++98_containers}), each provides homogeneous methods
+(implemented using different algorithmic time) to insert, delete, and retreive
+data element, regardless of the data type of the elements in that container.
+  
+  \item QTL (part of QT library): Sect.\ref{sec:QTL_containers}
+  
+  \item Boost library - Sect.\ref{sec:Boost-containers}: 
+  
+Boost added many more containers that has not been available in C++ 98 STL. Some of them are now part of C++11 STL.
+
+\end{enumerate}
+
+\subsection{STL Containers}
+\label{sec:STL_containers}
+
+The containers implemented in the C++ Standard Template Library (STL -
+Sect.\ref{sec:C++98_STL}) are called STL containers.
+
+So far, C++ STL lacks the feature to have heterogeneous containers that can hold
+arbitrary element types like those supported in Python, Lisp/Scheme, ML and
+Haskell.
+
+C++03 added \verb!map! container - Sect.\ref{sec:C++03_containers}.
+
+C++11 improved and added new containers - Sect.\ref{sec:C++11_containers}
+
+
+\subsection{QTL Containers}
+\label{sec:QTL_containers}
+
+QTL containers are containers implemented in QT Library.
+The QTL has a different philosophy from the STL, which is well summarized by J.
+Blanchette: 
+
+{\it "Whereas STL's containers are optimized for raw speed, Qt's
+container classes have been carefully designed to provide convenience, minimal
+memory usage, and minimal code expansion."}
+ 
+\url{http://blog.qt.io/blog/2006/10/16/atomic-reference-counting-is-it-worth-it-2/}
+
+\url{http://stackoverflow.com/questions/1668259/stl-or-qt-containers}
+
+\subsection{Boost's containers}
+\label{sec:Boost-containers}
+
+Boost added many more containers that has not been available in C++ 98 STL.
+
+Boost.Any - Sect.\ref{sec:Boost.Any}, Boost.Tuple
+
+
+
+
+\section{Allocator (std::allocator)}
+\label{sec:Allocator}
+\label{sec:std::allocator}
+
+When you allocate a very large chunk of memory region, it is typically better
+just reserve the raw memory, but do not call the constructor. This is quicker,
+as evoking also the constructor takes additional time, and there is a chance
+that we don't use all of them.
+
+Later on, e.g. when evoking an \verb!insert()! method, then it evokes a proper
+constructor, one the raw memory region.
+
+STL C++ provides and uses \verb!std::allocator! by default for all STL classes.
+\verb!std::allocator! is used when you want to separate allocation,  and do
+construction in two steps.
+
+\begin{verbatim}
+//template <class T> class allocator;
+// class LifeNode { ... }
+
+#include <memory>
+
+// declare an allocator 
+//   ...for integer values 
+std::allocator<int> myAllocator; 
+//   ...for LifeNode values
+std::allocator<LifeNode> another_allocator; 
+
+// allocate space for 
+//  ... five ints 
+int* arr = myAllocator.allocate(5); 
+    
+\end{verbatim}
+
+\subsection{-- std::allocator C++11}
+
+Now, we want to construct the object, by calling the object's constructor, e.g.
+when \verb!push_back! or \verb!increase()! function is called.
+
+\begin{lstlisting}
+
+
+\end{lstlisting}
+
+The job of the allocator is it to manage the lifetime of its elements. That
+means to allocate and deallocate memory for its elements and to initialize and
+destruct them.
+
+
+\textcolor{red}{An allocator only does the job of allocating memory, it does not construct the objects.}
+Constructing the object is the job of the constructor of a class, which needs to
+use this allocator for memory allocation first, and the construct the object on
+that memory second (Sect.\ref{sec:container-user-defined}).
+
+\begin{mdframed}
+
+Allocation and deallocation describe the acquiring and releasing of raw memory, aka storage. 
+
+Construction and destruction, on the other hand, describe the beginning and
+ending of an object's lifetime.
+
+\begin{verbatim}
+auto p = malloc(sizeof(T)); // allocation.
+new (p) T();                // construction.
+static_cast<T*>(p)->~T();   // destruction.
+free(p);                    // deallocation.
+\end{verbatim}
+
+The correct answer is that an object should be destroyed prior to deallocating the memory it occupies.
+
+
+\url{https://www.reddit.com/r/cpp_questions/comments/6avaey/difference_between_destruction_and_deallocation/}
+\end{mdframed}
+
+\begin{mdframed}
+
+\url{http://www.angelikalanger.com/Articles/C++Report/Allocators/Allocators.html}
+
+The STL allocator is one of the most overlooked topic in most C++ teachings.
+They are rarely used explicitly, either via direct client code, or direct
+construction of an allocator to be used in a container. It is important to
+understand it, especially when you want to write a custom Allocator
+(Sect.\ref{sec:allocator-user-defined})
+
+Every standard library component, i.e. the container like \verb!std::vector!,
+that may need to allocate or release storage does so through an {\bf Allocator}
+(Sect.\ref{sec:container-user-defined}).
+\url{http://en.cppreference.com/w/cpp/concept/Allocator}
+
+STL allocators must satisfy a number of other requirements (Section 20.1.5 in
+International Standard for C++, ISO/IEC 14882:2003), and the code to do so takes
+roughly 80 editor lines.
+
+\end{mdframed}
+
+Allocators originally were introduced as part of the STL to handle the nasty
+problem of different pointer types on PCs (such as near, far, and huge
+pointers). 
+\begin{itemize}
+
+  \item  Alexander Stepanov and Meng Lee presented the Standard Template Library
+  to the C++ standards committee in March 1994.
+
+ Stepanov was requested to make the library containers independent of the
+ underlying memory model (Sect.\ref{sec:memory_model}), which led to the
+ creation of allocators.
+ 
+
+  \item all of the STL container interfaces had to be rewritten to accept allocators - Sect.\ref{sec:container-user-defined}.
+  
+  Where the library had previously used pointer and reference types directly, it
+  would now only refer to the types defined by the allocator.
+  
+  
+  \item custom allocators could potentially be used to implement persistent storage STL containers,
+  
+  As the allocator can help to carry the state of the storage element, in theory, we can save them to disk and restore later on.
+  This is not available, practically and efficiency, until C++11 standard.
+  
+  \item since C++11: 
+  
+The 2011 revision of the C++ Standard removed the weasel words requiring that
+allocators of a given type always compare equal and use normal pointers. These
+changes make stateful allocators much more useful and allow allocators to manage
+out-of-process shared memory.
+
+This give the programmer control over memory allocation within containers (e.g.
+allocating on GPU, rather than CPU), rather than to adapt the address model of
+the underlying hardware. (Sect.\ref{sec:allocator-GPU}).
+
+
+  
+  \item UNACCEPTED IDEA:
+  the ability to use template arguments that are themselves templates
+  
+  Since these features could not be compiled by any existing compiler, there
+  was, according to Stepanov, "an enormous demand on Bjarne [Stroustrup]'s and
+  Andy [Koenig]'s time trying to verify that we were using these non-implemented
+  features correctly."
+  
+  
+\end{itemize}
+
+
+Allocators now serve as a base for technical solutions that use certain memory
+models, such as shared memory, garbage collection, and object-oriented
+databases, without changing the interfaces. Allocators represent a special
+memory model and are an abstraction used to translate the need to use memory
+into a raw call for memory. They provide an interface to allocate, create,
+destroy, and deallocate objects.
+
+With allocators, containers and algorithms can be parameterized by the way the
+elements are stored.
+\begin{itemize}
+  \item 20.1.5 section on ISO C++  [lib.allocator.requirements]
+  \item 20.4.1 section [lib.default.allocator]
+
+The provided \verb!std::allocator! in 20.4.1 is the only predefined and required
+allocator imposed by [C++] on all C++ compiler implementations.
+
+\end{itemize}
+In fact, the most important part one should take note is in fact, section 20.1.5.1
+\begin{verbatim}
+The library describes a standard set of requirements for allocators, which are
+objects that encapsulate the information about an allocation model. This
+information includes the knowledge of pointer types, the type of their
+difference, the type of the size of objects in this allocation model, as well as
+the memory allocation and deallocation primitives for it. All of the containers
+(_lib.containers_) are parameterized in terms of allocators.
+
+\end{verbatim}
+
+\url{https://www.codeproject.com/Articles/4795/C-Standard-Allocator-An-Introduction-and-Implement}
+
+\subsection{std::allocator C++17}
+\label{sec:std::allocator-C++17}
+
+
+With C++17 the interface of std::allocator becomes a lot easier to handle. 
+\begin{verbatim}
+// Attributes
+value_type                               T
+propagate_on_container_move_assignment   std::true_ty
+is_always_equal                          std::true_type
+
+// Methods
+constructor
+destructor
+allocate
+deallocate
+
+// Functions
+operator==
+operator!=
+\end{verbatim}
+\url{http://www.modernescpp.com/index.php/memory-management-with-std-allocator}
+
+
+\section{Containers of homogeneous types}
+
+Homogeneous containers is a template data structure that accepts a collection of
+data elements of the same type. 
+\begin{itemize}
+  \item sequence container - Sect.\ref{sec:container_sequence}
+  \item container adapter - Sect.\ref{sec:container-adaptor}
+\end{itemize}
+
+Depending on your needs, you should choose a proper container. Experts like
+Scott Meyer, Bjarne Stroustrup suggest the use of \verb!queue! by default, while
+others (Herb Sutter) suggests \verb!dequeue! (Sect.\ref{sec:stl:dequeue}).
+
+\subsection{Iterate through data elements in a homogeneous container}
+\label{sec:container-homogeneous-loop-through-data}
+
+\subsection{** C++98}
+
+In C++98, there are 3 ways to iterate through elements in a containers: 
+% (1)
+% using indices, (2) using an iterator, (3) using \verb!.at()! member function. 
+
+\begin{enumerate}
+  \item index-based iteration:
+
+To make the code portable when using indexing, we should use \verb!size_type!
+typedef of the corresponding container 
+\begin{verbatim}
+for(std::vector<int>::size_type i = 0; i != v.size(); i++) {
+    /* std::cout << someVector[i]; ... */
+}
+\end{verbatim}
+The reason is that a call to \verb!vector<T>::size()! returns a value of type
+\verb!std::vector<T>::size_type!, not \verb!int!, \verb!unsigned int! or
+otherwise. 
+NOTE: Using \verb!size_t! as the index variable type is not portable (it can be
+different from \verb!size_type! in some cases)
+
+
+PROS: familiar to anyone familiar with C-style code, can loop using
+  different strides (e.g. i += 2).
+  
+CONS: only for sequential random access containers (\verb!vector, array!,
+\verb!deque!), doesn't work for \verb!list!, \verb!forward_list! or the
+associative containers. Also the loop control is a little verbose (init, check,
+increment). People need to be aware of the 0-based indexing in C++.
+
+  
+  \item {\it iterator} (Sect.\ref{sec:C++98_iterators})).
+
+Exampe: replace T with the type of the data you store in the vector
+\begin{verbatim}
+std::vector<T>::iterator i = polygon.begin();
+std::vector<T>::iterator end = polygon.end();
+
+for(; i != end; i++){
+    sum += *i;
+}
+\end{verbatim}
+
+PROS: more generic, works for all containers (even the new unordered associative
+containers, can also use different strides (e.g. \verb!std::advance(it, 2)!);
+  
+CONS: if index is needed, it needs extra work to get the index of the current
+element (could be O(N) for \verb!list! or \verb!forward_list!). Again, the loop
+control is a little verbose (init, check, increment).
+  
+  \item STL \verb!for_each! algorithm - Sect.\ref{sec:loop_for_each}
+  
+\begin{verbatim}
+// NOTE: 'v' is the container containing data of type 'T'
+
+std::for_each(v.begin(), v.end(), [](T const& elem) {
+     // if the current index is needed:
+     auto i = &elem - &v[0];
+
+     // cannot continue, break or return out of the loop
+});
+\end{verbatim}
+
+PROS: same as 2) plus small reduction in loop control (no check and increment),
+this can greatly reduce your bug rate (wrong init, check or increment,
+off-by-one errors).
+
+CONS: same as explicit iterator-loop plus restricted possibilities for flow
+control in the loop (cannot use \verb!continue!, \verb!break! or \verb!return!)
+and no option for different strides (unless you use an iterator adapter that
+overloads operator++).
+
+
+  \item range-for loop
+  
+\begin{verbatim}
+for (auto& elem: v) {
+     // if the current index is needed:
+     auto i = &elem - &v[0];
+
+    // any code including continue, break, return
+}
+\end{verbatim}  
+ 
+PROS: very compact loop control, direct access to the current element.
+
+CONS: extra statement to get the index. Cannot use different strides.
+ 
+  \item for-loop using \verb!.at()! member function.
+
+\begin{lstlisting}
+std::vector<int> items;
+
+for(vector<int>::size_type i = 0; i < vs.size(); ++i)
+{
+   //Option 1
+   vs[i] = "Am I faster?";
+   //Option 2
+   vs.at(i) = "Am I faster?";
+}
+
+\end{lstlisting}
+NOTE: Using \verb!.at()! method is slowest; then come using indices, and using
+iterator is the fastest. The reason is that \verb!.at()! also check for
+out-of-bound indexing, so it's the slowest.
+
+\end{enumerate}
+\url{http://stackoverflow.com/questions/14373934/iterator-loop-vs-index-loop}
+% 
+% \begin{lstlisting}
+% 
+% //Option 3
+% for(vector<string>::iterator it = vs.begin(); it != vs.end(); ++it)
+% {
+%    *it = "Am I faster?";
+% }
+% \end{lstlisting}
+% 
+
+% \begin{enumerate}
+%   \item Use iterators
+%   
+% NOTE: We use \verb!const_iterator! if we don't want the data to be modified.
+% 
+% To loop through data elements in an STL container we use an Iterator
+% (Sect.\ref{sec:C++98_iterators}).
+%   
+%   \item Use array index
+%   
+% \begin{verbatim}
+% for(size_t i = 0; i < v.size(); ++i) {
+%         n += v[i];
+%     }
+% \end{verbatim}
+% \end{enumerate}
+% 
+
+
+\subsection{** C++11}
+
+A simple form of the previous method is using \verb!auto! keyword
+\begin{verbatim}
+for ( auto i = v.begin(); i != v.end(); i++ ) {
+    std::cout << *i << std::endl;
+}
+\end{verbatim}
+or even simpler formula
+\begin{verbatim}
+for ( auto &i : v ) {
+    std::cout << i << std::endl;
+}
+\end{verbatim}
+
+We can use \verb!std::transform, std::copy, std::fill, std::for_each!
+\begin{verbatim}
+for(std::vector<int>::size_type i = 0; i != v.size(); i++) {
+    /* std::cout << someVector[i]; ... */
+}
+\end{verbatim}
+
+\subsection{** Boost}
+\label{sec:foreach_boost}
+
+\verb!BOOST_FOREACH! works for STL containers (Sect.\ref{sec:STL_containers}),
+arrays, C-style strings.
+
+\begin{verbatim}
+#include <boost/foreach.hpp>
+
+BOOST_FOREACH( vector_type::value_type& value, v ) {
+    // do something with 'value'
+}
+\end{verbatim}
+
+%\section{Operators}
+
+\subsection{std::find()}
+\label{sec:std::find}
+
+
+ 
+There are really three overloaded versions of find().
+\begin{enumerate}
+ \item   
+\end{enumerate}
+
+\begin{lstlisting}
+
+//use std::find to get iterator
+auto itr=std::find(vct.begin(), vct.end(), 6);
+if(itr==vct.end())
+    return;
+auto index=std::distance(vct.begin(), itr);
+\end{lstlisting}
+
+\subsection{std::upper\_bound() - binary search}
+\label{sec:std::upper_bound}
+
+Find the element \verb!val! in an ordered range \verb![first, last)!,
+and returns the last position in that range where \verb!val! can be inserted
+without violating the order.
+
+PRECONDITION: \verb![first,last)! is ordered in ascending order (i.e.
+increasing) according to the given operator
+\begin{itemize}
+  \item by default: \verb!operator<! is used for comparison
+
+  \item we can use a different operator
+  
+\end{itemize}
+
+\subsection{std::lower\_bound() - binary search}
+\label{sec:std::lower_bound}
+
+Find the element \verb!val! in an ordered range \verb![first, last)!,
+and returns the first position in that range where \verb!val! can be inserted
+without violating the order.
+
+PRECONDITION: \verb![first,last)! is ordered in ascending order (i.e.
+increasing) according to the given operator
+\begin{itemize}
+  \item by default: \verb!operator<! is used for comparison
+
+  \item we can use a different operator
+  
+\end{itemize}
+
+RETURN: The furthermost iterator 
+\section{1. Sequence container}
+\label{sec:container_sequence}
+
+
+In sequence containers (vector, dequeue, and list): order of elements is
+fixed, i.e. we can access a particular data element using the index.
+
+\begin{itemize}
+    \item vector: dynamic-size array, also accept insertion at any position
+    \item dequeue (double-ended queue): provide fast insertions/deletions at
+    beginning or end; and random access is quick - Sect.\ref{sec:std::dequeue}).
+
+    \item list: provide fast insertions/deletions anywhere, but DONOT provide
+    random access
+  \end{itemize}
+
+Examples of sequence containers: \verb!vector!, \verb!dequeue!, \verb!list!.
+
+To access elements for a sequence containers, we can use
+\begin{enumerate}
+  \item \verb![]! operator; but there is no boundary checking for this choice
+  (which can result in garbage data being returned) for std::dequeue
+
+  \item \verb!at()!
+
+NOTE: \verb!at()! returns a reference to the element, so we can modify the
+element easily. 
+\begin{verbatim}
+dequeue<double> dq(5, 8.1);
+
+int i = 3;
+dq.at(i);  // which can throw 'out_of_range' exception 
+
+
+using namespace std;
+try {
+   dq.at(i);
+} catch (out_of_range&) {
+  cout << "** out of range" << endl;
+}
+
+dq.at(2) = 5.2;
+\end{verbatim}  
+
+
+  \item \verb!front(), back()! operators: access the first and last element
+
+  \item \verb!size()!, \verb!max_size()!, and \verb!empty()!: get the state of
+  the containers
+  
+  \verb!max_size()! is a system and architecture-dependent value. 
+  \begin{itemize}
+    \item on 32-bit architecture: the max size for std::dequeue is $2^{32}-1$ 
+    (which is theoretical limit of the addressable memory space on a 32-bit
+    machine)
+  \end{itemize}
+  
+  \item \verb!reserve()! : not available for std::dequeue; as the underlying
+  structure for a dequeue is like a linked list rather than a raw array.
+  
+  
+  \item \verb!push_front()!, \verb!push_back()!, \verb!pop_front()!,
+  \verb!pop_back()!: in std::dequeue
+  
+  
+  Push methods insert an element at either the back or the front of the deque,
+  while pop methods remove an element:
+  
+  \item \verb!insert()!, \verb!erase()!, \verb!assign()!, \verb!resize()!,
+  \verb!swap()!, and \verb!clear()!.
+  
+  
+  The two methods most frequently called for performing multiple-element
+  insertions and deletions are, not surprisingly, named insert() and erase().
+  Both of these methods require the use of iterators, which behave much like
+  pointers do for raw arrays.   
+
+\begin{verbatim}
+// delete one or (many continuous elements)
+iterator erase( iterator location );
+iterator erase( iterator start, iterator end );
+\end{verbatim}  
+  
+  \item \verb!begin()!:  returns a random access interator to the first element
+  of the deque.
+\end{enumerate}
+\url{http://www.dreamincode.net/forums/topic/35344-c-deque-tutorial/}
+
+  
+\subsection{Vector: std::vector}
+\label{sec:std::vector}
+
+Vectors are not arrays, yet they can be used to emulate like an array
+(Sect.\ref{sec:stl_vector}). 
+\begin{verbatim}
+#include <vector>
+using namespace std;
+\end{verbatim}
+Elements in a std::vector belong to a contiguous block of memory.
+
+
+NOTE:
+\begin{enumerate}
+  \item Using vector to represent high dimensional array is not recommended as the
+syntax is very clumsy
+\begin{Verbatim}
+void foo(int x, int y, int z) {
+    vector< vector< vector<int> > > values(/*really painful expression here*/);
+}
+\end{Verbatim}
+
+  \item its implementation uses template (Sect.\ref{sec:template-C++98}), i.e.
+  they allocate their objects on the free-store exclusively (i.e.
+  arrays's storage is not restricted to a specific storage class). 
+  
+  \item a vector object is defined with a given size. Then, a member function
+  \verb!resize()! can be used to change the vector's size. This is different
+  from VLA (Sect.\ref{sec:VLA}).
+\end{enumerate}
+
+
+\label{sec:stl_vector}
+
+\subsection{-- insert}
+
+To insert a new element at after a given position, as pointed by the iterator,
+we use \verb!insert()!.
+\begin{verbatim}
+iterator insert(iterator where, const T& elem);
+\end{verbatim}
+
+To insert a new element at the end of the vector, use
+\verb!push_back()! method
+\begin{enumerate}
+  
+  \item if argument is a direct object (as opposed to a pointer), the vector
+  makes a deep, independent copy of that object.
+  
+  \item if argument is a pointer: expect the pointer and nothing more to be
+  replicated behind the scenes; any memory referenced by that pointer will be
+  referenced from within the vector as well.
+
+\end{enumerate}
+
+\subsection{-- remove}
+
+To remove an element at a given position, as pointed by the iterator, we use
+\verb!erase()!.
+\begin{verbatim}
+iterator erase(iterator where);
+\end{verbatim}
+
+To remove an element at the end of the vector, use \verb!pop_back()! method.
+
+\subsection{-- initialize/copy}
+
+\textcolor{red}{\bf To initialize a vector}:
+\begin{enumerate}
+ \item C++11 standard: need to enable special flags \verb!-std=c++11!
+\begin{verbatim}
+std::vector<int> v {45, 63};
+
+std::vector<int> v = {45, 63};
+\end{verbatim}
+or
+\begin{verbatim}
+std::vector<int> v(2);
+v = {45, 63};
+\end{verbatim}
+
+  \item COPY (C++11):  \verb!begin()! and \verb!end()! are standard
+  
+\begin{verbatim}
+std::vector<int> v(begin(arr), end(arr));
+\end{verbatim}
+
+  \item (traditional method) by converting from array (of contiguous elements)
+
+CODE 01: must explicitly write the size  (take the first and last element in a
+range and create a vector with everything in between)
+\begin{verbatim}
+int vv[2] = { 12,43 };
+std::vector<int> v(&vv[0], &vv[0]+2);
+
+int myints[] = {10,20,30,30,20,10,10,20};
+std::vector<int> v(myints,myints+8);    
+\end{verbatim}
+
+CODE 02: no need to write the size
+\begin{verbatim}
+template <typename T, size_t N>
+T* begin(T(&arr)[N]) { return &arr[0]; }
+template <typename T, size_t N>
+T* end(T(&arr)[N]) { return &arr[0]+N; }
+
+int vv[] = { 12,43 };
+std::vector<int> v(begin(vv), end(vv));
+\end{verbatim}
+
+  \item COPY
+\begin{verbatim}
+int pv[4] = { 4, 4, 4, 4};
+vector<int> v (pv);
+\end{verbatim}
+
+If the size is unknown
+\begin{verbatim}
+int tmp[] = { 10, 20, 30 };
+std::vector<int> v( tmp, tmp+3 ); // use some utility to avoid hardcoding the size here
+std::vector<int> v( &tmp[0], &tmp[0]+3 ); // equivalent above
+
+std::vector<int> v;  //assign to an existing vector
+v.assign(&tmp[0], &tmp[0]+3);
+
+vector<int> vec (tmp, tmp + sizeof(tmp) / sizeof(tmp[0]) );
+\end{verbatim}
+
+ \item Create your own function
+\begin{verbatim}
+template <typename T>
+class make_vector
+{
+public:
+   typedef make_vector<T> my_type;
+   my_type& operator << (const T& val) {
+   	data_.push_back(val);
+    return *this;
+  }
+  operator std::vector<T>() const {
+    return data_;
+  }
+  
+private:
+  std::vector<T> data_;
+}
+
+
+
+std::vector<int> v = make_vector<int>() << 1 << 2 << 3;
+\end{verbatim}
+\end{enumerate}
+
+\subsection{-- convert to array}
+
+\textcolor{red}{\bf Mapping a vector to an array}: 
+
+
+
+\begin{enumerate}
+  \item NO COPY: As vector guarantees to store their elements contiguously, i.e.
+  \verb!&v[n] == &v[0] + n! for all $0\le n\le$ \verb!v.size()!. 
+  
+NOTE: use \verb!&v[0]! with \verb!v! is vector name.
+\begin{verbatim}
+std::vector<double> v;
+double* a = &v[0];
+\end{verbatim}
+The pointer pointing to the first element in the vector.
+
+IMPORTANT: This pointer is only valid as long as the vector is not re-allocated
+or destroyed. Re-allocation happens automatically when you insert more elements
+than it will fit into the vector remaining capacity, i.e. v.size() +
+NumberOfNewElements >  v.capacity(). A solution with this is to reserve, before
+getting the pointer, we can use \verb!v.reserve(NewCapacity)!.
+\begin{verbatim}
+std::vector<double> v;
+v.reserve(40);
+
+double* a =&v[0];
+\end{verbatim}
+  
+Example: using a vector and pass as an array pointer
+\begin{verbatim}
+void f( double a[]);
+
+//can be called with
+vector <double> v;
+v.push_back( 1.23 )
+f( &v[0] );
+\end{verbatim}
+ 
+
+ \item COPY (more robust)
+ 
+\begin{verbatim}
+double arr[100];
+std::vector<double> v;
+std::copy(v.begin(), v.end(), arr);
+\end{verbatim}
+Make sure \verb!arr! is big enough
+
+\end{enumerate}
+
+\subsection{-- operation}
+
+\textcolor{red}{\bf Check the existence of an element in the vector}:
+\begin{enumerate}
+  \item Unsorted vector: v=vector, value=we want to check
+\begin{verbatim}
+#include <algorithm>
+
+if (std::find(v.begin(), v.end(), value) != v.end)
+   ...//found
+\end{verbatim}
+
+  \item Sorted vector:
+\begin{verbatim}
+#include <algorithm>
+
+if (std::binary_search(v.begin(), v.end(), value))
+   ...//found
+\end{verbatim}
+\end{enumerate}
+
+\subsection{-- multi-dimension}
+
+\textcolor{red}{\bf Multi-dimensional vector}: 
+\begin{verbatim}
+std::vector< std::vector<data> > your_2D_vector;
+\end{verbatim}
+NOTE: We need to have a space between the two \verb!>! due to the limitation of
+syntax detection in C++99 and earlier. Since C++11 standard, this limitation has
+been resolved.
+
+We can create a 2D vector and access its data like this
+\begin{verbatim}
+// Create
+vector< vector<int> > vec(4, vector<int>(4));
+    
+    // Write
+vec[2][3] = 10;
+    // Read
+int a = vec[2][3];
+\end{verbatim}
+
+To create a 2D vector
+\begin{verbatim}
+for (int i = 0; i < 10; i++) {
+    std::vector< data> your_1D_vector;
+    //add data
+    your_1D_vector.push_back(10);
+    ...
+    
+    your_2D_vector.push_back(your_1D_vector); // Add an empty row
+}
+
+\end{verbatim}
+
+Or we can add a number of empty rows first
+\begin{verbatim}
+for (int i = 0; i < 10; i++) {
+    vec.push_back(vector<int>()); // Add an empty row
+}
+\end{verbatim}
+
+The loop through and add real data to each row
+\begin{verbatim}
+
+for (int j = 0; j < 20; j++) {
+    for (int i = 0; i < vec.size(); i++) {
+        vec[i].push_back(i * j); // Add column to all rows
+    }
+
+    // You could also use iterators:
+    for (vector< vector<int> >::iterator it = vec.begin(); it != vec.end(); ++it) {
+        it->push_back(j); // Add column to all rows
+    }
+}
+\end{verbatim}
+
+If all columns are the same length, then we can use 1D vector
+\begin{verbatim}
+const int rows = 10;
+const int columns = 20;
+
+vector<int> vec;
+vec.resize(rows * columns);
+
+for (int row = 0; row < rows; row++) {
+    for (int col = 0; col < columns; col++) {
+        vec[row * columns + col] = row * col;
+    }
+}
+\end{verbatim}
+
+
+
+
+\subsection{std::list (double linked list)}
+\label{sec:std::list}
+
+Lists are sequence containers that allow {\it constant time} insert and erase
+operations anywhere within the sequence, and iteration in {\it both directions}.
+
+List containers are implemented as doubly-linked lists.
+If you really need single linked list, use \verb!forward_list!
+(Sect.\ref{sec:std::forward_list}).
+
+IMPORTANT:  In std::list, each of the elements they contain in different and
+unrelated storage locations.
+
+\subsection{std::forward\_list}
+\label{sec:std::forward_list}
+
+
+Forward lists \verb!std::forward_list! are implemented as singly-linked list.
+It allow constant time insert and erase operations anywhere within the sequence.
+For double-linked list, use \verb!std::list! (Sect.\ref{sec:std::list}).
+
+You can write your own class for single-linked list as given in example:
+\url{http://www.sanfoundry.com/cpp-program-implement-single-linked-list/}
+
+\url{http://www.cplusplus.com/reference/forward_list/forward_list/}
+
+\subsection{unordered\_set}
+\label{sec:std::unordered_set}
+
+
+
+\section{2. Container adaptor}
+\label{sec:container-adaptor}
+
+{\bf A container adaptor} are behavior added over sequence containers. The added
+behavior can be a stricter behavior (i.e. stack that allows pop/push item on
+the top, no random insert). A stack could be built over a \verb!std::vector!
+(Sect.\ref{sec:std::vector}), a \verb!list! (Sect.\ref{sec:std::list}) or
+\verb!dequeue!; GCC use \verb!dequeue!.
+
+Examples of container adaptors: \verb!stack!, \verb!queue!,
+\verb!priority_queue!.
+
+
+\subsection{Stacks}
+
+\subsection{Queues}
+
+A queue is a container adaptor using FIFO approach (First-In-First-Out). 
+\begin{lstlisting}
+#include <queue>
+\end{lstlisting}
+
+To add new elements into the queue, we use \verb!push()! method
+\begin{verbatim}
+std::queue<data_type> myqueue;
+
+myqueue.push(data_element);
+myqueue.push(data_element);
+\end{verbatim}
+The first element to be added to the queue is called the \verb!front!, and the
+last one is called the \verb!back!. To remove the first element from the queue,
+we use \verb!pop()! method.
+
+The reference to the first element can be done using \verb!fron()! method, and
+to the last element can be done using \verb!back()! method.
+\begin{lstlisting}
+queue<int> myqueue;
+
+myqueue.push(74);
+myqueue.push(5);
+
+std::cout << myqueue.front() << std::endl; // 74
+myqueue.front() -= myqueue.back();
+
+std::cout << myqueue.front() << std::endl; // 69
+\end{lstlisting}
+Modying this reference effectively modify the value contained in the queue;
+
+\subsection{Dequeue}
+\label{sec:stl:dequeue}
+\label{sec:std::dequeue}
+
+\verb!std::dequeue! is a sequence container (Sect.\ref{sec:container_sequence}),
+with fast insertions/deletions at beginning or end; and random access is quick.
+Accessing elements in a dequeue follows the APIs for sequence container
+(Sect.\ref{sec:container_sequence})
+
+This is different way to create/initialize a 'dequeue' object
+\begin{verbatim}
+//dequeue() ;  //default constructor
+dequeue<int> dq1;   //create an empty dequeue of ints
+
+//dequeue(const dequeue & d);  // copy constructor
+dequeue<int> dq2(dq1) ; //create a copy 
+
+dequeue<double> dq3(10); // 10 elements, all set to default (0.0)
+dequeue<double> dq3(10, 5.1) ; // 10 elements; all set to 5.1
+
+//dequeue(iterator start, iterator end);
+double array1[] = {0.1, 4.0, 2.5, 2.5, 2.9};
+dequeue<double> dq5(array1, array1+4) ; // create a dequeue using an array
+\end{verbatim}
+
+Elements in a std::dequeue are stored in small chunks of memory, rather than a
+continuous blocks as in std::vector (Sect.\ref{sec:std::vector}). So, additional
+memory can be allocated for the deque by allocating additional chunks, rather
+than having to reallocate space for the entire container all at once.
+
+\url{http://www.dreamincode.net/forums/topic/35344-c-deque-tutorial/}
+
+\subsection{Priority queue}
+\label{sec:priority-queue}
+
+\cprotect\subsection{Heaps (\verb!priority_queue!)}
+
+\subsection{trees (set)}
+  
+\section{3. Associative container}
+\label{sec:container_associative}
+
+Associative containers (set, multiset, map, and multimap)
+it means there is an order between elements.
+% is the one that you can look up a
+% value, by writing
+% \begin{verbatim}
+% i = S.find("key"); //
+% \end{verbatim}
+ 
+Also, they support bidirective iterators
+  \begin{itemize}
+
+    \item map (dictionary): consist of a key/value pairs where the \verb!key! is
+    used to order the sequence and unique. The associated data for each value
+    has some meaning, e.e. it represents the number of times the key appears in
+    the dataset.
+
+    \item set: an ascending container of unique elements, i.e. like \verb!map!
+    but there is no associated \verb!value! to each \verb!key!.
+  \end{itemize}
+
+  
+\subsection{std::set}
+\label{sec:std::set}
+
+
+Sets are containers that store unique elements following a specific order.
+The value is also a key, and uniquely identifies the  element.
+Its siblings (those using keys to order data) are \verb!std::map!
+(sect.\ref{sec:map}), \verb!std::multiset! (Sect.\ref{sec:multiset}), and 
+multimap (Sect.\ref{sec:multimap}).
+
+\begin{enumerate}
+  \item Order of elements
+  
+  
+  \item Access: 
+set containers are generally slower than \verb!unordered_set!
+(Sect.\ref{sec:std::unordered_set}) containers to access individual elements by
+their key, but they allow the direct iteration on subsets based on their order.
+
+\end{enumerate}
+
+\verb!std::set! internal structure calls for a \verb!less! functor that given
+two  objects to determine which should be placed in front of the other in an ordered list.
+The default \verb!less! operator employ the '<' operator to compare two objects.
+However, for a complicated data structure in that you haven't defined the '<' operator), then it will fails, and you need to extend the 
+\begin{lstlisting}
+template <class T> struct less {
+  bool operator() (const T& x, const T& y) const {return x<y;}
+  };
+\end{lstlisting}
+
+Example to implement that '<' operator for \verb!less! (Sect.\ref{sec:extend-data-support-for-container})
+\url{http://cppisland.com/?p=275}
+
+
+\url{http://lafstern.org/matt/col1.pdf}
+
+\subsection{multi\_set}
+\label{sec:multiset}
+
+
+\subsection{std::map (associative arrays)}
+\label{sec:map}
+\label{sec:std::map}
+
+A \verb!std::vector<X>! stores a whole bunch of X objects
+(Sect.\ref{sec:std::vector}).
+But if you have a \verb!std::map<X, Y>!, what it actually stores is a whole
+bunch of \verb!std::pair<const X, Y>!s (Sect.\ref{sec:std::pair}). That's
+exactly what a map is - it pairs together the keys and the associated values.
+\begin{enumerate}
+  \item an ordered structure w.r.t keys (i.e. keys always be increasing)
+  
+  \item unique keys only
+  
+  \item fast \verb!find()! method (with O(log n))
+  
+  \item unique indexing operator \verb!map_name[key]! which is also fast
+\end{enumerate}
+
+
+\begin{lstlisting}
+map<string, int> portfolio;
+
+portfolio.insert(make_pair(string("LU"), 400));
+portfolio.insert(make_pair(string("AAPL"), 80));
+portfolio.insert(make_pair(string("GOOG"), 6500));
+\end{lstlisting}
+
+When you iterate over a \verb!std::map!, you're iterating over all of these
+\verb!std::pair!s. When you dereference one of these iterators, you get a
+\verb!std::pair! containing the key and its associated value.
+
+Now the type \verb!std::pair! gives you access to its elements through two
+members:
+\verb!first! and \verb!second!. So if you have a \verb!std::pair<X, Y>! called
+p, \verb!p.first! is an X object and \verb!p.second! is a Y object.
+
+\subsection{-- insert/add}
+
+\textcolor{red}{There are different ways to insert/add a new map element}: 
+\begin{enumerate}
+  \item assignment: operator[]
+  
+  \item \verb!.insert()! method: not recommended
+  
+  The difference with operator[] is that the \verb!.insert()! can tell whether
+  the element is inserted into the map. Also, if your class has no default
+  constructor, you are forced to use insert.
+  
+  So insert will not change the value if the key already exists, the [] operator
+  will.
+\end{enumerate}
+
+Example: Using \verb!int! as map index
+\begin{verbatim}
+#include <map>
+#include <utility>
+
+int main() {
+  map<int, string> Employees;
+// 1) Assignment using array index notation
+   Employees[5234] = "Mike C.";
+   Employees[3374] = "Charlie M.";
+   Employees[1923] = "David D.";
+   Employees[7582] = "John A.";
+   Employees[5328] = "Peter Q.";
+   
+   for( map<int,string>::iterator ii=Employees.begin(); ii!=Employees.end(); ++ii)
+   {
+       cout << (*ii).first << ": " << (*ii).second << endl;
+   }
+}
+\end{verbatim}
+  
+
+Example: Using \verb!std::string! as map index
+\begin{verbatim}
+ map<string, int> Employees;
+\end{verbatim}
+
+Example: We can also define our own comparison 
+\begin{verbatim}
+struct cmp_str 
+{
+   bool operator()(char const *a, char const *b) 
+   {
+      return std::strcmp(a, b) < 0;
+   }
+};
+
+int main()
+{
+   map<char *, int, cmp_str> Employees;
+
+   // 1) Assignment using array index notation
+   Employees["Mike C."] = 5234;
+   Employees["Charlie M."] = 3374;
+
+   // 2) Assignment using member function insert() and STL pair
+   Employees.insert(std::pair<char *,int>("David D.",1923));
+ 
+   // 3) Assignment using member function insert() and "value_type()"
+   Employees.insert(map<char *,int>::value_type("John A.",7582));
+
+   // 4) Assignment using member function insert() and "make_pair()"
+   Employees.insert(std::make_pair((char *)"Peter Q.",5328));
+
+   cout << "Map size: " << Employees.size() << endl;
+
+   for( map<char *, int, cmp_str>::iterator ii=Employees.begin(); ii!=Employees.end(); ++ii)
+   {
+       cout << (*ii).first << ": " << (*ii).second << endl;
+   }
+\end{verbatim}
+
+\subsection{-- loop through key:value}
+
+In C++17, we use structured binding (Sect.\ref{sec:structured-binding}).
+
+\begin{lstlisting}
+
+std::map< foo, bar > testing = { /*...blah...*/ };
+
+for ( const auto& [ k, v ] : testing )
+{
+  std::cout << k << "=" << v << "\n";
+}
+\end{lstlisting}
+
+In C++11, we use \ref{sec:loop_range-based-for-loop}
+
+\begin{lstlisting}
+map<K, V>::value_type
+
+for (auto& kv : myMap) {
+    std::cout << kv.first << " has value " << kv.second << std::endl;
+}
+\end{lstlisting}
+
+
+\subsection{-- search}
+
+std::find() if it applies to \verb!std::map! object, it searches the container
+for an element with a key equivalent to k and returns an iterator to it if
+found, otherwise it returns an iterator to map::end (Sect.\ref{sec:std::find}).
+
+\begin{lstlisting}
+std::map<char,int> mymap;
+std::map<char,int>::iterator it;
+  
+it = mymap.find('b');
+
+if (it != mymap.end())
+    mymap.erase (it);
+\end{lstlisting}  
+
+
+NOTE: map::count, can be used to just check whether a particular key exists.
+As a key is unique, map::count(key) can only returns either 0 or 1.
+\begin{verbatim}
+if (mymap.count('b') == 0)
+  // not found
+  mymap.
+else
+  // found
+  
+\end{verbatim}
+
+\subsection{-- return index of a key}
+
+There is no so-called index in a std::map, however, we can find the offset from
+the current key to the beginning of the map. 
+
+{\bf OPTION 2}: 
+\begin{verbatim}
+std::map<string, int>::iterator it = myMap.find("myKey");
+it - vec.begin()
+\end{verbatim}
+
+
+{\bf OPTION 1}: We can use the \verb!std::distance! 
+function to find the index
+
+\begin{verbatim}
+std::map<string, int> myMap;
+// Populate myMap with a bunch of items...
+
+myElement = myMap["myKey"];
+// Now I need to get the index of myElement in myMap
+std::distance(std::begin(myMap), myMap.find("myKey"))
+\end{verbatim}
+
+
+\cprotect\subsection{\verb!hash_map! and \verb!hash_set!}
+\label{sec:hash_map}
+\label{sec:hash_set}
+
+While not part of the C++ Standard Template Library, 
+\verb!hash_map! and
+\verb!hash_set! are widely used to improve searching time.
+
+
+\subsection{multimap}
+\label{sec:multimap}
+
+
+
+\subsection{std::list< std::pair<X, Y> >}
+\label{sec:list_pairs}
+
+This is different from std::map (Sect.\ref{sec:std::map})
+\begin{enumerate}
+  \item a simple sequence of std::pair; and data remains in the order we put it
+  
+  \item allow duplicate of the same (X,Y)
+  
+  \item finding a particular key is slower (i.e. O(N)) 
+  
+  \item offer no \verb!splice()! method
+\end{enumerate}
+
+
+
+\section{Containers of heterogeneous types}	
+
+
+\subsection{Boost.Any}
+\label{sec:Boost.Any}
+
+\verb!Boost.Any! can do the job of holding arbitrary types, using inheritance,
+but it cost performance drop (runtime costs), and as you don't have type informations,
+you need to do dangerous type cast to get back the original type.
+
+\subsection{Boost.Tuple}
+\label{sec:Boost.Tuple}
+
+\verb!Boost.Tuple! is another solution. A {\it tuple} is a basic data structure
+that can hold an element of any data type. However, it lacks an algorithm to
+store/rerieve data from tuples, and to pass them around. This can be achieved
+with {\bf Boost.Fusion}.
+
+\subsection{std::tuple (C++11)}
+\label{sec:std::tuple}
+
+A new data structure to hold a group of heterogeneous data structure is added to
+C++11 called \verb!std::tuple!. Before this, you either have to use pairs of
+pairs data structure (e.g. \verb!pair<T1, pair<T2,T3>>!); or write your own
+class; or using a component in the Boost library called Boost.Tuple
+(Sect.\ref{sec:Boost.Tuple}).
+
+\begin{verbatim}
+#include <tuple>
+\end{verbatim}
+
+Tuples are objects that hold a collection of elements, i.e. pack elements of
+different types together in the same object.
+\url{http://www.cplusplus.com/reference/tuple/}
+
+\textcolor{red}{It's similar to plain-old type} \verb!struct! of C. However,
+instead of accessing by name of data element; we access using the order in the
+{\it tuple}.
+
+Example:
+\begin{lstlisting}
+#include <tuple> //std::tuple, std::get, std:tie, std::ignore
+                 //std::move
+
+//create new variable either directly 
+//      or using std::make_tuple()
+std::tuple<int,char> foo (10,'x');
+auto bar = std::make_tuple ("test", 3.1, 14, 'y');
+
+// access element by index using std::get()
+// which returns a reference to the data
+// so we can read or write
+// NOTE: To write, the tuple must be non-const
+std::get<2>(bar) = 100;      // access element
+std::tuple<int, int, int> tpl;
+std::get<0>(tpl) = 1;
+std::get<1>(tpl) = 2;
+std::get<2>(tpl) = 3;
+
+// unpack elements using std::tie
+int myint; char mychar;
+std::tie (myint, mychar) = foo;                            // unpack elements
+std::tie (std::ignore, std::ignore, myint, mychar) = bar;  // unpack (with ignore)
+
+// move items out of a tuple using std::move
+auto movedTo = std::get<0>(std::move(myTuple));
+
+\end{lstlisting}
+
+\subsection{std::set< std::pair< X, Y> > }
+\label{sec:set_pairs}
+
+Set (sect.\ref{sec:std::set})
+
+\subsection{pair}
+\label{sec:std::pair}
+
+\begin{verbatim}
+#include <utility>
+\end{verbatim}
+
+\verb!std::pair! is a two-element tuple (Sect.\ref{sec:std::tuple}).
+
+It is nothing more than a template
+\verb!struct! with two fields
+\begin{verbatim}
+template<class U, class V>
+struct pair
+{
+ U first;
+ V second;
+ pair(const U& first = U(), const V& second = V()) : first(first),
+   second(second) { }
+
+template <class U, class Y>
+pair<U, V> make_pair(const U& first, const V& second
+\end{verbatim}
+
+So, \verb!std::pair<T1, T2>! can hold two objects of different types.
+
+\begin{verbatim}
+std::pair<int, int> mypair;
+
+mypair = std::pair(4, 6);
+
+mypair = std::make_pair(5,6);
+\end{verbatim}
+
+As a struct, when handling a pair , you're free to directly access the first and
+second fields, since there are no private access modifiers in place to prevent
+you.
+All of the associative containers ( map , hash\_map , and multimap ) require a
+pair be used to insert new data.
+
+
+% \subsection{vector}
+
+%Sect.\ref{sec}
+
+%\subsection{queue}
+
+\section{Define a new type using a specific value}
+
+
+Template \verb!integral_constant! defines a type, keyword \verb!constexpr! defines a constant.
+
+We can define a type that has only 1 value using \verb!std::integral_constant!.
+Usecases:
+\begin{enumerate}
+  
+  \item One of them is tag dispatch.
+
+\begin{verbatim}
+template <typename T>
+auto foo(T value) {
+    // Calls the correct implementation function, which return different types.
+    // foo's return type is `int` if it calls the `std::true_type` overload
+    // and `double` if it calls the `std::false_type` overload
+    return foo_impl(value, std::is_arithmetic<T>{});
+}
+
+template <typename T>
+int foo_impl(T value, std::true_type) {
+    // Implementation for arithmetic values
+}
+
+template <typename T>
+double foo_impl(T value, std::false_type) {
+    // Implementation for non-arithmetic values
+}
+\end{verbatim}
+ 
+  \item 
+\end{enumerate}
+
+For example \verb!std::true_type! is 
+\begin{verbatim}
+#include <type_traits>
+
+
+std::integral_constant<bool, true>
+\end{verbatim}
+
+\begin{verbatim}
+template<typename T>
+void use_impl(const T&, std::false_type)
+{
+}
+
+template<typename T>
+void use_impl(const T&, std::true_type)
+{
+}
+
+template<typename T>
+void use(const T& v)
+{
+   use_impl(v, typename std::is_integral<T>::type());
+}
+\end{verbatim}
+
+\url{http://ideone.com/469YTq}
+
+Example:
+\begin{lstlisting}
+
+#include <type_traits>
+
+typedef std::integral_constant<int, 2> two_t;
+
+typedef std::integral_constant<int, 4> four_t;
+        
+\end{lstlisting}
+
+\section{TIPS}
+
+\subsection{Using array as an element in the STL}
+
+These are wrong
+\begin{verbatim}
+std::pair <int, int[4]> mypair;
+
+std::vector< int[3]> myvect;
+\end{verbatim}
+
+You can't use C-style array in STL container. The solution is
+\begin{enumerate}
+  \item use \verb!std::vector! instead
+  \item use a map of pointers to array of 3 elements. NOTE: Don't map to an
+  \verb!int[]!, but map to an \verb!int*!
+\begin{verbatim}
+int red[3] = {1,0,0};
+
+std::map<int, int(*)[3]> colours;
+
+colours.insert<std::pair<int, int(*)[3]>((GLUT_LEFT_BUTTON, &red));
+\end{verbatim}
+
+  \item use \verb!boost.tuples! instead of array of 3 elements 
+  \item use a struct that wrap the array
+\begin{verbatim}
+struct Triple
+{
+  int color[3];
+}
+
+std::map<int, Triple> colours;
+
+std::pair<int, Triple> colour;
+\end{verbatim}
+  
+     \item use C++11 TR1 \verb!std::tr1::array!
+\begin{verbatim}
+typedef std::tr1::array<int, 3> Triple;
+Triple red = { 1, 0, 0};
+
+\end{verbatim}
+\end{enumerate}
+
+
+\subsection{Max/Min}
+
+Use C++11/C++0X compiler flag
+\begin{verbatim}
+#include <algorithm>
+
+auto it = max_element(std::begin(data), std::end(data);
+\end{verbatim}
+
+\subsection{Count number of elements, maching condition: std::count\_if}
+
+
+
+\begin{verbatim}
+bool is_greater_than_5(int value)
+{
+    return (value > 5);
+}
+ 
+ 
+vector<int> numbers { 1, 2, 3, 4, 5, 10, 15, 20, 25, 35, 45, 50 };
+
+
+auto greater_than_5_count = std::count_if(numbers.begin(), numbers.end(), is_greater_than_5);
+\end{verbatim}
+
+It is possible to simplify the code by using a lambda expression to specify the user-defined predicate function object.
+\begin{verbatim}
+
+auto great_than_5_count = count_if(numbers.begin(), numbers.end(), [](int x) { return (x > 5); });
+    
+    
+\end{verbatim} 
+ 
+\subsection{Fast lookup}
+
+Data structures with O(1) lookup (ignoring the size of the key)
+\begin{enumerate}
+  \item  Arrays have O(1) lookup. 
+  
+  \item Hashtable (\verb!std::unordered_map!) for c++11 has O(1) lookup. (Amortized, but more or less constant.)
+\end{enumerate}
+
+For complex types, balanced trees will be fine at O(log n), or sometimes you can
+get away with a patricia trie at O(k).
+
+
+
+\section{Extending the supporting data type for a container}
+\label{sec:extend-data-support-for-container}
+
+Suppose you have the data type
+\begin{verbatim}
+struct ProductKey
+{
+	std::string brand;
+	std::string model;
+	int type;
+	int version;
+};
+\end{verbatim}
+
+and you want to store many instances of such type int \verb!std::set! (Sect.\ref{sec:std::set})
+\url{http://cppisland.com/?p=275}
+
+
+
+\url{http://cppisland.com/?p=275}
+
+\section{User-defined containers}
+\label{sec:container-user-defined}
+
+
+Every STL container is capable to take an allocator as argument. 
+\begin{lstlisting}
+template<
+    class T,
+    class Allocator = std::allocator<T>
+> class vector;
+\end{lstlisting}
+
+Then allocations will be performed using this allocator, and not the standard
+one (Sect.\ref{sec:std::allocator}).
+\url{https://en.cppreference.com/w/cpp/container/vector}
+
+This is useful e.g. for allocating objects of the same size in a pool, to
+improve performance, or might be necessary if there's a special area of memory
+where your objects need to live.
+
+\url{https://stackoverflow.com/questions/31358804/whats-the-advantage-of-using-stdallocator-instead-of-new-in-c}
+
+
+\subsection{new() operator vs. operator new()}
+\label{sec:new()-operator}
+\label{sec:operator-new}
+
+The method for dynamically allocating memory in C/C++ is to use the \verb!new!
+operator. This operator can be overloaded. To distinguish between the default
+operator and an overloaded version, the default is called "new operator" and the
+overloaded version is called "operator new".
+
+The new operator starts by using operator new to allocate memory, but then it
+invokes the constructor for the right type of object, so the result is a real
+live object created in that memory.
+ If that object contains any other objects (either embedded or as base classes)
+ those constructors as invoked as well.
+ 
+\begin{verbatim}
+// "operator new"
+class Foo
+{
+public:
+        void* operator new( size_t );
+}
+
+// when you use it
+// then  it is called "new operator"
+// HERE
+//    new Foo() calls Foo::operator new()
+Foo* foo = new Foo();
+\end{verbatim}
+
+
+\verb!malloc! allocates raw memory (which works for raw pointer, and should not be used
+for C++), while \verb!new()! allocates memory AND calls the constructor of the
+object you're allocating memory for (which works for C++ class/objects).
+
+\begin{verbatim}
+void * ptr;
+
+// void *operator new(size_t);
+ptr = new T[N]; 
+\end{verbatim}
+doesn't allow you control over what constructors of \verb!T! class are called.
+
+\verb!operator new()! is a function that allocates raw memory -- at least
+conceptually, it's not much different from \verb!malloc()!. However, it's better
+as we can cast to the type
+ 
+\begin{verbatim}
+  // create a pointer, pointing to a memory allocated for 100 elements of 'char' type
+char *x = static_cast<char *>(operator new(100));
+\end{verbatim}
+
+There's also a separate operator \verb!new[]! that's used to allocate memory for arrays
+-- but you're almost certainly better off ignoring that whole mess completely.
+
+
+
+
+C++ offers the global operator \verb!new! in four variations.
+\begin{enumerate}
+  \item 
+
+\begin{verbatim}
+// the first two 
+//    throw std::bad_alloc
+//  if it cannot allocate memory
+\end{verbatim}
+\begin{lstlisting}
+void* operator new  (std::size_t count );
+void* operator new[](std::size_t count );
+
+\end{lstlisting}
+
+   \item 
+
+The last two variations return a null pointer, it cannot allocate the memory.
+   
+\begin{lstlisting}
+void* operator new  (std::size_t count, const std::nothrow_t& tag);
+void* operator new[](std::size_t count, const std::nothrow_t& tag);
+
+\end{lstlisting}
+
+\end{enumerate}
+The variants 2 and 4, which are designed for C arrays.
+
+If we want to overrite the \verb!new! operator, it's quite convenient that is
+sufficient to overload only the version 1 because the versions 2 - 4 use the
+version 1 internally (Sect.\ref{sec:new()-overwrite-it}) and Sect.\ref{sec:new[]-operator}.
+
+
+\subsection{new[]  vs. new() operator}
+\label{sec:new[]-operator}
+
+If you use new[], you must use delete[], but how can delete[] know how much
+destructors to call? There might be an array of 2 instances, or one of 2000
+instances? What some (possibly most or all) compilers do, is to store the number
+of instances right before the memory it returns to you.
+\begin{verbatim}
+So if you call new[5], then new will allocate memory like this:
+
++---+-----------+-----------+-----------+-----------+-----------+
+| 5 | instance1 | instance2 | instance3 | instance4 | instance5 |
++---+-----------+-----------+-----------+-----------+-----------+
+\end{verbatim}
+If you use new, then delete, the delete call will execute one destructor.
+
+So \verb!delete[]! just call \verb!delete! 5-times; and \verb!new[]! calls
+\verb!new! 5-times in this case.
+If you overload \verb!new! then it is enough to effect \verb!new[]!.
+
+\url{https://stackoverflow.com/questions/7510603/what-is-difference-between-new-and-new1}
+
+
+Example:
+\begin{lstlisting}
+class MyClass{
+  float* p= new float[100];
+};
+
+class MyClass2{
+  int five= 5;
+  std::string s= "hello";
+};
+
+
+int main(){
+    
+    int* myInt= new int(1998);  // one instance, get value 1998
+    
+    double* myDouble= new double(3.14);
+    
+    double* myDoubleArray= new double[2]{1.1,1.2}; // pointer pointing to the first instance of the
+                               // two instances (adjacent to each other),
+                               //and get values 1.1, 1.2 respectively
+    
+    MyClass* myClass= new MyClass;  
+    MyClass2* myClass2= new MyClass2;
+    
+    delete myDouble;
+    delete [] myDoubleArray;  // this is how we delete a pointer pointing to an array
+    delete myClass;
+    delete myClass2;
+    
+//  getInfo();
+    
+}
+\end{lstlisting}
+Sect.\ref{sec:delete-operator} discusses \verb!delete! operator.
+
+\verb!new()! does allocation (raw memory) [using std::allocator], and construct
+the object in one step.
+
+Sometimes you want to separate allocation and construction into two steps (and
+similarly to separate destruction and deallocation into two steps). NOTICE the
+proper order
+\begin{verbatim}
+
+1. reserve the memory
+
+2. create the object on that memory
+
+create more if needed on that memory [if the memory is full, go to step 1. first]
+
+3. destroy the object(s)
+
+4. deallocate the raw memory [then other threads/processes can use the memory]
+
+\end{verbatim}
+
+Sect.\ref{sec:Allocator} talks about allocation and deallocation.
+
+
+\subsection{placement operator new}
+
+Technically, a placement \verb!operator new! is any operator new that takes additional
+arguments besides the size of the memory needed.
+
+For example, you want the memory to be allocated on a previously allocated memory region
+\begin{lstlisting}
+char* ptr = new char[sizeof(T)]; // allocate memory
+T* tptr = new(ptr) T;            // construct in allocated storage ("place")
+tptr->~T();                      // destruct
+delete[] ptr;                    // deallocate memory
+\end{lstlisting}
+\url{https://en.cppreference.com/w/cpp/language/new}
+
+In Visual C++:  the default implementation just returns the address passed into the call
+\begin{lstlisting}
+//from new.h
+inline void* operator new( size_t, void* where )
+{
+   return where;
+}
+\end{lstlisting}
+
+The C++ standard says
+\begin{verbatim}
+§18.4.​1.3 Placement forms
+
+These functions are reserved, a C++ program may not define functions that
+displace the versions in the Standard C++ library.
+
+\end{verbatim}
+
+The only purpose of the allocation and deallocation operators is to allocate and
+deallocate memory, so when given memory nothing more should be done.
+(The standard specifically notes that these functions "Intentionally perform no
+other action.")
+
+
+
+\subsection{overload new() operator}
+\label{sec:new()-overload-it}
+
+
+
+\verb!new! and \verb!delete! operators can be overloaded
+(Sect.\ref{sec:overload}) globally or they can be overloaded for specific
+classes.
+\begin{itemize}
+
+  \item   If these operators are overloaded using member function for a class,
+  it means that these operators are overloaded only for that specific class.
+
+
+  \item   If overloading is done outside a class (i.e. it is not a member
+  function of a class), the overloaded ‘new’ and ‘delete’ will be called anytime
+  you make use of these operators (within classes or outside classes). This is
+  global overloading.
+
+\end{itemize}
+
+\url{https://www.geeksforgeeks.org/overloading-new-delete-operator-c/}
+
+
+\subsection{overload new() operator per class}
+\label{sec:new()-overload-it-per-class}
+
+\begin{lstlisting}
+// OVERLOAD
+
+class MyClass 
+{
+   void * operator new(size_t size) 
+    { 
+    /* this overloaded 'new'
+      do some extra work
+      before calling the standard new:   ::new
+    */
+        cout<< "Overloading new operator with size: " << size << endl; 
+        void * p = ::new student();  
+        //void * p = malloc(size); will also work fine 
+      
+        return p; 
+    } 
+  
+    void operator delete(void * p) 
+    { 
+        cout<< "Overloading delete operator " << endl; 
+        free(p); 
+    } 
+}
+\end{lstlisting}
+
+Once we define such \verb!new! and \verb!delete! inside the class, then if we call 'new' for a pointer of that class
+\begin{lstlisting}
+int main() 
+{ 
+    MyClass * p = new MyClass("Yash", 24);  // it will call MyClass->new
+  
+    p->display(); 
+    delete p; 
+} 
+\end{lstlisting}
+
+\subsection{overload new() operator globally}
+\label{sec:new()-overload-it-globally}
+
+\begin{lstlisting}
+#include<iostream> 
+#include<stdlib.h> 
+  
+using namespace std; 
+void * operator new(size_t size) 
+{ 
+    cout << "New operator overloading " << endl; 
+    void * p = malloc(size); 
+    return p; 
+} 
+  
+void operator delete(void * p) 
+{ 
+    cout << "Delete operator overloading " << endl; 
+    free(p); 
+} 
+  
+int main() 
+{ 
+    int n = 5, i; 
+    int * p = new int[3]; 
+  
+    for (i = 0; i<n; i++) 
+    p[i]= i; 
+  
+    cout << "Array: "; 
+    for(i = 0; i<n; i++) 
+        cout << p[i] << " "; 
+          
+    cout << endl; 
+  
+    delete p; 
+} 
+\end{lstlisting}
+
+
+\subsection{overrite new() operator}
+\label{sec:new()-overwrite-it}
+
+
+The only reason for overriding the operator \verb!new(size_t, void*)! could be to add
+tracing information, but I think the need for that will be pretty low.
+
+
+BEST PRACTICE: Never ever try to overload new/delete globally.
+\begin{lstlisting}
+// This is overload [NOT override]
+void* operator new (unsigned int size, const char* filename, int line)
+{
+    void* ptr = new void[size];
+    memleakfinder.AddTrack(ptr,size,filename,line);
+    return ptr;
+}
+
+// "new x" calls the default new 
+//     while "new (filename, line) x" calls your overloaded version
+\end{lstlisting}
+Either have them in a base class and derive all your objects from this class or
+use a namespace or a template allocator parameter.
+Because in case your program is more than a single file and using STL or other
+libraries you are going to screw up.
+
+BEST PRACTICE: It is also common to override
+
+\begin{mdframed}
+To write an overloaded, it's better to know how it is implemented originally.
+
+In VS2005
+\begin{lstlisting}
+void * operator new(size_t size) _THROW1(_STD bad_alloc)
+{       // try to allocate size bytes
+   void *p;
+   while ((p = malloc(size)) == 0)
+    if (_callnewh(size) == 0)
+     {       // report no memory
+        static const std::bad_alloc nomem;
+        _RAISE(nomem);
+     }
+
+     return (p);
+}
+\end{lstlisting}
+\end{mdframed}
+
+\textcolor{red}{Overload globally}: If we want to overrite the \verb!new!
+operator, it's quite convenient that is sufficient to overload only the version
+1 because the versions 2 - 4 use the version 1 internally.
+\begin{verbatim}
+void* operator new  (std::size_t count );
+\end{verbatim}
+
+If you overload \verb!new!, you'll also want/need to overload the matching
+operator delete as well.
+
+Example:
+\begin{verbatim}
+void * operator new(size_t size) 
+{ 
+    cout << "New operator overloading " << endl; 
+    void * p = malloc(size); 
+    return p; 
+} 
+
+void operator delete(void * p) 
+{ 
+    cout << "Delete operator overloading " << endl; 
+    free(p); 
+} 
+  
+int main() 
+{ 
+    int n = 5, i; 
+    int * p = new int[3]; 
+  
+    for (i = 0; i<n; i++) 
+    p[i]= i; 
+  
+    cout << "Array: "; 
+    for(i = 0; i<n; i++) 
+        cout << p[i] << " "; 
+          
+    cout << endl; 
+  
+    delete p; 
+} 
+\end{verbatim}
+
+
+\textcolor{red}{Overload per-class (C++)}: 
+\begin{lstlisting}
+class student 
+{ 
+    string name; 
+    int age; 
+    
+public: 
+    student() 
+    { 
+        cout<< "Constructor is called\n" ;  
+    } 
+    
+    void * operator new(size_t size) 
+    { 
+        cout<< "Overloading new operator with size: " << size << endl; 
+        void * p = ::new student();  
+        //void * p = malloc(size); will also work fine 
+      
+        return p; 
+    } 
+    void operator delete(void * p) 
+    { 
+        cout<< "Overloading delete operator " << endl; 
+        free(p); 
+    }     
+};
+
+
+int main() 
+{ 
+    student * p = new student("Yash", 24); 
+  
+    p->display(); 
+    delete p; 
+} 
+\end{lstlisting}
+\url{https://www.geeksforgeeks.org/overloading-new-delete-operator-c/}
+\url{https://stackoverflow.com/questions/3675059/how-could-i-sensibly-overload-placement-operator-new}
+
+
+\subsection{overwrite delete operator}
+\label{sec:delete()-overwrite-it}
+
+If we want to overrite the \verb!delete! operator, it's quite convenient that is
+sufficient to overload only the version 1 because the versions 2 - 6 use the
+version 1 internally (Sect.\ref{sec:delete-operator}).
+
+\begin{verbatim}
+void operator delete  (void* ptr); 
+\end{verbatim}
+
+
+
+\subsection{default allocator}
+\label{sec:allocator-default}
+
+With a raw memory allocator, you can allocate a certain amount of memory, which
+determines your capacity. Then, as the user adds items to the vector (using the
+constructor of their choice), you can construct objects in place in this memory.
+
+
+%The default allocator uses operator new
+%to allocate memory (Sect.\ref{sec:new()-operator}).
+\begin{lstlisting}
+std::vector<X> v;
+v.reserve(4);        // (1)
+v.push_back( X{} );  // (2)
+v.push_back( X{} );  // (3)
+v.clear();           // (4)
+\end{lstlisting}
+
+Here line (1) must allocate enough memory for four objects, but not construct
+them yet. Then lines (2) and (3) must construct objects into the allocated
+memory. Then line (4) must destroy those objects, but not deallocate the memory.
+Finally, in the vector's destructor, all the memory can be deallocated.
+
+This is often implemented as a thin layer around the C heap allocation
+functions,[17] which are usually optimized for infrequent allocation of large
+memory blocks. This approach may work well with containers that mostly allocate
+large chunks of memory, like vector and deque.[15] However, for containers that
+require frequent allocations of small objects, such as map and list, using the
+default allocator is generally slow.[4][17] Other common problems with a
+malloc-based allocator include poor locality of reference,[4] and excessive
+memory fragmentation.
+
+\ref{sec:malloc()}
+
+\subsection{user-defined allocator}
+\label{sec:allocator-user-defined}
+
+A common question from programmers who have an intermediate amount of experience
+with using the STL is, 'How do I write an STL allocator?' (Sect.\ref{sec:std::allocator}).
+
+One of the main reasons for writing a custom allocator is performance. Utilizing
+a specialized custom allocator may substantially improve the performance or
+memory usage, or both, of the program.  
+
+Any class that fulfills the allocator requirements can be used as an allocator,
+i.e. a class, say name \verb!A!, capable of allocating memory for an object of
+type \verb!T!, if
+
+\textcolor{red}{(1) if this calss has the following types}
+\begin{enumerate}
+  \item for generically declaring objects and references (or pointers) to objects of type \verb!T!.
+
+\begin{verbatim}
+// types
+A::pointer
+
+A::const_pointer
+
+A::reference
+
+A::const_reference
+
+A::value_type
+
+\end{verbatim}
+
+In STL, we have
+\begin{verbatim}
+
+#typedef A::pointer T*
+
+#typedef A::const_pointer (T const*)
+\end{verbatim}
+
+In a user-defined allocator, the library implementors are encouraged to support more general allocators.
+
+  
+  \item an unsigned type which can represent the largest size for an object in the allocation model defined by \verb!A! class (as allocator).
+  
+\begin{verbatim}
+A::size_type,
+\end{verbatim}
+
+   \item a signed integral type that can represent the difference between any two pointers in the allocation model.[11]
+   
+   
+\begin{verbatim}
+A::difference_type 
+\end{verbatim}
+\end{enumerate}
+
+
+\textcolor{red}{(1) if this calss has the following member functions}: 
+
+\begin{enumerate}
+  
+  \item  \verb!allocate()! and
+  
+The signature of the funtions
+\begin{lstlisting}
+
+// returns a pointer to the first element of a newly allocated array large
+// enough to contain n objects of type T
+
+A::pointer A::allocate(size_type n, A<void>::const_pointer hint = 0)
+
+
+\end{lstlisting}
+
+An optional pointer argument (that points to an object already allocated by A)
+can be used as a hint to the implementation about where the new memory should be
+allocated in order to improve locality. However, the implementation is free to
+ignore the argument.
+ 
+  
+  \item   \verb!deallocate()!
+  
+The signature of the funtions
+\begin{lstlisting}
+
+//  accepts any pointer that was returned from a previous invocation of the
+//       A::allocate member function and 
+//       the number of elements to deallocate (but not destruct).
+
+void A::deallocate(A::pointer p, A::size_type n)
+\end{lstlisting}
+
+
+  \item two member functions, A::construct and A::destroy
+  
+  
+\begin{lstlisting}
+template <typename T>
+void A::construct(A::pointer p, A::const_reference t) { new ((void*) p) T(t); }
+
+template <typename T>
+void A::destroy(A::pointer p){ ((T*)p)->~T(); }
+\end{lstlisting}
+
+
+  \item \verb!A::max_size()!
+  
+  
+member function returns the largest number of objects of type T that could be expected to be successfully allocated by an invocation of A::allocate;
+\begin{verbatim}
+
+template <typename T>
+A::max_size()
+{
+  return A::size_type(-1) / sizeof(T);
+}
+\end{verbatim}
+
+   \item \verb!A::address(A::reference)! member function returns an A::pointer denoting the address of an object, given an A::reference.
+  
+\begin{verbatim}
+
+A::pointer  A::address(A::reference x)
+{
+  return ??? ;
+}
+
+\end{verbatim}
+\end{enumerate}
+
+
+
+A user-defined container need to have an allocator, e.g. we can use STL
+allocator (Sect.\ref{sec:Allocator}). However,  as suggested by a member from
+Microsoft, you should avoid from deriving a class from \verb!std::allocator!
+(especially when it comes to rebinding and it's hard to debug since you don't
+have the code to STL)
+\footnote{\url{https://blogs.msdn.microsoft.com/vcblog/2008/08/28/the-mallocator/}}.
+
+  
+Example: write your ow allocator called {\bf Mallocator}
+\begin{verbatim}
+list<int, Mallocator<int> > l;
+\end{verbatim}
+
+{\tiny 
+\begin{lstlisting}
+template <typename T> class Mallocator {
+
+public:
+
+ 
+
+    // The following will be the same for virtually all allocators.
+
+    typedef T * pointer;
+
+    typedef const T * const_pointer;
+
+    typedef T& reference;
+
+    typedef const T& const_reference;
+
+    typedef T value_type;
+
+    typedef size_t size_type;
+
+    typedef ptrdiff_t difference_type;
+
+ 
+
+    T * address(T& r) const {
+
+        return &r;
+
+    }
+
+ 
+
+    const T * address(const T& s) const {
+
+        return &s;
+
+    }
+
+ 
+
+    size_t max_size() const {
+
+        // The following has been carefully written to be independent of
+
+        // the definition of size_t and to avoid signed/unsigned warnings.
+
+        return (static_cast<size_t>(0)  -  static_cast<size_t>(1)) / sizeof(T);
+
+    }
+
+ 
+
+ 
+
+    // The following must be the same for all allocators.
+
+    template <typename U> struct rebind {
+
+        typedef Mallocator<U> other;
+
+    };
+
+ 
+
+    bool operator!=(const Mallocator& other) const {
+
+        return !(*this == other);
+
+    }
+
+ 
+
+    void construct(T * const p, const T& t) const {
+
+        void * const pv = static_cast<void *>(p);
+
+ 
+
+        new (pv) T(t);
+
+    }
+
+ 
+
+    void destroy(T * const p) const; // Defined below.
+
+ 
+
+ 
+
+    // Returns true if and only if storage allocated from *this
+
+    // can be deallocated from other, and vice versa.
+
+    // Always returns true for stateless allocators.
+
+    bool operator==(const Mallocator& other) const {
+
+        return true;
+
+    }
+
+ 
+
+ 
+
+    // Default constructor, copy constructor, rebinding constructor, and destructor.
+
+    // Empty for stateless allocators.
+
+    Mallocator() { }
+
+ 
+
+    Mallocator(const Mallocator&) { }
+
+ 
+
+    template <typename U> Mallocator(const Mallocator<U>&) { }
+
+ 
+
+    ~Mallocator() { }
+
+ 
+
+ 
+
+    // The following will be different for each allocator.
+
+    T * allocate(const size_t n) const {
+
+        // Mallocator prints a diagnostic message to demonstrate
+
+        // what it's doing. Real allocators won't do this.
+
+        std::cout << "Allocating " << n << (n == 1 ? " object" : "objects")
+
+            << " of size " << sizeof(T) << "." << std::endl;
+
+ 
+
+        // The return value of allocate(0) is unspecified.
+
+        // Mallocator returns NULL in order to avoid depending
+
+        // on malloc(0)'s implementation-defined behavior
+
+        // (the implementation can define malloc(0) to return NULL,
+
+        // in which case the bad_alloc check below would fire).
+
+        // All allocators can return NULL in this case.
+
+        if (n == 0) {
+
+            return NULL;
+
+        }
+
+ 
+
+        // All allocators should contain an integer overflow check.
+
+        // The Standardization Committee recommends that std::length_error
+
+        // be thrown in the case of integer overflow.
+
+        if (n > max_size()) {
+
+            throw std::length_error("Mallocator<T>::allocate()  -  Integer overflow.");
+
+        }
+
+ 
+
+        // Mallocator wraps malloc().
+
+        void * const pv = malloc(n * sizeof(T));
+
+ 
+
+        // Allocators should throw std::bad_alloc in the case of memory allocation failure.
+
+        if (pv == NULL) {
+
+            throw std::bad_alloc();
+
+        }
+
+ 
+
+        return static_cast<T *>(pv);
+
+    }
+
+ 
+
+    void deallocate(T * const p, const size_t n) const {
+
+        // Mallocator prints a diagnostic message to demonstrate
+
+        // what it's doing. Real allocators won't do this.
+
+        std::cout << "Deallocating " << n << (n == 1 ? " object" : "objects")
+
+            << " of size " << sizeof(T) << "." << std::endl;
+
+ 
+
+        // Mallocator wraps free().
+
+        free(p);
+
+    }
+
+ 
+
+ 
+
+    // The following will be the same for all allocators that ignore hints.
+
+    template <typename U> T * allocate(const size_t n, const U * /* const hint */) const {
+
+        return allocate(n);
+
+    }
+
+ 
+
+ 
+
+    // Allocators are not required to be assignable, so
+
+    // all allocators should have a private unimplemented
+
+    // assignment operator. Note that this will trigger the
+
+    // off-by-default (enabled under /Wall) warning C4626
+
+    // "assignment operator could not be generated because a
+
+    // base class assignment operator is inaccessible" within
+
+    // the STL headers, but that warning is useless.
+
+private:
+
+    Mallocator& operator=(const Mallocator&);
+
+};
+
+ 
+
+// A compiler bug causes it to believe that p->~T() doesn't reference p.
+
+ 
+
+#ifdef _MSC_VER
+
+    #pragma warning(push)
+
+    #pragma warning(disable: 4100) // unreferenced formal parameter
+
+#endif
+
+ 
+
+// The definition of destroy() must be the same for all allocators.
+
+template <typename T> void Mallocator<T>::destroy(T * const p) const {
+
+    p->~T();
+
+}
+\end{lstlisting}
+}
+
+\subsection{allocator for GPU}
+\label{sec:allocator-GPU}
+
+
+Suppose that you want to use \verb!std::vector!, and every element of that
+vector must be allocate using \verb!cudaMallocManaged()!.
+
+This is we can do, first write that allocator, name \verb!managed_allocator!,
+and then pass it as the second argument to \verb!std::vector!, which allows us
+to define a new type called \verb!managed_vector!.
+
+\begin{lstlisting}
+// create a nickname for vectors which use a managed_allocator
+template<class T>
+using managed_vector = std::vector<T, managed_allocator<T>>;
+\end{lstlisting}
+\url{https://github.com/jaredhoberock/managed_allocator}
+
+
+Example: we can also use this vector using Thrust's APIs
+\begin{lstlisting}
+__global__ void increment_kernel(int *data, size_t n)
+{
+  size_t i = blockDim.x * blockIdx.x + threadIdx.x;
+
+  if(i < n)
+  {
+    data[i] += 1;
+  }
+}
+
+int main()
+{
+  size_t n = 1 << 20;
+
+  managed_vector<int> vec(n);
+
+  // we can use the vector from the host
+  std::iota(vec.begin(), vec.end(), 0);
+
+  std::vector<int> ref(n);
+  std::iota(ref.begin(), ref.end(), 0);
+  assert(std::equal(ref.begin(), ref.end(), vec.begin()));
+
+  // we can also use it in a CUDA kernel
+  size_t block_size = 256;
+  size_t num_blocks = (n + (block_size - 1)) / block_size;
+
+  increment_kernel<<<num_blocks, block_size>>>(vec.data(), vec.size());
+
+  cudaDeviceSynchronize();
+  
+  
+  // by default, the Thrust algorithm will execute on the host with the managed_vector
+  thrust::fill(vec.begin(), vec.end(), 7);
+  assert(std::all_of(vec.begin(), vec.end(), [](int x)
+  {
+    return x == 7;
+  }));
+
+  // to execute on the device, use the thrust::device execution policy
+  thrust::fill(thrust::device, vec.begin(), vec.end(), 13);
+}
+\end{lstlisting}
+
+\subsection{stateful allocator}
+
+If you want to write a stateful allocator, you would have had to reimplement not
+only allocate() and deallocate(), but also the ctor, copy ctor (unless the implicitly
+defined copy ctor did the right thing), dtor (unless the implicitly defined dtor
+did the right thing), rebinding ctor, rebind struct (see above), and equality
+test.    
+
+
+\section{User-defined iterator}
+\label{sec:iterator-user-defined}
+
+
+First, we should be aware that there are different types of iterators (Sect.\ref{sec:iterator}).
+
+If we define a container (Sect.\ref{sec:container-user-defined}, then we can
+also define an iterator for that container.
+\begin{enumerate}
+  
+  \item it must be a template class (to avoid code duplication iterator) with
+  one or two types passing to it:
+
+\begin{lstlisting}
+template <typename PointerType> class MyIterator 
+{
+
+
+}
+\end{lstlisting}
+  
+  \item suppose the container's name is \verb!Array! class, then the iterator we
+  can name as \verb!ArrayIterator!.
+  
+  \item define typedef in your custom container class
+  
+  be parameterized by 'value type', 'pointer type', 'reference type' or
+  all of them (depends on implementation) - Sect.\ref{sec:iterator-user-defined}.
+
+Example: we use the two names \verb!iterator_type! and
+\verb!const_iterator_type! for the names of the non-const and const iterators.
+
+\begin{lstlisting}
+template <class T>
+class MyClass
+{
+  typedef MyIterator<T> iterator_type;
+  typedef MyIterator<const T> const_iterator_type;
+  friend class MyIterator<T>;
+  friend class MyIterator<const T>;
+
+}
+\end{lstlisting}
+   
+The more widely-adopted names for iterators are \verb!iterator! and \verb!const_iterator!
+\begin{lstlisting}
+
+template <class T>
+class MyClass
+{
+  typedef MyIterator<T> iterator;
+  typedef MyIterator<const T> const_iterator;
+  friend class MyIterator<T>;
+  friend class MyIterator<const T>;
+
+}
+\end{lstlisting}
+
+   \item define at least the two methods \verb!begin()! and \verb!end()! in your custome container class
+   
+\begin{lstlisting}
+template <class T>
+class MyClass
+{
+  typedef MyIterator<T> iterator;
+  typedef MyIterator<const T> const_iterator;
+  friend class MyIterator<T>;
+  friend class MyIterator<const T>;
+  
+  T* m_data;
+  int m_size;
+  
+  /* NOTE: 'iterator' is a type */
+  iterator begin()
+  {
+     return iterator(&m_data[0]);
+  }
+  
+  const_iterator cbegin()
+  { 
+     return const_iterator(&m_data[0]);
+  }
+  iterator end()
+  {
+     return iterator(&m_data[m_size-1]);
+  }
+  
+  const_iterator cend()
+  { 
+     return const_iterator(&m_data[m_size-1]);
+  }
+  
+  // if we want to support reverse iterator, i.e. start from the end, we can do
+  typedef MyReverseIterator<T> reverse_iterator;
+  typedef MyReverseIterator<const T> const_reverse_iterator;
+  iterator rbegin()
+  {
+     return reverse_iterator(&m_data[m_size-1]);
+  }
+  
+  const_iterator crbegin()
+  { 
+     return const_reverse_iterator(&m_data[m_size-1]);
+  }  
+  iterator rend()
+  {
+     return reverse_iterator(&m_data[0]);
+  }
+  
+  const_iterator crend()
+  { 
+     return const_reverse_iterator(&m_data[0]);
+  }
+}
+\end{lstlisting}
+     
+     \item Typically, it is a good idea to make the custom iterator derived from
+     STL standard iterator categories to let STL algorithms know the type of
+     iterator we've made (Sect.\ref{sec:iterator})
+     
+     
+\end{enumerate}
+
+\subsection{Example: iterator is a class inside the container}
+
+\url{https://gist.github.com/jeetsukumaran/307264}
+
+
+\subsection{Example: iterator in a class outside the Container}
+Example: typically, an iterator starts from the beginning (i.e. the containers
+support 2 methods begin() and end()), as below, but we can also define a
+ReverseIterator (with 2 new methods for the containers rbegin() and rend() )
+\begin{lstlisting}
+template <typename T>
+class MyIterator : public std::iterator<std::random_access_iterator_tag, T, ptrdiff_t,
+                                        T*,
+                                        T&>
+{
+protected:
+   T*   m_ptr;   // the pointer pointing to the current data element of the container 
+                 // that this iterator is associated with
+public:
+    MyIterator(T& ptr = nullptr)
+    {
+       m_ptr = ptr;
+    }
+    
+    MyIterator(const MyIterator<T>& rawItetaror) = default;
+    ~MyIterator(){};
+    
+    //now many operators need to be implemented
+    // as inherited from std::iterator, we are freed from reimplemented some of them
+    // by defining them as '= default'
+    
+    //1. assignment operators
+    MyIterator<T>&   operator=(const MyIterator<T>& rawIterator) = default;
+    
+    MyIterator<T>&   operator=(T* ptr) { m_ptr = ptr; return (*this)};
+    
+    //2. logical operator
+    operator      bool() const
+    {
+       if (m_ptr)
+          return true;
+       else
+          return false;
+    }
+    
+    //3. comparison operators    
+    bool    operator== (const MyIterator<T>& rawIterator) const { return (m_ptr == rawIterator.getConstPtr());};
+    bool    operator!= (const MyIterator<T>& rawIterator) const { return (m_ptr != rawIterator.getConstPtr());};
+    
+    //4. incremental operators, e.g. 
+    //   others: 			it += 4; it -= 3;
+    //   pre-increment (return reference):  ++it;  --it;
+    //   post-increment (return value): it++; it--; 
+       // 4.1. others
+    MyIterator<T>&       operator+=(const ptrdiff_t& movement) { m_ptr += movement; return (*this);};
+    MyIterator<T>&       operator-=(const ptrdiff_t& movement) { m_ptr -= movement; return (*this);};
+       // 4.2. pre-increment (increase the iterator, then return reference to the changed iterator)
+    MyIterator<T>&       operator++(						) { ++m_ptr; return (*this);};
+    MyIterator<T>&       operator--(						) { --m_ptr; return (*this);};
+       // 4.3. post-increment (return an iterator that points to the current data, then increment the given iterator)
+    MyIterator<T>       operator++(ptrdiff_t /*dummy*/) { auto temp(*this); ++m_ptr; return temp;};
+    MyIterator<T>       operator--(ptrdiff_t /*dummy*/) { auto temp(*this); --m_ptr; return temp;};
+       //   a = it+5;  // does not change 'it', but return the iterator pointing to the value at 5 increment from the value pointed by 'it'
+    MyIterator<T>       operator+(const ptrdiff_t& movement) { auto oldPtr = m_ptr; m_ptr += movement; auto temp(*this); m_ptr = oldPtr; return temp;};
+    MyIterator<T>       operator-(const ptrdiff_t& movement) { auto oldPtr = m_ptr; m_ptr -= movement; auto temp(*this); m_ptr = oldPtr; return temp;};
+    
+    //5. support finding difference between 2 iterators
+    ptrdiff_t           operator-(const MyIterator<T>& rawIterator){return std::distance(rawIterator.getPtr(), this->getPtr();}
+    
+    T&                  operator*(){ return *m_ptr;}
+    const T&            operator*() const { return *m_ptr;}
+    T*                  operator->(){ return m_ptr;}
+    
+    // supporting APIs
+    T*                  getPtr() { return m_ptr;}
+    const T*            getConstPtr() const { return m_ptr;}
+
+}
+\end{lstlisting}
+
+Example: 
+\begin{lstlisting}
+template <typename T, typename NonConstT>
+
+class ArrayIterator 
+{
+
+
+}
+\end{lstlisting}
+
+
+Example:  we can also define a ReverseIterator (so that the container can
+support 2 new methods for the containers rbegin() and rend() )
+\begin{lstlisting}
+template <typename T>
+class MyReverseIterator : public MyIterator
+{
+}
+\end{lstlisting}
+\url{https://stackoverflow.com/questions/3582608/how-to-correctly-implement-custom-iterators-and-const-iterators}

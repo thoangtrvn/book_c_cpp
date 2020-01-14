@@ -1,0 +1,3735 @@
+\chapter{Object-Oriented C++}
+
+\section{namespace}
+\label{sec:namespace_C++}
+
+In C++, to avoid name clashes, we can put the data type in different namespace,
+i.e. define the scope. The namespace that cover everything is \verb!std! namespace.
+
+\begin{verbatim}
+#include <iostream>
+
+using namespace std;
+
+class Rectangle {
+    int width, height;
+  public:
+    void set_values (int,int);
+    int area() {return width*height;}
+};
+
+void Rectangle::set_values (int x, int y) {
+  width = x;
+  height = y;
+}
+\end{verbatim}
+
+
+\section{Class}
+\label{sec:class-C++}
+
+A class in C++ is an extended concept of {\it struct} in C. A class can have
+data members (Sect.\ref{sec:data-member-C++-class}), and member function
+(Sect.\ref{sec:member-function-C++-class}) to operate on these data members.
+A special type of member function for a class is constructor
+(Sect.\ref{sec:constructor-C++-class}) and destructor
+(Sect.\ref{sec:OO_destructor}).
+
+An object is an instance of that class. A class is actually a user-defined data
+type
+\begin{verbatim}
+class Rectangle {
+    int width, height;
+  public:
+    void set_values (int,int);
+    int area (void);
+} rect;   // we define the object directly
+
+\end{verbatim}
+
+\subsection{Friend of a class}
+
+A class A declares that class B of a functon foo() is a friend of it, then class
+B can get access to \verb!private! and \verb!protected! members of class A.
+
+To declare a friend, class A use \verb!friend! keyword
+
+\subsection{* Friend function of a class}
+
+
+\subsection{* Friend class of a class}
+
+\begin{lstlisting}
+class Rectangle  {
+private:	
+  int width, height;
+public:
+  friend Rectangle duplicate (const Rectangle&);
+
+  Rectangle() {}
+  Rectangle (int x, int y) : width(x), height(y) {}
+  int area() {return width * height;}
+}
+
+// here the function can get direct access to 
+//  the class Rectangle data member
+Rectangle duplicate (const Rectangle& param)
+{
+  Rectangle res;
+  res.width = param.width*2;
+  res.height = param.height*2;
+  return res;
+}
+
+\end{lstlisting}
+Typical use cases of friend functions are operations that are conducted between
+two different classes accessing private or protected members of both. 
+
+\url{http://www.cplusplus.com/doc/tutorial/inheritance/}
+
+\subsection{std::cout friendly class}
+
+Suppose you want to be able to
+\begin{verbatim}
+AClass objA;
+std::cout << objA;
+\end{verbatim}
+
+then
+\begin{lstlisting}
+// .H file
+#include <iostream>
+class AClass 
+{
+
+  public: 
+  // define a method specifically for std::cout purpose
+  std::string getString();
+}
+extern std::ostream& operator<<(std::ostream& os, AClass & di);
+
+
+// .C file
+std::ostream& operator<<(std::ostream& os, AClass& di)
+{
+   os<<di.getType()<<"["<<di.getString()<<"]";
+   return os;
+}
+
+\end{lstlisting}
+
+\subsection{Nested class}
+\label{sec:nested-class}
+
+They're exactly like regular classes... except nested.
+Use them when a class's internal implementation is so complex that it can most
+easily be modeled by several smaller classes.
+
+If you feel that class B is so deeply connected to class A, but the objects of A
+and B are not necessarily related, then you might want the class B to be only
+accessible via scoping the A class (it would be referred to as A::Class).
+
+Using nested class is useful to hide implementation details
+\begin{lstlisting}
+class List
+{
+    public:
+        List(): head(nullptr), tail(nullptr) {}
+    private:
+        class Node
+        {
+              public:
+                  int   data;
+                  Node* next;
+                  Node* prev;
+        };
+    private:
+        Node*     head;
+        Node*     tail;
+};
+\end{lstlisting}
+\url{https://stackoverflow.com/questions/4571355/why-would-one-use-nested-classes-in-c}
+
+Bill Oneal suggested NOT to use nested class as
+\begin{verbatim}
+1. because it's simply not necessary -- you can do the same with externally defined classes, 
+which reduces the scope of any given variable, which is a good thing. 
+
+2. because you can do everything nested classes can do with typedef. 
+
+3. because they add an additional level of indentation in an environment
+ where avoiding long lines is already difficult 
+ 
+4. because you are declaring two conceptually separate objects in a single class declaration, etc. 
+\end{verbatim}
+
+
+\subsection{Empty class: tag dispatch}
+\label{sec:empty-class-C++}
+\label{sec:tag-dispatch-C++}
+
+An {\bf empty class} is a class that have no members, neither methods nor data or typedef.
+Example:
+\begin{verbatim}
+class Empty {};
+\end{verbatim}
+
+Below are not empty classes: 
+\begin{itemize}
+  \item  Abstract base classes of class hierarchies often carry only declarations of
+virtual functions. 
+
+  \item Classes used in template metaprogramming may contain only
+typedefs or static members that are used at compile time.
+ 
+\end{itemize}
+
+Using empty class has a number of good use cases.
+One of them is \textcolor{red}{tag dispatch.}
+
+As empry class is a strongly typed language. If there are two empty classes,
+they are different types. They don’t have anything to do with each other.
+Objects of those types can not be converted to each other. There is nothing we
+can do with them but construct them and let them get destroyed.
+We can pass them to functions. That is where tag dispatch comes in.
+
+ It usually is used in generic programming, i.e. in templates. Imagine two or
+ more alternatives of a function that take the same list of parameters. They
+ need to have the same name but different implementations
+\begin{verbatim}
+struct Variant1Tag {};
+struct Variant2Tag {};
+
+void functionWithVariants(int i, double d, std::string str, Variant1Tag) {
+  // ...
+}
+
+void functionWithVariants(int i, double d, std::string str, Variant2Tag) {
+  // ...
+}
+
+functionWithVariants(42, 3.14, "less obvious values next time", Variant1Tag{});
+
+\end{verbatim}
+
+\subsection{-- use case: iterator tag in STL}
+
+Each tag is an empty type and corresponds to one of the five (until C++20) or six (since C++20).
+
+\url{https://en.cppreference.com/w/cpp/iterator/iterator_tags}
+
+Iterator category tags carry information that can be used to select the most
+efficient algorithms for the specific requirement set that is implied by the
+category.
+
+For every iterator type It, a 
+\begin{verbatim}
+typedef std::iterator_traits<It>::iterator_category 
+\end{verbatim}
+is available, which is an alias to
+one of these that is chosen by the given template type.
+
+\begin{lstlisting}
+struct input_iterator_tag { };
+struct output_iterator_tag { };
+struct forward_iterator_tag : public input_iterator_tag { };
+struct bidirectional_iterator_tag : public forward_iterator_tag { };
+struct random_access_iterator_tag : public bidirectional_iterator_tag { };
+
+
+//(since C++20)
+struct contiguous_iterator_tag: public random_access_iterator_tag { };
+\end{lstlisting}
+
+
+Example:
+\begin{verbatim}
+#include <iostream>
+#include <vector>
+#include <list>
+#include <iterator>
+ 
+template< class BDIter >
+void alg(BDIter, BDIter, std::bidirectional_iterator_tag)
+{
+    std::cout << "alg() called for bidirectional iterator\n";
+}
+ 
+template <class RAIter>
+void alg(RAIter, RAIter, std::random_access_iterator_tag)
+{
+    std::cout << "alg() called for random-access iterator\n";
+}
+ 
+template< class Iter >
+void alg(Iter first, Iter last)
+{
+    alg(first, last,
+        typename std::iterator_traits<Iter>::iterator_category());
+}
+ 
+int main()
+{
+    std::vector<int> v;
+    alg(v.begin(), v.end());
+ 
+    std::list<int> l;
+    alg(l.begin(), l.end());
+ 
+//    std::istreambuf_iterator<char> i1(std::cin), i2;
+//    alg(i1, i2); // compile error: no matching function for call
+}
+
+//RESULT: vector implements 'random-access'; while list implements 'bidirectional'
+alg() called for random-access iterator
+alg() called for bidirectional iterator
+\end{verbatim}
+
+
+\subsection{-- use case: to distinguish two different versions of a constructor}
+
+Tag dispatch can be used to distinguish between the iterator version and the
+integral type version of the constructor
+
+Example: we leave out the allocator for simplicity
+\begin{verbatim}
+template <class T>
+class vector {
+public:
+  //constructs the vector with N copies of that value.
+  vector(size_type N, T const& value = T());
+  
+  //takes a pair of iterators to a range of values that shall be copied into the newly constructed vector
+  template <class It>
+  vector(It first, It last);
+};
+\end{verbatim}
+
+\begin{lstlisting}
+
+
+
+template <class It>
+vector<T>::vector(It first, It last) {
+  typedef get_iterator_tag_for<It>::type tag_type;
+  construct(first, last, tag_type{});
+}
+
+template <class It>;
+vector<T>::construct(It first, It last, std::input_iterator_tag) {
+  // construct iterator style
+}
+\end{lstlisting}
+
+\section{Constructor and Destructor}
+\label{sec:constructor-C++-class}
+
+A constructor is a special non-static member function of a class
+(Sect.\ref{sec:class-C++}).
+
+Any C++ compiler automatically add default constructor
+(Sect.\ref{sec:default-constructor}), copy constructor
+(Sect.\ref{sec:copy-constructor}), copy assignment operator (=) and a destructor
+(Sect.\ref{sec:OO_destructor}), only if they are not defined in a class.
+
+
+
+
+
+\subsection{constructor}
+\label{sec:OO_constructor}
+
+Constructors lacks something that the rest of the functions and methods have in
+C++: {\bf a name}. A constructor is a member function
+(Sect.\ref{sec:member-function-C++-class}) whose job is to construct the class.
+
+The only limitation of a constructor is that it must have the same name of the
+class. Because of that, to define different ways to construct the class, we
+typically need to overload with different interfaces.q
+
+\begin{verbatim}
+class myClass 
+{
+    myClass();
+    myClass(myClass&);
+    myClass(int, int);
+ private:
+    int a,b;
+}
+\end{verbatim}
+
+This is good, but sometimes not enough. {\it Indeed, sometimes we need several
+ways to construct a class with the \textcolor{red}{same types of parameters.}}
+One way to go about this and to keep code expressive is to use tag dispatching
+(Sect.\ref{sec:tag-dispatch-C++}).
+
+The “tag” in tag dispatching refers to a type that has no behaviour and no data, i.e. empty class/struct
+\begin{verbatim}
+struct MyTag {};
+\end{verbatim}
+
+\subsection{* use enum to select behavior}
+
+
+Enums and tag dispatching are two ways to introduce several behaviours in the
+same interface in C++. With them, we can pass arguments that determine a facet
+of how we want a function to behave.
+
+\begin{verbatim}
+enum class BehaviourType
+{
+    thisWay,
+    thatWay
+};
+ 
+void f(int argument, BehaviourType behaviourType);
+{
+    // check the value of behaviourType and behave accordingly
+    if (myBehaviour == BehaviourType::thisWay)
+{
+    f(value, BehaveThisWay());
+}
+else if (myBehaviour == BehaviourType::thatWay)
+{
+    f(value, BehaveThatWay());
+}
+
+}
+\end{verbatim}
+
+
+Essentially, tags get dispatched at compile-time while enums values can be read at runtime.
+
+
+\begin{lstlisting}
+enum TableEventEnum {
+    NO_VALUE = 0,
+    ATTRACT = 1,
+    OPEN = 2,
+    CLOSED = 3
+};
+
+class E_TableEvent : public E_EnumerationBase<enum TableEventEnum>
+{
+public:
+    E_TableEvent();
+};
+\end{lstlisting}
+
+
+\begin{lstlisting}
+template<typename T> class E_EnumerationBase : public SimpleElement
+{
+public:
+    E_EnumerationBase();
+    virtual bool setValue(QString choice);
+    virtual T getState();
+
+protected:
+    T state;
+    QHash<QString, T> dictionary;
+};
+
+template<typename T> E_EnumerationBase<T>::E_EnumerationBase() {
+    state = 0;
+}
+
+template<typename T> bool E_EnumerationBase<T>::setValue(QString choice) {
+    T temp;
+    temp = dictionary.value(choice, 0);
+    if (temp == 0) {
+        return false;
+    }
+
+    value = choice;
+    state = temp;
+    return true;
+}
+
+template<typename T> T E_EnumerationBase<T>::getState() {
+    return state;
+}
+\end{lstlisting}
+
+\subsection{* use tag dispatch to select behavior}
+
+Example: \textcolor{red}{Define class option 1} and two ways to use it
+\begin{verbatim}
+class MyClass
+{
+public:
+    struct constructThisWay{};
+    struct constructThatWay{};
+ 
+    explicit MyClass(constructThisWay);
+    explicit MyClass(constructThatWay);
+ 
+    // ...
+};
+
+
+// USE 1:
+// NOTICE the double parantheses as
+// the object is instantiated directly at call site like the tag
+MyClass x((MyClass::constructThisWay()));
+
+// NOTE: if we have more than one parameters to the constructor, and the
+// this extra parameter passed to the constructor 
+//    wasn’t instantiated directly at call site like the tag is
+// ... then we can call it regularly
+int num=4;
+MyClass x(num, MyClass::constructThisWay());
+\end{verbatim}
+or
+\begin{lstlisting}
+// USE 2:
+// Another way: is to use uniform initialization, with braces {}:
+MyClass x(MyClass::constructThisWay{});
+\end{lstlisting}
+Sect.\ref{sec:uniform-initialization-C++11} introduces uniform initialization (C++11).
+
+Example: \textcolor{red}{Define class option 2} and use it
+
+\begin{lstlisting}
+// Another way is to define static data member
+class MyClass
+{
+public:
+    static struct ConstructThisWay{} constructThisWay;
+    static struct ConstructThatWay{} constructThatWay;
+ 
+    explicit MyClass(ConstructThisWay);
+    explicit MyClass(ConstructThatWay);
+}
+//and use it
+MyClass x(MyClass::constructThatWay);
+\end{lstlisting}
+This leads to more code in the class definition. It’s a trade-off, as no more
+vexing parse nor braces, since the argument is no longer a type.
+
+Finally, whichever way you decide to go with, nothing prevents you from having a
+real default constructor that takes no parameters, on the top of all that:
+\begin{verbatim}
+class MyClass
+{
+public:
+    static struct ConstructThisWay{} constructThisWay;
+    static struct ConstructThatWay{} constructThatWay;
+ 
+    MyClass();
+    explicit MyClass(ConstructThisWay);
+    explicit MyClass(ConstructThatWay);
+};
+\end{verbatim}
+
+
+\subsection{* uniform initialization (C++11)}
+\label{sec:uniform-initialization-C++11}
+
+Uniform initialization is a feature in C++ 11 that allows the usage of a
+consistent syntax to initialize variables and objects ranging from primitive
+type to aggregates.
+
+It introduces brace-initialization that uses braces ({}) to enclose initializer
+values.
+\begin{verbatim}
+type var_name{arg1, arg2, ....arg n}
+\end{verbatim}
+
+
+Example:
+\begin{lstlisting}
+// uninitialized built-in type
+int i;    
+
+// initialized built-in type
+int j=10; 
+
+// initialized built-in type
+int k(10);
+
+// Aggregate initialization
+int a[]={1, 2, 3, 4} 
+
+// default constructor
+X x1; 
+
+// Parametrized constructor
+X x2(1); 
+
+// Parametrized constructor with single argument
+X x3=3; 
+
+// copy-constructor
+X x4=x3; 
+\end{lstlisting}
+
+Example:
+\begin{lstlisting}
+int i{};     // uninitialized built-in type
+
+int j{10}; // initialized built-in type
+
+int a[]{1, 2, 3, 4} // Aggregate initialization
+
+X x1{}; // default constructor
+
+X x2{}; // Parametrized constructor;
+
+X x4{x3}; // copy-constructor
+
+// declaring a dynamic array 
+    // and initializing using braces 
+    int* pi = new int[5]{ 1, 2, 3, 4, 5 }; 
+    
+    
+ class A { 
+    int arr[3]; 
+  
+    public: 
+        // initializing array using uniform initialization 
+        A(int x, int y, int z) 
+            : arr{ x, y, z } {}; 
+}
+
+
+\end{lstlisting}
+
+
+
+\subsection{* rule for evoking constructor from base class}
+
+\subsection{Types of constructors}
+
+\begin{enumerate}
+  \item default constructor: the one with no argument
+  - Sect.\ref{sec:default-constructor}
+  
+  \item Parameterized Constructors: 
+  
+  To create a parameterized constructor, simply add parameters to it the way you
+  would to any other function. When you define the constructor’s body, use the
+  parameters to initialize the object.
+  
+  \item Copy constructor:  initializes an object using another object of the same class - Sect.\ref{sec:copy-constructor}
+  
+\end{enumerate}
+
+Apart from that, you can make any of the above constructors either
+\verb!private!, \verb!protected! or \verb!public! or \verb!explicit!. IMPORTANT:
+There is no \verb!virtual! constructor in C++
+(Sect.\ref{sec:virtual-constructor}).
+
+
+\subsection{* default constructor: zero-argument constructor}
+\label{sec:default-constructor}
+
+A default constructor is the constructor without any argument
+\begin{verbatim}
+class myClass
+{
+	myClass();
+}
+\end{verbatim}
+
+To enforce the compiler to create the default ones, even if an alternate
+versions have been implemented by the programmer, we can use the C++11
+\verb!default! keyword (Sect.\ref{sec:C++11_final-override-default-delete}).
+
+
+\subsection{* protected constructor}
+\label{sec:protected_constructor}
+
+A \verb!protected! constructor has the same rule as a protected member
+(Sect.\ref{sec:C++03_protected-functions_static-functions}).
+A protected constructor prevents the user from instantiating, i.e. creating an
+object of such class, using that constructor.
+
+
+We use a \verb!protected! constructor if
+\begin{enumerate}
+  \item  the class has (at least one) pure virtual function (Sect.\ref{sec:pure_virtual_function}), which makes the class
+  becoming an abstract class
+  
+  \item the class is supposed to be an abstract class by design (Sect.\ref{sec:abstract_class_C++})
+  
+  As you want there is no way to instantiate an object of that class but allowing it to be
+  subclassed
+\begin{Verbatim}
+class Base
+{
+protected:
+    Base();
+};
+
+class Child : protected Base
+{
+public:
+    Child() : Base();
+};
+\end{Verbatim}
+
+However any class that inherits from it can call the protected constructor
+unless a friend modifier is used.
+
+
+  \item to allow a \verb!static! member function to instance its own class. This
+  is widely used in Java.
+\end{enumerate}
+  
+  
+\subsection{* virtual constructor???}
+\label{sec:virtual-constructor}
+
+\textcolor{red}{There is no virtual constructor in C++}.
+As explained by Bjarne Stroustrups
+\begin{verbatim}
+A virtual call is a mechanism to get work done given partial information. In
+particular, "virtual" allows us to call a function knowing only any interfaces
+and not the exact type of the object.
+
+To create an object you need complete information. In particular, you need to
+know the exact type of what you want to create. Consequently, a "call to a
+constructor" cannot be virtual.
+\end{verbatim}
+\url{http://stackoverflow.com/questions/733360/why-do-we-not-have-a-virtual-constructor-in-c}
+
+However, it has virtual destructor (Sect.\ref{sec:virtual-destructor}).
+
+\subsection{* 'explicit' constructor (with 1 parameter)}
+\label{sec:explicit-keyword}
+
+Since C++11, \verb!explicit! can be applied to more than just constructors. 
+
+SCENARIO: DoBar() is defined to accept a Foo object, but when being used, it is
+passed with an \verb!int!.  Consider the example: when you're passing an
+argument (e.g. 42) to the function (e.g. DoBar) which accepts an argument of a
+different type (e.g. Foo class).
+
+
+By default, in C++, it allows the compiler to make one implicit conversion to
+resolve 1 parameter to a function if it detects the single-paramater constructor
+of the desired class accepts the given argument (e.g. the Foo::Foo(int)).
+There exists a constructor for Foo that takes an int so this constructor can be
+used to convert the parameter to the correct type.
+{\it The compiler is allowed to do this once for each parameter.}
+
+
+\begin{lstlisting}
+class Foo
+{
+public:
+  // single parameter constructor, can be used as an implicit conversion
+  Foo (int foo) : m_foo (foo) 
+  {
+  }
+
+  int GetFoo () { return m_foo; }
+
+private:
+  int m_foo;
+};
+
+void DoBar (Foo foo)
+{
+  int i = foo.GetFoo ();
+}
+
+int main ()
+{
+  DoBar (42); // which the compiler turns into DoBar(Foo(42));
+}
+\end{lstlisting}
+
+\textcolor{red}{The compiler can use constructors callable with {\bf a single
+parameter} to convert from one type to another in order to get the right type
+for a parameter.}
+
+Prefixing the \verb!explicit! keyword to the constructor prevents the compiler
+from using that constructor for implicit conversion.
+EXPLAIN: If we do
+\begin{verbatim}
+class Foo
+{
+  explicit Foo (int foo) : m_foo (foo) 
+  {
+  }
+}
+\end{verbatim}
+It is now necessary to call for conversion explicitly with
+DoBar (Foo (42)). As a result, the code is less error prone.
+
+Since C++11, this \verb!explicit! is also applicable to a regular method in a class.
+
+Example: 
+\begin{verbatim}
+class String {
+public:
+    String(int n); // allocate n bytes to the String object
+    String(const char *p); // initializes object with char *p
+};
+
+// if we try
+String mystring = 'x';
+// it will implicitly converted to int 
+// and then will call the String(int) constructor.  
+// which is not what we want.
+
+\end{verbatim}
+To avoid such conditions, we define that constructor as \verb!explicit!
+\begin{verbatim}
+class String {
+public:
+    explicit String (int n); //allocate n bytes
+    String(const char *p); // initialize sobject with string p
+};
+\end{verbatim}
+
+\url{http://stackoverflow.com/questions/121162/what-does-the-explicit-keyword-in-c-mean}
+
+\subsection{copy constructor}
+\label{sec:copy-constructor}
+
+\begin{lstlisting}
+class A {
+public:
+    A() {
+        cout << "A::A()" << endl;
+    }
+};
+
+A b(3);
+
+// The copy constructor
+A a = b;
+
+// The assignment constructor
+A c;
+c = a;
+\end{lstlisting}
+A copy constructor is a constructor that accepts an object of the same type, and
+then duplicate it to a new object.
+\begin{itemize}
+  \item  A copy constructor is used to initialize a previously uninitialized object from some other object's data.
+  
+\begin{lstlisting}
+class A
+{
+   A(const A& rhs) : data_(rhs.data_) {}
+}
+\end{lstlisting}
+
+  \item An assignment operator is used to replace the data of a previously initialized object with some other object's data.
+\begin{lstlisting}
+A& operator=(const A& rhs) {data_ = rhs.data_; return *this;}
+\end{lstlisting}
+
+\end{itemize}
+
+A copy constructor is a function that knows how to create an object of a class,
+allocate space for its members, and copy their values from another object
+
+\begin{verbatim}
+class myClass
+{
+	myClass (const myClass&);
+}
+\end{verbatim}
+
+\begin{verbatim}
+class Point 
+{ 
+private: 
+    int x, y; 
+public: 
+    Point(int x1, int y1) { x = x1; y = y1; } 
+  
+    // Copy constructor 
+    Point(const Point &p2) {x = p2.x; y = p2.y; } 
+  
+    int getX()            {  return x; } 
+    int getY()            {  return y; } 
+}; 
+\end{verbatim}
+
+NOTE: To disable a constructor, we can use \verb!=delete! keyword
+(Sect.\ref{sec:C++11-delete}).
+
+
+\subsection{copy assignment (=)}
+
+
+
+\subsection{move constructor (C++11)}
+\label{sec:move-constructor-C++11}
+
+\url{http://blog.smartbear.com/c-plus-plus/c11-tutorial-introducing-the-move-constructor-and-the-move-assignment-operator/}
+
+\subsection{destructor}
+\label{sec:OO_destructor}
+
+A destructor in C++, or object-oriented programming, is a class' member function
+(Sect.\ref{sec:member-function-C++-class}) with the same name as the class,
+and is prefixed with a tilde (\verb!~!); and should contains the code to free
+the memory of the associated data members when the object is deallocated.
+
+Example:
+\begin{verbatim}
+class Base 
+{
+    ~Base() { cout << "Clean Base";};
+};
+
+class Derived : public Base
+{
+    ~Derived()
+    {
+        // Do some important cleanup
+        cout << "Clean Derived";
+    }
+}
+\end{verbatim}
+
+\subsection{* 'virtual' destructor}
+\label{sec:OO_virtual-destructor}
+\label{sec:virtual-destructor}
+
+A virtual destructor is a destructor with \verb!virtual! keyword.
+Virtual destructors are useful when you can delete an instance of a derived
+class through a pointer to base class:
+
+When using inheritance (Sect.\ref{sec:OO_inheritance}), if there is no
+virtual destructor in the base class, the problem is we cannot delete the
+derived object pointed to by the base object pointer.
+\begin{verbatim}
+Base *b = new Derived();
+// use b
+delete b; // Here's the problem! 
+  // Only Base:~Base() is called but not Derived::~Derived()
+\end{verbatim}
+Virtual functions are used in order to invoke functions based on the type of
+object pointed to by the pointer, and not the type of pointer itself.
+
+So, the reason to define {\bf virtual destructor} is when they are meant to be
+manipulated polymorphically. In other words, if the class is supposed to be
+inheritted, then the base class destructor need to be \textcolor{red}{virtual}.
+\begin{verbatim}
+class Base 
+{
+    virtual ~Base() {}; // virtual destructor
+    // some virtual methods
+};
+
+\end{verbatim}
+
+The order of the destructor to be called is the child first, and then to the
+parent, in that order. \textcolor{blue}{In other words, the derived class
+destructor is called first}
+\begin{verbatim}
+delete b; // will print 
+     // Cleanup Derived
+     // Cleanup Base
+\end{verbatim}
+
+\begin{framed}
+If we want to delete the derived-class object via the base-class pointer, then
+we need to define the destructor of the base-class as \verb!virtual!.
+
+IMPORTANT PARADIGM: If a class has one or more virtual function, then it should
+have the virtual destructor.
+\end{framed}
+
+\section{Using initialization list in constructor}
+\label{sec:initialization_list}
+
+Instead of using assignment to initialize the data member
+inside the body of a constructor (Sect.\ref{sec:OO_constructor})
+\begin{verbatim}
+class A
+{
+private:
+  int _a, _b;
+public:
+  A (int a_var, int b_var)
+  {
+    _a = a_var;
+    _b = b_var;
+  }
+}
+\end{verbatim}
+
+We can use initialization list (see after the colon (:)), and pass as argument
+to the constructor
+
+\begin{verbatim}
+class A {
+   private:
+     int a, b;
+
+   public:
+     // here after the colon (:) is the initialization list
+     // which can be : BaseClassConstructor(passed_value)
+     //                data_member(passed_value)
+     A(int a_var, int b_var):a(a_var), b(b_var) {}; 
+ };
+\end{verbatim}
+
+\subsection{ * What data members can be initialized with initialization list?}
+
+You can not initialize a \verb!static! data member with initialization list
+(Sect.\ref{sec:static-data-member}).
+
+Example:
+\begin{verbatim}
+class Fred {
+public:
+  Fred();
+  // ...
+private:
+  int i_;
+  static int j_;
+};
+\end{verbatim}
+
+WRONG USAGE
+\begin{verbatim}
+Fred::Fred()
+  : i_(10)  // Okay: you can (and should) initialize member data this way
+  , j_(42)  // Error: you cannot initialize static member data like this
+{
+  // ...
+}
+\end{verbatim}
+
+CORRECT USAGE:
+\begin{verbatim}
+// You must define static data members this way:
+int Fred::j_ = 42;
+\end{verbatim}
+\url{https://isocpp.org/wiki/faq/ctors#explicit-define-static-data-mems}
+
+
+\subsection{ * When to use initialization list}
+
+IMPORTANT:
+A class's data member variables are always initialized in the order in which
+they are declared in the class.
+They are not initialized in the order in which they are specified in the Member
+Initalizer List. So, it 
+is always a good practice to maintain the same order of members for member
+initialization as the order in which they are declared in the class definition.
+
+It's a common practice to use initialization list, rather than constructor.
+Initialization lists can be used to initialize both POD (Plain Old Data) or
+user-defined types. There is no difference between the two methods when using
+POD. 
+
+When using user-defined types, before the constructor is called, the constructor
+for the parent class of class B (by default: no-argument constructor is called)
+and any contained members of the parent class are invoked as well, which may
+degrade the performance. By using initialization lists, only the default
+constructor is called which is thus faster.
+
+When we have to use initialization list?
+\begin{enumerate}
+  \item  The class has reference data member
+  (Sect.\ref{sec:reference-data-member})
+
+\textcolor{red}{reference}
+\begin{verbatim}
+struct bb {};
+
+struct aa
+{
+    bb& rb;
+    aa(bb& b ) : rb(b) {}
+};
+
+// usage:
+
+bb b;
+aa a(b);
+\end{verbatim}
+  
+  \item The class has non-static \verb!const! data member
+  
+  \item The class is derived from a base class, and the base class has no
+  default constructor
+
+\textcolor{red}{require parameter, i.e. no default constructor}
+\begin{verbatim}
+struct bb {};
+
+struct dd
+{
+    char c;
+    dd(char x) : c(x) {}
+};
+
+struct aa : dd
+{
+    bb& rb;
+    aa(bb& b ) : dd('a'), rb(b) {}
+};
+\end{verbatim}
+
+
+    
+  \item The class is derived from a base class, and you want to initialize base
+  class's data members
+
+  
+  \item (not a MUST, but recommended), the constructor's parameter name is the
+  same as that of data member
+\end{enumerate}
+\url{http://stackoverflow.com/questions/1711990/what-is-this-weird-colon-member-syntax-in-the-constructor}
+
+Example:
+\begin{lstlisting}
+class MyClass
+{
+    public:
+        //Reference member, has to be Initialized in Member Initializer List
+        int &i;       
+        int b;
+        //Non static const member, must be Initialized in Member Initializer List
+        const int k;  
+
+    //Constructor's parameter name b is same as class data member 
+    //Other way is to use this->b to refer to data member
+    MyClass(int a, int b, int c):i(a),b(b),k(c)
+    {
+         //Without Member Initializer
+         //this->b = b;
+    }
+};
+
+class MyClass2:public MyClass
+{
+    public:
+        int p;
+        int q;
+        MyClass2(int x,int y,int z,int l,int m):MyClass(x,y,z),p(l),q(m)
+        {
+        }
+
+};
+\end{lstlisting}
+
+This is the case when the difference kicks in
+\begin{verbatim}
+class SleepyInt {
+public:
+  SleepyInt () { 
+    std::this_thread::sleep_for(std::chrono::milliseconds( 10000 ));  
+  }
+  SleepyInt (int i) {}
+  SleepyInt & operator = (int i) { return *this; }
+};
+
+class A {
+   private:
+     SleepyInt a, b;
+
+   public:
+     // by using initialization-list, only the proper constructor
+     // is evoked
+     is skipped A(int a_var, int b_var):a(a_var), b(b_var) {}; 
+ };
+
+class B {
+   private:
+     SleepyInt a, b;
+
+   public:
+     // takes at least 20s as by default the default constructor of the
+     base-class is automatically evoked 
+     B(int a_var, int b_var) : a(), b()
+     //                      ^^^^^^^^^^ 
+     {
+        a = a_var;
+        b = b_var;
+     }
+  };
+\end{verbatim}
+
+
+Example: 
+
+\begin{verbatim}
+struct aa
+{
+    int i;
+    const int ci;
+
+    aa() : i(0), ci(3) {} // works
+};
+
+struct aa
+{
+    int i;
+    const int ci;       // constant member
+
+    aa() : i(0) {} // will fail, constant member not initialized
+};
+
+struct aa
+{
+    int i;
+    const int ci;
+
+    aa() : i(0) { ci = 3;} // will fail, ci is constant
+};
+\end{verbatim}
+
+
+\subsection{ * When NOT to use initialization list}
+
+When the class has two different class constructors that need to initialize
+the current (\verb!this!) object's data in different orders.
+\begin{verbatim}
+class Example1 {
+ public:
+  Example1(std::string decoded, std::string encoded)
+      : decoded_(decoded),
+        encoded_(encoded) {}
+  
+  explicit Example1(std::string encoded)
+      : decoded_(),  // Can't use "decoded_(Decode())" since "encoded_" isn't initialised
+        encoded_(encoded) {
+    decoded_ = Decode();  // Assign here instead of initialising
+  }
+ private:
+  std::string Decode();  // decodes class member "encoded_"
+  std::string decoded_, encoded_;
+};
+\end{verbatim}
+Sect.\ref{sec:explicit-}
+
+{\small \begin{verbatim} 
+Person::Person(int age) : _age(age) { }
+\end{verbatim}}
+
+To explicitly mention the class member, we use \verb!this! pointer.
+However, it's often omitted unless we need to avoid ambiguity. NOTE:
+The coding style: data member is often with an underscore \verb!_! in front of
+the data member (Sect.\ref{sec:coding-style_data-member}).
+
+{\small \begin{verbatim} 
+Person::Person(int age) {
+    _age = age; // this->_age = age;
+}
+\end{verbatim}}
+
+
+A child class can call the parent constructor 
+
+\begin{verbatim}
+class Car 
+{  
+ public:
+    Car();
+    Car(double Price) ;
+}
+
+class Porche : public Car
+{
+public:
+    Porche();
+}
+
+//this is how to implement
+Porche::Porche():Car(price)
+{
+}
+\end{verbatim}
+
+
+\section{Methods (member functions)}
+\label{sec:member-function-C++-class}
+
+\subsection{(non-virtual) member functions}
+\label{sec:non-virtual-member-function}
+
+A public/private/protected regular member function of a class, without any
+special keywords, is a non-virtual regular function.
+A non-virtual method is a simple function with an implicit \verb!this! as its
+first parameter. So, if a method has an argument with the same name as the data
+member, we use \verb!this->! combined with the name to refer to the data
+member of the object, e.g.
+\begin{verbatim}
+class A
+{
+public:
+  void doSomething (int _myData)
+  {
+    this->_myData = _myData;
+  }
+private:
+  int _myData;
+}
+\end{verbatim}
+For naming convention, check Sect.\ref{sec:naming_style-C++}.
+
+If class inheritance is used, it is recommended to provide virtual member
+function to the base class (Sect.\ref{sec:virtual_member-function}). The below
+example explains why.
+
+EXAMPLE: when calling a non-virtual function that has implementation in both
+parent class and derived class, the compiler does not know the function called
+by a pointer is the one from which class (the parent one or the derived one);
+and thus it always use the one in the base class.
+
+\begin{verbatim}
+class Base
+{
+protected:
+ 
+public:
+    const char* GetName() { return "Base"; }
+};
+ 
+class Derived: public Base
+{
+public:
+    const char* GetName() { return "Derived"; }
+};
+
+int main()
+{
+    Derived cDerived;
+    Base &rBase = cDerived;
+    cout << "rBase is a " << rBase.GetName() << endl;
+}
+ 
+\end{verbatim}
+REMEMBER: The base class and derived class are type-compatible
+via the pointer (Sect.\ref{sec:OO_inheritance}).
+
+The result is that it uses the GetName() of the base class, even though the
+pointer is pointing to the object of derived class.
+\begin{verbatim}
+//the result is
+rBase is a Base
+\end{verbatim}
+
+\begin{mdframed}
+
+The question is if an object \verb!cDerived! of the derived-class is referenced
+by a pointer \verb!rBase! from the base-class, how does the compiler knows that
+when the method is called, i.e. \verb!rBase.GetName()! it should use the
+implementation from the derived-class, instead of the base-class.
+By default (non-virtual function), the implementation from the base-class is
+used. 
+
+\end{mdframed}
+
+
+\subsection{singlet method ???}
+
+%TODO: update this section: singlet method
+
+\subsection{protected data/method: 'protected'}
+\label{sec:OO_protected-data_method}
+
+A \verb!protected! data/method can be accessed only by members of the current
+class, the \verb!friend! class (Sect.\ref{sec:OO_friend-class}) and the friends
+of the classes derived from the current class. This applies to all member
+data/functions declared up to the next access specifier or the end of the class
+A. It is used in emplementing {\bf encapsulation}
+(Sect.\ref{sec:encapsulation}).
+
+\subsection{private data/method: 'private'}
+
+A \verb!private! field data or method of class A can only be accessed within
+class A and \verb!friend! of class A (Sect.\ref{sec:OO_friend-class}). This
+applies to all member functions declared up to the next access specifier or the
+end of the class A.
+It is used in emplementing {\bf encapsulation} (Sect.\ref{sec:encapsulation}).
+
+Typically, class A provides two methods: getter and setters so that outside can
+get or modify the internal data of a class A's object.
+
+\subsection{static method: 'static'}
+\label{sec:static-method}
+
+IMPORTANT: A static method is a class method that has \verb!static! as the
+keyword. Inside the static method, we should not use and/or modify any class's
+non-static data members; but only \verb!static! data members
+(Sect.\ref{sec:static-data-member}).
+A \verb!static! member function can be called using object or class name.
+
+A static method should (1) return something independent from class instance; (2)
+interact with the \verb!static! data member, e.g.
+if the \verb!static! data member (Sect.\ref{sec:OO_static-member}) is
+accompanied with a \verb!private!, (even though the initialization is the same)
+there is no way we can access to it directly using the class name. 
+
+Example:
+\begin{lstlisting}
+// File.h
+class Something
+{
+private:
+    static int s_nValue;
+    
+public:
+    // can define in header file
+    static int GetValue() { return s_nValue; }
+    
+    // or in source file
+    static void bool DoSomething(); 
+};
+
+// File.cxx
+#include "File.h"
+void Something::DoSomething() // note: no static keyword here
+{
+ // code
+} 
+ 
+ 
+int Something::s_nValue = 1; // initializer
+ 
+ 
+// main.C
+int main()
+{
+    std::cout << Something::GetValue() << std::endl;
+} 
+\end{lstlisting}
+
+\textcolor{red}{\bf IMPORTANT}: A static member function is not the same as
+static function, an extension to C language static function in C++
+(Sect.\ref{sec:static-functions}).
+
+
+
+\subsection{return by reference (T\&) or const reference (const T\&)}
+\label{sec:return-by-reference}
+
+NOTE: \verb!T! represents the datatype.
+
+In terms of speed, both are the same, as there is no data copy occur, only the
+reference is returned.
+
+Return by reference, i.e. you can modify the returned value
+\begin{lstlisting}
+class A {
+
+  public:
+    // non-const member function
+    int& getImem() { return imem;};
+  private:
+    int imem;
+}
+\end{lstlisting}
+NOTE: \verb!imem! is a short form of \verb!this->imem!. 
+In a non-const member,  \verb!this! is of type \verb!A* const!, i.e. the pointer
+is fixed, but not the instance it points to.
+
+Return by const reference, i.e. you cannot modify the returned value
+\begin{lstlisting}
+class A {
+
+  public:
+    //int& getImem() const { return imem;};
+    int& getImem() const { return imem;};
+  private:
+    int imem;
+}
+\end{lstlisting}
+In a non-const member,  \verb!this! is of type \verb!const A* const!, i.e. the
+pointer is const, and also the instance it points to is const.
+
+
+
+
+\subsection{const T\& function-name(arguments)}
+
+Remeber the binding rule of using \verb!const! keyword
+(Sect.\ref{sec:const_C++}). The \verb!const! (and \verb!volatile!) qualifier
+binds to the left. This means that any time you see const, it is being applied
+to the token to the left of it.
+There is one exception, however; if there's nothing to the left of the const, it
+binds to the right, instead. It's important to remember these rules.
+
+Using \verb!const T&!, the return type is a reference to a \verb!const T!, i.e.
+which is an unmodifiable object.
+
+\begin{verbatim}
+const T& data()  { return data_; }
+^^^^^
+\end{verbatim}
+means it will return a const reference to T (here is \verb!data_! object), i.e.
+The receiver has to be decalred as follows and cannot modify the data it gets.
+\begin{verbatim}
+Class c;
+T& t = c.data()             // Not allowed.
+const T& tc = c.func()      // OK.
+\end{verbatim}
+
+
+\subsection{T\& <function-name>(arguments) const}
+
+\begin{verbatim}
+       T& data() const { return data_; }
+                ^^^^^
+\end{verbatim}
+means the function (inside this function) will not modify any member variables
+of the class (unless the member is \verb!mutable!).
+
+\begin{verbatim}
+void Class::data() const {
+   this->data_ = ...;  // is not allowed here since data() is const (unless 'data_' is mutable)
+   this->anything = ... // Not allowed unless the thing is 'mutable'
+}
+\end{verbatim}
+
+
+\subsection{const T\& <function-name>(arguments) const}
+
+Using \verb!const! before and after the member function name. So, when we
+combine \verb!const! to the front and end of the function, it means that we
+cannot modify the data member inside the body, and the receiver cannot modify
+the returned value as well.
+\begin{verbatim}
+const T& data() const  { return data_; }
+^^^^^           ^^^^
+
+\end{verbatim}
+
+\section{Move assignment operator (C++11)}
+\label{sec:move-assignment-operator-C++11}
+
+\url{http://blog.smartbear.com/c-plus-plus/c11-tutorial-introducing-the-move-constructor-and-the-move-assignment-operator/}
+
+\section{Data members}
+\label{sec:data-member-C++-class}
+
+\subsection{order of data members???}	
+
+\textcolor{red}{A class's data member variables are always initialized in the
+order in which they are declared in the class} (not the order data is passed to
+the constructor - Sect.\ref{sec:constructor-C++-class}).
+So, it is important to choose the right one to minimize memory usage, e.g. to
+avoid padding for memory alignment; a similar case is in bitfield padding
+(Sect.\ref{sec:bitfield-padding}).
+
+
+
+% \subsection{static data member}
+% 
+% 
+% A static data member is declared with \verb!static! specifier.
+% When we declare a member of a class as static it means no matter how many
+% objects of the class are created, there is only one copy of the static member.
+% 
+% All static data is initialized to zero when the first object is created, if no
+% other initialization is present.
+% 
+% To define the value for a static data member, we have to define outside the
+% class body
+% \begin{lstlisting}
+% class Box
+% {
+%    public:
+%       static int objectCount;
+%       
+%       ...
+% }
+% 
+% // Initialize static member of class Box
+% int Box::objectCount = 0;
+% 
+% 
+% \end{lstlisting}
+
+\subsection{'static' data member}
+\label{sec:OO_static-member}
+\label{sec:static-data-member}
+
+By default, each instantiated object has its own copy of all the data members
+in a given class. 
+% If the data member of class defined as \verb!static!, then
+% only a single copy exist and shared for all objects of that class. 
+When we declare a member of a class as \verb!static! it means no matter how many
+objects of the class are created, there is only one copy of the static member.
+If you want to define a static data member as \verb!private!, make sure you use
+static member funciton as well (Sect.\ref{sec:static-method}).
+
+All static data is initialized to zero when the first object is created, if no
+other initialization is present.
+
+\subsection{-- initialize option 1}
+
+To initialize a \verb!static! data member, we need to initialize the
+value for it outside the class body, preferably inside the source file
+(NOT the header file), using
+\footnote{\url{http://www.learncpp.com/cpp-tutorial/811-static-member-variables/}}
+\begin{verbatim}
+//.cpp file
+<type> CLASS_NAME::static_variable = <value>;
+\end{verbatim}
+
+Example:
+\begin{lstlisting}
+// .H file
+class Box
+{
+   public:
+      static int objectCount;
+
+      ...
+}
+
+// .C file
+// Initialize static member of class Box
+int Box::objectCount = 0;
+\end{lstlisting}
+
+Example: template class
+\begin{lstlisting}
+template< class Dummy >
+struct BaseClass_statics
+{
+    static std::string bstring;
+};
+
+template< class Dummy >
+std::string BaseClass_statics<Dummy>::bstring = ".";
+
+class BaseClass
+    : public BaseClass_statics<void>
+{};
+\end{lstlisting}
+
+\subsection{-- initialize option 2}
+
+An alternative is to use a function, as Dietmar suggested. Essentially that is a Meyers' singleton (google it).
+
+\subsection{-- initialize option 3 (nested static structure) (C++11)}
+
+\url{https://stackoverflow.com/questions/18860895/how-to-initialize-static-members-in-the-header}
+
+To keep the definition of a static value with the declaration in C++11 a nested static structure can be used
+\begin{lstlisting}
+class BaseClass
+{
+public:
+  static struct _Static {
+     std::string bstring {"."};
+  } global;
+};
+
+//the whole static structure is initialized
+BaseClass::_Static BaseClass::global;
+
+\end{lstlisting}
+
+Then the value is accessed with
+\begin{verbatim}
+BaseClass::global.bstring;
+\end{verbatim}
+
+
+PITFALL: this solution still suffers from the problem of the order of
+initialization of the static variables. When a static value is used to
+initialize another static variable, the first may not be initialized, yet.
+
+Here: the static variable headers will contain either { "" } or { ".h", ".hpp"
+}, depending on the order of initialization created by the linker.
+
+\begin{verbatim}
+// file.h
+class File {
+public:
+  static struct _Extensions {
+    const std::string h{ ".h" };
+    const std::string hpp{ ".hpp" };
+    const std::string c{ ".c" };
+    const std::string cpp{ ".cpp" };
+  } extension;
+};
+
+// file.cpp
+File::_Extensions File::extension;
+
+// module.cpp
+static std::set<std::string> headers{ File::extension.h, File::extension.hpp };
+\end{verbatim}
+
+
+\subsection{-- initialize option 4 (C++17)}
+
+In C++17 you can use inline variables, which you can use even outside classes.
+\begin{verbatim}
+
+The inline specifier, when used in a decl-specifier-seq of a variable with
+static storage duration (static class member or namespace-scope variable),
+declares the variable to be an inline variable.
+
+A static member variable (but not a namespace-scope variable) declared constexpr
+is implicitly an inline variable.
+\end{verbatim}
+
+Example:
+\begin{lstlisting}
+class Someclass {
+public:
+    inline static int someVar = 1;
+};
+
+//or 
+namespace SomeNamespace {
+    inline static int someVar = 1;
+}
+\end{lstlisting}
+
+\subsection{-- access data option 1}
+
+\textcolor{red}{ACCESS static data member}: We can access the \verb!static! data
+member using the object name or using the class name. NOTE: Using class name is
+better, as it make clears the data member is shared.
+
+Example:
+\begin{Verbatim}
+class Something
+{
+public:
+    static int s_nValue;
+};
+ 
+int Something::s_nValue = 1;
+ 
+int main()
+{
+    Something cFirst;
+    cFirst.s_nValue = 2;
+ 
+    Something cSecond;
+    std::cout << cSecond.s_nValue;
+ 
+    return 0;
+}
+\end{Verbatim}
+
+\subsection{Using pointer for data member}
+
+When to use the second scenario?
+
+\begin{verbatim}
+// Scenario 1
+private:
+    SomeClass instance_;
+    
+// Scenario 2
+private:
+   Someclass * instance_; // then use new in the constructor, and 
+                          //  use delete in the destructor
+\end{verbatim}
+
+An advantage of using pointer for data member:
+\begin{enumerate}
+  \item you can do lazy initialization
+  
+  \verb!Boost::optional! is recommended whenever possible. It's safer than
+  pointer because you can't do arithmetic on it
+  
+  \item a pointer can be deleted any time, i.e. you have more control about the
+  live time and can recreate an object
+  
+  \item reduce compile time with forward declaration
+  
+  NOTE: If reducing compile time and header dependencies is important, use the
+  pimpl idiom \url{http://c2.com/cgi/wiki?PimplIdiom}
+  
+  
+\end{enumerate}
+
+Disadvantage:
+\begin{enumerate}
+  \item Have to write your own copy constructor, assignment operator, to make
+  sure a copy of the object is creatd properly.
+  
+  \item Make sure to delete the object in the destructor.
+  
+  \item  Finally, accessing non-pointer members is likely to be faster, because
+  they are contiguous in memory. On the other hand, accessing pointer data
+  member pointing to an object allocated on the heap is likely to cause a cache
+  miss, making it slower.
+  
+\end{enumerate}
+\url{http://stackoverflow.com/questions/1175646/c-when-should-i-use-a-pointer-member-in-a-class}
+
+\subsection{Forward declaration for data member of an external type}
+
+
+When a data meber is of type from an external class.
+As long as you don't have any code in your header file, then we can use forward
+declaration, without \verb!#include! the header file defined that
+external class.
+  
+\begin{verbatim}
+class ExtCamera;  // forward declaration to external class type in "ExtCamera.h"
+
+class MyCamera {
+public: 
+  MyCamera() : m_pCamera(0) { }
+
+  void init(const ExtCamera &cam);
+
+private:
+   ExtCamera  *m_pCamera;   // do not use it in inline code inside header!
+   //or   ExtCamera  m_pCamera;   // do not use it in inline code inside header!
+   
+};
+\end{verbatim}
+
+\textcolor{red}{The advantage is to reduce the compile time and prevents side
+effects by including too many other headers}.
+
+\subsection{A reference data member}
+\label{sec:reference-data-member}
+
+IMPORTANT: A reference data member must be initialized immediately, at the time
+object is created.  Example: 
+\begin{verbatim}
+class Actor
+{
+private:
+   MaJR::Animation& activeAnimation;  // ERROR
+	
+public:
+   Actor();
+}
+\end{verbatim}
+you may get the error
+\begin{verbatim}
+error: uninitialized reference member
+\end{verbatim}
+
+A solution is to use initialization list in the constructor
+(Sect.\ref{sec:initialization_list}) and it's important the passed
+reference argument must be \verb!const!
+\begin{lstlisting}
+class    ClassB
+{
+    private:
+        const int&    internalX;
+    public:
+        ClassB(const int& tempX);
+}
+
+ClassB::ClassB(const int& tempX):
+     internalX(tempX)
+{
+}
+\end{lstlisting}
+
+
+It means that a reference MUST be initialized at the time the object is
+created, i.e. in the constructor, assign the reference it to something. Then, we
+cannot change the reference, even though we can change the value at which it
+reference to. 
+
+NOTE: If you need to dynamically change it, then you could use a pointer or,
+probably better, a smart pointer. C++11 provides \verb!std::unique_ptr! and
+\verb!std::shared_ptr! (Sect.\ref{sec:smart_pointer}). Boost also provide smart
+pointer \footnote{\url{http://www.boost.org/doc/libs/1_49_0/libs/smart_ptr/smart_ptr.htm}}.
+
+\begin{verbatim}
+class B
+{
+private
+  std::auto_ptr<int> _x;
+  B(int x):_x(x) {};
+}
+\end{verbatim}
+
+If you would like to conditionally initialize it, you can do something like
+this:
+\begin{verbatim}
+MyObject& ref = (condition) ? MyObject([something]) : MyObject([something else]);
+\end{verbatim}
+\url{http://stackoverflow.com/questions/14882995/how-to-declare-a-reference-and-initialize-later}
+
+\section{Class Inheritance}
+\label{sec:OO_inheritance}
+
+Inheritance is an important feature to achieve polymorphism in Object-Oriented
+design (Sect.\ref{sec:polymorphism}).  One of the key features of class
+inheritance is that a pointer to a derived class is type-compatible with a
+pointer to its base class
+
+Type-casting is the widely used technique when working with inheritance
+(Sect.\ref{sec:type-cast-C++}) to detect the exact class type at runtime. 
+
+\begin{lstlisting}
+
+
+SomeClass obj = dynamic_cast<SomeClass>& obj_A;
+
+if (obj == 0) {
+  // then obj_A is not of type SomeClass 
+}
+else
+{
+  // then use 'obj' as an object of SomeClass type
+}
+\end{lstlisting}
+
+It's important to know that when type-casting using upcasting or downcasting, we
+should use {\it pointer} or {\it reference}; instead of using object, to avoid
+the so-called {\it object-slicing} (Sect.\ref{sec:object-slicing}).
+
+
+\begin{verbatim}
+class IDriver
+{
+virtual void Init() = 0;
+};
+
+class USBDriver : public IDriver
+{
+virtual ~USBDriver(){}
+
+void Init(){}
+};
+\end{verbatim}
+
+Then to use it
+\begin{verbatim}
+Driver* driver = nullptr;
+//runtime you decide that you need the USB not lets say another //RS232Driver
+
+driver = new USBDriver();
+
+delete driver;
+\end{verbatim}
+
+There are three types of inheritance: \verb!public! (default), \verb!protected!
+and \verb!private!. 
+\begin{enumerate}
+  \item IS-A inheritance: \verb!public! - Sect.\ref{sec:inheritance_public}
+  
+  \item \verb!protected!: rarely useful, can be used to provide enhanced
+  access of derived classes - Sect.\ref{sec:inheritance_protected}
+  
+  \item Implemented-in-terms-of: \verb!private! - Sect.\ref{sec:inheritance_private}
+\end{enumerate}
+
+\url{http://stackoverflow.com/questions/860339/difference-between-private-public-and-protected-inheritance-in-c}
+
+\begin{verbatim}
+class A 
+{
+public:
+    int x;
+protected:
+    int y;
+private:
+    int z;
+};
+
+class B : public A  // this is the default, which means
+// it's the same as
+// class B : A 
+{
+    // x is public
+    // y is protected
+    // z is not accessible from B
+};
+
+class C : protected A
+{
+    // x is protected
+    // y is protected
+    // z is not accessible from C
+};
+
+class D : private A
+{
+    // x is private
+    // y is private
+    // z is not accessible from D
+};
+\end{verbatim}
+
+
+\subsection{Base classes}
+
+A class that is the parent of another one is considered as a base class (or
+parent class). Thus, the following rules apply to how the child class can reuse
+data member or method members of the base class
+\begin{verbatim}
+class Base {
+    public:
+        int publicMember;
+    private:
+        int privateMember;
+    protected:
+        int protectedMember;
+};
+\end{verbatim}
+
+\begin{enumerate}
+  \item  Everything that is aware of \verb!Base!, is also aware of publicMember
+  of Base.
+  \item Everything that is either a children of \verb!Base! or the children of
+  these children, is aware of the protectedMember of Base.
+  \item Only Base, but no one, can see privateMember of Base.
+\end{enumerate}
+
+\subsection{virtual base class}
+\label{sec:virtual_base_class-C++}
+
+Virtual base classes, used in \verb!virtual! inheritance, is a way of preventing
+multiple "instances" of a given class appearing in an inheritance hierarchy when
+using multiple inheritance.
+
+Example:
+\begin{verbatim}
+class A { public: void Foo() {} };
+class B : public A {};
+class C : public A {};
+class D : public B, public C {};
+\end{verbatim}
+
+An instance of D will be made up of B, {\it which includes A}, and C {\it which also
+includes A}. So you have two "instances" (for want of a better expression) of A.
+\begin{verbatim}
+A   A
+|   |
+B   C
+ \ /
+  D
+\end{verbatim}
+This leads to you have the possibility of ambiguity
+\begin{verbatim}
+
+D d;
+d.Foo(); // is this B's Foo() or C's Foo() ??
+
+\end{verbatim}
+
+Virtual inheritance is there to solve this problem. When you specify virtual
+when inheriting your classes, you're telling the compiler that you only want a
+single instance.
+\begin{lstlisting}
+class A { public: void Foo() {} };
+class B : public virtual A {};
+class C : public virtual A {};
+class D : public B, public C {};
+
+
+D d;
+d.Foo(); // no longer ambiguous
+\end{lstlisting}
+as now you have
+\begin{verbatim}
+  A
+ / \
+B   C
+ \ /
+  D
+\end{verbatim}
+
+\url{https://stackoverflow.com/questions/21558/in-c-what-is-a-virtual-base-class}
+
+\subsection{abstract class (data type)}
+\label{sec:abstract_class_C++}
+
+A base class that is abstract can not be an object but is an encapsulated
+concept or idea that contains all of the information that is common between all
+derived classes. It is a sub-object to an object that can be instantiated.
+ 
+
+\textcolor{red}{Why an abstract class?}: One of the key features of class
+inheritance is that the pointer to a derived-class is type-compatible with a
+pointer to its base-class. An abstract class is served as the base-class {\it
+per se} and that an object cannot be instantiated from the abstract class.
+However, you can only have pointers or references to it, which enables us to
+achieve the above goal.
+
+Suppose Polygon is an abstract class, then
+\begin{verbatim}
+Polygon a; // ERROR
+Polygon * b; // OK
+
+Rectangle c;
+Polygon& base=c; //OK
+\end{verbatim}
+Sect.\ref{sec:reference-data-member} describe how to use reference.
+
+There are two ways to make a class becoming an abstract class:
+\begin{enumerate}
+  
+  \item it contains at least one {\it pure virtual function})
+  (Sect.\ref{sec:OO_pure-virtual-function}).
+
+Some time we use the term {\bf pure abstract class} to indicate an abstract
+class that only has pure virtual functions (and no data).
+  
+  \item it has a \verb!protected! constructor
+  (Sect.\ref{sec:protected_constructor}), i.e. we cannot create an object from
+  that class.
+
+  NOTE:  The \verb!default! specifier CANNOT be used with an abstract class.
+\end{enumerate}
+
+
+Even though we cannot define an object of abstract class type, we can define a
+pointer to that abstract class type. This pointer is often used to type-cast
+(dereference) to an object of the derived-class of the abstract base class.
+
+\begin{Verbatim}
+class Polygon {
+  protected:
+    int width, height;
+  public:
+    void set_values (int a, int b)
+      { width=a; height=b; }
+    virtual int area (void) =0;
+};
+
+class Rectangle: public Polygon {
+  public:
+    int area (void)
+      { return (width * height); }
+};
+
+class Triangle: public Polygon {
+  public:
+    int area (void)
+      { return (width * height / 2); }
+};
+
+int main () {
+  Rectangle rect;
+  Triangle trgl;
+  Polygon * ppoly1 = &rect;
+  Polygon * ppoly2 = &trgl;
+  ppoly1->set_values (4,5);
+  ppoly2->set_values (4,5);
+  cout << ppoly1->area() << '\n';
+  cout << ppoly2->area() << '\n';
+  return 0;
+}	
+\end{Verbatim}
+See the recommended way to use smart pointer (Sect.\ref{sec:smart_pointer}).
+
+\subsection{Public inheritance (default)}
+\label{sec:inheritance_public}
+
+The relationship between the derived class and the base-class is called {\bf
+IS-a} (is-a) relationship. It means that an object of derived-class type is also
+of base-class type. 
+
+Example: \verb!public! keyword is used
+\begin{Verbatim}
+class Parent {
+public:
+	void sleep() {}
+};
+
+class Child: public Parent {
+public:
+	void gotoSchool(){}
+};
+
+
+int main( ) 
+{ 
+	Parent parent;
+	Child child;
+
+	// upcast - implicit type cast allowed
+	Parent *pParent = &child; 
+
+	// downcast - explicit type case required 
+	Child *pChild =  (Child *) &parent;
+
+	pParent -> sleep();
+	pChild -> gotoSchool();
+		
+	return 0; 
+}
+\end{Verbatim}
+
+\subsection{Private inheritance}
+\label{sec:inheritance_private}
+
+When \verb!private! is used for inheritance, it means that the \verb!public!
+and \verb!protected! members of the base-class become the \verb!private! members
+of the derived class.
+
+\verb!private! inheritance is often used in combined with \verb!virtual! to
+make a class uninheratable - Sect.\ref{sec:OO_uninheritable-class}). Other
+usages:
+\begin{enumerate}
+  \item to expose some but not all the base-class's interface
+\end{enumerate}
+
+Example:
+\begin{Verbatim}
+class BaseClass {
+public:
+   // privMem accessible from member function
+   int pubFunc() { return privMem; }
+private:
+   void privMem;
+};
+
+class DerivedClass2 : private BaseClass {
+public:
+   // pubFunc() accessible from derived class
+   int usePublic() { return pubFunc(); }
+};
+\end{Verbatim}
+
+
+\subsection{Protected inheritance}
+\label{sec:inheritance_protected}
+
+
+\subsection{Object slicing}
+\label{sec:object-slicing}
+
+
+When passing the object by reference, the manipulation is on the original
+object, so there is no loss in information. 
+
+When passing the object by value, the manipulation is on a new copy of the
+original object. This is when the problem of 'object slicing' occur. The copy
+constructor of the base-class is called, thus it only copy the data defined in
+the base-class, but not in the derived-class. Then the copied object doesn't
+have all the extra information from the derived-class. Also, the called to {\it
+virtual} methods use the implementation from the base-class, not from the
+derived-class. In other words, the data and the methods from the original object
+is sliced. IN SUMMARY:
+ALWAYS {\bf pass-by-reference} with type-cast (Sect.\ref{sec:type-cast-C++}).
+When passing-by-reference, to avoid the object from being modified, we use
+\verb!const! keyword
+
+\begin{Verbatim}
+class General {
+public:
+	General(const string& s) : name(s) {}
+	virtual void eat() const {
+		cout << "animal: " << name << " eat()" << endl;
+	}
+private:
+	string name;
+};
+
+class Specific : public General {
+private:
+	string name;
+	string habitat;
+public:
+	Bird(const string& sp, const string &s, const string &h)
+		: Animal(sp), name(s), habitat(h) {};
+	virtual void eat() const {
+		cout << "bird: " << name << " eat() in " << habitat << endl;
+	}
+};
+
+void WhatAreYouDoingValue(General a) {
+	a.eat();
+}
+
+void WhatAreYouDoingReference(const Specific &a) {
+	a.eat();
+}
+int main ()
+{
+	vector<General> gVec;
+	Specific sp;
+	/* sp object is copied as a base class and
+	 put into gVec. So, its specialness is lost 
+	 during the copying*/
+	gVec.push_back(sp); 
+
+
+	Animal animal("Animal");
+	Bird bird("Eagle","Bald","US and Canada");
+
+	cout << "pass-by-value" << endl;
+	WhatAreYouDoingValue(animal);
+	WhatAreYouDoingValue(bird);
+
+	cout << "\npass-by-reference" << endl;
+	WhatAreYouDoingReference(animal);
+	WhatAreYouDoingReference(bird);
+	
+	return 0;
+}
+\end{Verbatim}
+Output:
+\begin{verbatim}
+pass-by-value
+animal: Animal eat()
+animal: Eagle eat()
+
+pass-by-reference
+animal: Animal eat()
+bird: Bald eat() in US and Canada
+\end{verbatim}
+
+
+\subsection{Multiple inheritance}
+\label{sec:OO_multiple_inheritance}
+
+A dreaded diamond scenario for multiple inheritance
+\begin{verbatim}
+This is
+virtual inheritance   multiple inheritance
+        A                 A      A
+       / \                |      |
+      B   C       -->     B     C
+       \ /                 \   /
+        D                    D
+\end{verbatim}
+Like this: A = top, B = left, C = right, B = bottom
+
+\begin{verbatim}
+class Top
+{
+public:
+   int a;
+};
+
+class Left : public Top
+{
+public:
+   int b;
+};
+
+class Right : public Top
+{
+public:
+   int c;
+};
+
+class Bottom : public Left, public Right
+{
+public:
+   int d;
+};
+\end{verbatim}
+
+The memory layout in GCC will looks like
+\begin{verbatim}
+Top object
+Top::a
+
+Left object
+Top::a
+Left::b
+
+
+Right object
+Top::a
+Right::c
+
+Bottom object
+Left::Top::a
+Left::b
+Right::Top::a
+Right::c
+Bottom::d
+\end{verbatim}
+
+Based on the memory layout, a Left object can be treated as it's a Top
+object. This is okay
+\begin{verbatim}
+Left* left = new Left();
+Top* top = left;
+\end{verbatim}
+
+Again, this is also okay, as a Bottom object can be treated as a Left object
+\begin{verbatim}
+Bottom* bottom = new Bottom();
+Left* left = bottom;
+\end{verbatim}
+
+
+Let's see the problem with this multiple inheritance. We cannot treat a Bottom
+object as a Right object as the memory layout of Bottom doesn't cover the memory
+layout of an Right object, and are not compatible.
+\begin{verbatim}
+Bottom* bottom = new Bottom();
+Right* right = bottom;
+\end{verbatim}
+		
+To resolve the problem above, \verb!right! pointer need to be
+adjusted and the memory location that \verb!right! pointer point to
+is given as follow, along with \verb!bottom! pointer points to
+\begin{verbatim}
+Bottom object
+Left::Top::a     <---   bottom pointer
+Left::b
+Right::Top::a    <--  right pointer
+Right::c
+Bottom::d
+\end{verbatim}
+
+
+Now, another problem arises, \verb!right! and \verb!bottom! doesn't point to the
+same location. Another ambituity is that, the below \verb!top! pointer doesn't
+know where it should point to, i.e. at \verb!bottom! pointer or \verb!right!
+pointer ?
+\begin{verbatim}
+Top* top = bottom;
+
+// error: `Top' is an ambiguous base of `Bottom'
+\end{verbatim}
+
+One possible solution is 
+\begin{verbatim}
+Top* topL = (Left*) bottom;
+Top* topR = (Right*) bottom;
+\end{verbatim}
+
+A better solution is to use virtual inheritance
+(Sect.\ref{sec:OO_virtual-inheritance}).
+
+\subsection{Virtual base classes. Virtual inheritance}
+\label{sec:OO_virtual-inheritance}
+
+Virtual base classes is used to avoid ambiguity in multiple inheritance
+(Sect.\ref{sec:OO_multiple_inheritance}). So, it should be used with virtual
+inheritance.
+
+Based on the example in the previous section, class Left and Right need both
+virtual inheritance from class Top.
+\begin{verbatim}
+class Top
+{
+public:
+   int a;
+};
+
+class Left : virtual public Top
+{
+public:
+   int b;
+};
+
+class Right : virtual public Top
+{
+public:
+   int c;
+};
+
+class Bottom : public Left, public Right
+{
+public:
+   int d;
+};
+\end{verbatim}
+So the new layout, from the programmer point of view
+\begin{verbatim}
+    A
+   / \
+  B   C
+   \ /
+    D
+\end{verbatim}
+so that only one instance of A inside D. From compiler's point of view.
+\begin{verbatim}
+Bottom
+Left::Top::a
+Left::b
+Right::c
+Bottom::d
+\end{verbatim}
+Here, again, we face the problem with Righ's pointer, as we cannot access a
+'real' Right object in the same way as an upcasted Bottom oject.
+\begin{verbatim}
+Right* right = bottom;
+\end{verbatim}
+
+
+\url{http://www.learncpp.com/cpp-tutorial/118-virtual-base-classes/}
+
+\url{http://www.phpcompiler.org/articles/virtualinheritance.html}
+
+
+
+\section{Methods for class inheritance}
+
+The below way of defining and implementing class's method is useful for class
+inheritance (Sect.\ref{sec:OO_inheritance}).
+
+\subsection{'virtual' member function}
+\label{sec:virtual_member-function}
+
+Suppose you have multiple classes that are related via inheritance
+(Sect.\ref{sec:inheritance_private}). 
+\begin{verbatim}
+class A ()
+{
+  void methodX();
+}
+
+class B: public A 
+{
+  void methodX();
+}
+\end{verbatim}
+
+Now, you define a pointer as of pointer type to base class; but you can use it
+to point to an object of a derived class. Then, when you call a function, the compiler does not know
+which implementation of the method (i.e. in which class) to use
+\begin{verbatim}
+A * pa; 
+
+if condition:
+   pa = new A();
+else
+   pa = new B();
+
+pa->methodX();  // LOOK HERE [use method of A or B ???]
+\end{verbatim}
+
+Typically, the address of the function is known at compile-time, as relative to
+the starting address of the object.
+However, in this scenario, it means that the address of the function is not
+known until run-time.
+
+The challenge when using non-virtual methods
+(Sect.\ref{sec:non-virtual-member-function}) in class inheritance is that if (1)
+both the base class and derived class implements the same method, (2) the object
+(from the derived class) is pointed by the pointer from the base class, then the
+compiler does not know if the real object the pointer pointing to is of derived
+class or base class and thus always use the base class's method.
+
+From C++98, to help the compiler know what to do, we need to tell the compiler
+that the method as \verb!virtual!. And the compiler uses a special data
+structure, known as vtable (virtual table) of fixed size, defined inside the
+object, and the value at one index of the table is the run-time known address of
+the implementation of the virtual function to use.
+
+
+A virtual member function is a function with \verb!virtual! keyword as prefix.
+Then, this virtual member function can be redefined (i.e. reimplemented) in the
+derived class [where it can have the virtual keyword or not; if it does not,
+then the derived class of this class cannot re-implement the method].
+\textcolor{red}{This is the single most important feature in Object-Oriented
+design}, starting from C++98 (Sect.\ref{sec:C++98_virtual-functions}).
+
+Importantly, you CAN'T change a non-virtual member function in the base
+class, into a virtual member function in the derived class.
+
+A related important concept is \textcolor{red}{pure virtual function}
+(Sect.\ref{sec:pure_virtual_function}), it means the class, having at least one
+pure virtual function is an abstract class.
+
+\subsection{-- WARNING: virtual function override intended?}
+
+When you have a virtual function in the parent class, and the derived class has
+a method of the same name, but different signature, and also does not
+implementing the parent's virtual function.
+
+A member function of a class does not override (Sect.\ref{sec:override}) any
+base class virtual member function. 
+If a class function definition has the same name as the virtual function in the
+base class, but not the same number or type of arguments, then this effectively
+hides the virtual function in the base calsss.
+
+Also, importantly, you CAN'T change a non-virtual member function in the base
+class, into a virtual member function in the derived class.
+
+
+\begin{lstlisting}
+class DataItem
+{
+   virtual void std::string getString(Error* error=0);
+}
+
+class ArrayDataItem : public DataItem
+{
+ // does not override 'getString'; nor define a new one of the same name
+}
+
+
+class NumericArrayDataItem : public ArrayDataItem
+{
+   // a new (can be pure) method of the same name of a virtual function in the parent
+   // you will get warning ' virtual function override intended?'
+   virtual void std::string getString(std::vector<int> coords, Error* error=0) const = 0;
+      
+   // to fix that (i.e. to unhide the function in the parent class)
+   // we need to tell the compiler to use 'setString(Error* error) from DataItem
+   using DataItem::getString;
+}
+\end{lstlisting}
+
+
+Example: a function in the drived class with the same name (regardless of that
+name is a method or a data member) in the base class always hide the name in the
+base class - hide a function often reflects a design error. If you don't want to
+hide, first make sure the name is a virtual function, and the one in the derived
+class has a matching function name and signature to the name in the base class.
+\begin{lstlisting}
+class InstanceFactoryDataItem : public DataItem
+{
+public:
+   virtual InstanceFactoryDataItem& operator=( const InstanceFactoryDataItem& DI);
+}
+
+
+class ConstantTypeDataItem : public InstanceFactoryDataItem
+{
+public:
+
+   //if you intend to hide the base method 'operator='
+   // so that a derived class always use the derived method
+   virtual ConstantTypeDataItem& operator=( const ConstantTypeDataItem& DI); 
+}
+\end{lstlisting}
+
+
+Example:
+\begin{lstlisting}
+struct B
+{
+   int object;
+   void func() {}
+};
+
+struct D: B
+{
+  void object() {};  // a funtion, and it hides the data member B::object
+  int func;   // a data member, and it hides B::func()
+}
+
+int main() {
+   D d; 
+   d.object = 5 ; // ERROR
+   d.func();      // ERROR
+
+}
+\end{lstlisting}
+
+
+\subsection{ -- in base class}
+\label{sec:virtual_member-function-in-base-class}
+
+In the base class, the \verb!virtual! member function can be declared with or
+without a body implementation. If a virtual member function without a body
+implementation, it is called a {\it pure virtual member function}
+(Sect.\ref{sec:OO_pure-virtual-function}), and any derived class MUST implement
+that pure virtual method.
+
+\begin{mdframed}
+
+IMPORTANT: {\it virtual function} and {\it virtual base class} are two different
+concepts, even though they use the same keyword \verb!virtual!. See virtual
+destructor (Sect.\ref{sec:OO_virtual-destructor}).
+\end{mdframed}
+
+Because of that, the purpose of using \verb!virtual! function is (1) (in the
+case of pure virtual function) tell the derived class to reimplement (augment or
+override) the method (Sect.\ref{sec:virtual_member-function-derived-class}), (2)
+allows the compiler to correctly call the method defined in both the base class
+and derived class.
+
+\textcolor{red}{Let's examine the following example to know why we need}
+\verb!virtual! function.
+
+Example: (based on the one in the previous section)
+If the method function is defined as \verb!virtual!, then the compiler
+can tell what class the pointer is referencing to, so that
+it can execute the appropriate implementation. Using virtual
+function, the compiler ensure that the replacement is always called, even if the
+member function to derived-class object is pointed by base-class object.
+\textcolor{red}{We will explain how the compiler handle this later.} 
+
+Example: use \verb!virtual! function (from the base-class).
+\begin{lstlisting}
+class Base
+{
+protected:
+ 
+public:
+    virtual const char* GetName() { return "Base"; }
+};
+ 
+class Derived: public Base
+{
+public:
+    virtual const char* GetName() { return "Derived"; }
+};
+\end{lstlisting}
+\verb!virtual! tells the program to go look and see if there are any
+more-derived versions of the function available, i.e. it checks for every
+inherited class between \verb!Base! and \verb!Derived! and use the most-derived
+version of the function.
+
+Generally, a derived-class can modify the method defined in the base-class.
+The new implementation can either fully replace the based-class's method
+implementation (i.e. {\it override})
+(Sect.\ref{sec:virtual_member-function-override}), or partially replace (i.e.
+{\it augment}) (Sect.\ref{sec:virtual_member-function-augment}).
+
+IMPORTANT: The function interface should be the same (i.e. same return type,
+same input types). However, there are the case when the return type can beq
+different (see below at RETURN TYPE). If we use different input types, it leads
+to the so-called {\it overloading} (Sect.\ref{sec:name_mangling}). To avoid this
+error that may occurs, C++11 add a new qualifier \verb!override!.
+
+\textcolor{red}{\bf RETURN TYPE}:
+\begin{itemize}
+  \item In normal cases, the return type of a virtual function and its override
+  must match.
+  \item Under special case, it can be different, e.g. the return type is a
+  pointer or a reference to a derived class, then the override functions can
+  return a pointer or a reference to a derived class. This is known as {\bf
+  covariant return types}.
+\end{itemize}
+
+\subsection{ -- in derived class}
+\label{sec:virtual_member-function-derived-class}
+
+When a derived class implements a virtual function defined in the base class
+(Sect.\ref{sec:virtual_member-function-in-base-class}), \textcolor{red}{in the
+derived class, we can use the } \verb!virtual! optionally for the virtual method
+in the base class, so the below two approaches are the same in effect and
+performance, yet the first approach is recommended for code cleaness
+\begin{verbatim}
+struct A {
+    virtual void hello() = 0;
+};
+
+// Approach 1 (recommended: more cleaner)
+struct B : public A {
+    virtual void hello() { ... }
+};
+
+// Approach 2
+struct B : public A {
+    void hello() { ... }
+};
+\end{verbatim}
+\url{http://stackoverflow.com/questions/4895294/c-virtual-keyword-for-functions-in-derived-classes-is-it-necessary}
+
+
+\subsection{* override}
+\label{sec:virtual_member-function-override}
+
+Overrriding a method means we replace the implementation of the method in the
+base class with a totally implementation of the same method in the derived
+class. To do so, we just define the method (in both classes) as \verb!virtual!
+and implement a new body.
+
+\begin{lstlisting}
+class Base
+{
+public:
+    // This version of GetThis() returns a pointer to a Base class
+    virtual Base* GetThis() { return this; }
+};
+ 
+class Derived: public Base
+{
+    // Normally override functions have to return objects of the same type as the base function
+    // However, because Derived is derived from Base, it's okay to return Derived* instead of Base*
+    virtual Derived* GetThis() { return this; }
+};
+\end{lstlisting}
+
+\subsection{* augment}
+\label{sec:virtual_member-function-augment}
+
+Augmenting a method means we add something to the existing implementation of the
+method in the base class to the implementation of the same method in the derived
+class. To do so, we define the method in both classes as \verb!virtual!, and
+inside the body of the method in derived class we call the body of the 
+method in the base class, before (in both classes) and implement a new body.
+
+NOTE: We often use this for \verb!void! method
+\begin{lstlisting}
+class Base
+{
+public:
+    // 
+    virtual void doSomething() { std:cout << "do something"; }
+};
+ 
+class Derived: public Base
+{
+    // 
+    virtual void doSomething() { 
+       Base::doSomething();
+       // now the augmented part
+       std::cout << "do something in derived class";
+    }
+};
+
+\end{lstlisting}
+\url{http://www.learncpp.com/cpp-tutorial/122-virtual-functions/}
+
+\subsection{* guarantee virtual method: override (C++11)}
+\label{sec:C++11_override}
+
+A typical mistake when overriding a virtual function (Sect.\ref{sec:virtual_member-function})
+
+Suppose you want to implement override of the \verb!virtual! function A().
+However, the below code leads to overloading of A()
+\begin{Verbatim}
+class Base
+{
+    virtual void A(float=0.0);
+    virtual void B() const;
+};
+ 
+class Derived: public Base
+{
+    virtual void A(int=0); // specifies parameter as int instead of float, treated as new function
+    virtual void B(); // specifies function as non-const, treated as new function
+};
+\end{Verbatim}
+
+To tell the compiler that we want an override method, so that it can help us to
+detect the mistake, C++11 adds a new keyword \verb!override! that we add behind
+the \verb!virtual! function
+\begin{Verbatim}
+class Base
+{
+    virtual void A(float=0.0);
+    virtual void B() const;
+    virtual void C();
+    void D();
+};
+ 
+class Derived: public Base
+{
+    virtual void A(int=0) override; // compile error because Derived::A(int) does not override Base::A(float)
+    virtual void B() override; // compile error because Derived::B() does not override Base::B() const
+    virtual void C() override; // ok!  Derived::C() overrides Base::C()
+    void D() override; // compile error because Derived::D() does not override Base::D()
+};
+\end{Verbatim}
+The use of \verb!override! doesn't create any new function, it just enable
+the compiler in helping to detect unexpected errors easier. \textcolor{red}{It
+is highly recommended to use the keyword in new C++11 code}. NOTICE: If an
+existing use \verb!override! as a variable, compiling the code with
+C++11-enabled compiler can break the code.
+
+\subsection{How g++ implement virtual functions?}
+\label{sec:virtual-function_GCC}
+
+
+
+
+
+
+
+
+
+\subsection{pure virtual function ( = 0)}
+\label{sec:OO_pure-virtual-function}
+
+A pure virtual function is
+\begin{itemize}
+  
+  \item  a virtual function
+(Sect.\ref{sec:virtual_member-function}), i.e. that is declared with
+\verb!virtual! at the beginning,
+
+  \item and has \verb!=0! at the end (an equal sign and a zero)
+\end{itemize}
+
+\begin{verbatim}
+class Polygon
+{
+ public:
+    virtual int area() = 0;
+    
+    virtual void attack() const = 0;
+}
+\end{verbatim}
+A class with a pure virtual function is an abstract class
+(Sect.\ref{sec:abstract_class_C++}).
+
+NOTE: The = 0 is not related to const. Putting \verb!const! after a member
+function indicates that the code inside it will not modify the containing object
+(except in the case of mutable members).
+This is useful because the compiler will report an error if you accidentally
+modify the object when you didn't intend to.
+
+
+
+IMPORTANT:
+\begin{enumerate}
+  
+  \item (if it is defined inside a class which means that class is an abstract class) 
+  
+  a pure virtual function MUST be implemented in the derived-class to make this
+  derived-class no longer abstract. If not, the derived class is still an
+  abstract class (Sect.\ref{sec:abstract_class_C++}) 
+  
+  \item the base asbtract class can have NO implementation, or can still define
+  an implementation. SO, \verb!= 0! means derived classes must provide an
+  implementation, not that the base class can not provide an implementation.
+  
+  There is very little point in providing a definition, because it will never
+  be called unless someone explicitly does. If the base class implements the pure
+  virtual function, then a derived class can explicitly call the base class
+  implementation (if access permissions allow it) by using a fully-scoped name
+  (by calling BaseClassName::functionName()
+
+\begin{verbatim}
+// A.h
+class A 
+{
+public:
+  virtual void f() = 0;
+}
+// A.cpp
+void A::f() {
+    cout<<"Test"<<endl;
+}
+
+//B.cpp
+class B : public A {
+
+    virtual void f() {
+        // class B doesn't have anything special to do for f()
+        //  so we'll call A's
+
+        // note that A's declaration of f() would have to be public 
+        //  or protected to avoid a compile time problem
+
+        A::f();
+    }
+
+};
+\end{verbatim}  
+\end{enumerate}
+
+
+\begin{Verbatim}
+// abstract class CPolygon
+class Polygon {
+  protected:
+    int width, height;
+  public:
+    void set_values (int a, int b)
+      { width=a; height=b; }
+    virtual int area () =0;
+};
+\end{Verbatim}
+
+\subsection{'friend' class/method}
+\label{sec:OO_friend-class_method}
+
+Having {\it friend} class/method is considered to violate the concept of
+encapsulation, i.e. as one class can get access to the internals of another.
+However, we can think of a friend class is  just an extend interface of it
+
+\subsection{* friend class}
+\label{sec:OO_friend-class}
+
+If you want class A to be able to 'see' (i.e. use directly) the
+\verb!protected! data from another class B, then declare class A as a friend of
+class B. How? inside class B, declare that class A is a friend of it
+\begin{verbatim}
+class B {
+
+   friend class A;
+}
+\end{verbatim}
+
+
+Example:
+\begin{verbatim}
+class Node 
+{
+    private: 
+    int data;
+    int key;
+    // ...
+
+    friend class BinaryTree; // class BinaryTree can now access data directly
+};
+
+class BinaryTree
+{
+    private:
+    Node *root;
+
+    int find(int key);
+};
+int BinaryTree::find(int key)
+{
+    // check root for NULL...
+    if(root->key == key)
+    {
+        // no need to go through an accessor function
+        return root->data;
+    }
+    // perform rest of find
+\end{verbatim}
+
+Example: VERY IMPORTANT (A forward declaration of a class creates an incomplete
+type, the class definition creates a complete type)
+\begin{verbatim}
+class A;  // we use forward declaration 
+class B {
+  int x;
+public:
+  B(int __x) : x(__x) {}
+  friend bool A::method(B*) const;   // error: undefined member cannot be friend
+//friend class A;                    // fine:  class A is declared and can be used
+};
+
+class A {
+  int y;
+pu8blic:
+  A(int __y) : y(__y) {} bool method(B*b) const { return y == b->x; }
+};
+\end{verbatim}
+The error you get \verb!invalid use of incomplete type! means
+\begin{verbatim}
+a forward declaration is not enough ... you need the class definition"
+\end{verbatim}
+The reason is that the time you define a friend method from class A, the
+compiler needs to know the full definition of A, yet forward declaration
+(Sect.\ref{sec:forward_declaration}) doesn't give that information.
+\textcolor{red}{The only time that forward declaration is acceptable is when you
+make pointers or a reference to that type, and you NEVER access to any of its
+member}. Here, we use forward declaration and we access to the member function
+\verb!A::method()!. So, the solution is to define the whole class A as
+\verb!friend! of class B. 
+
+\subsection{* friend method}
+
+A similar to friend method
+\begin{verbatim}
+SYNTAX: 
+friend return_type class_name::function(args); 
+\end{verbatim}
+
+
+\begin{verbatim}
+class B{
+
+    friend int A::methodA();
+}
+\end{verbatim}
+
+Example:
+\begin{verbatim}
+class Node 
+{
+    private: 
+    int data;
+    int key;
+    // ...
+
+    friend int BinaryTree::find(); // Only BinaryTree's find function has access
+};
+\end{verbatim}
+
+\begin{framed}
+\textcolor{red}{Can a PRIVATE member function of class A a friend of class B?}
+The answer is YES.
+\end{framed}
+
+
+\section{Uninheritable class or method (C++11 : 'final' specifier)}
+\label{sec:OO_uninheritable-class}
+
+We have learnt how we can extend a class using inheritance
+(Sect.\ref{sec:OO_inheritance}). There are situations that we don't want a class
+or a method to be inheritable. This class is called {\it final} (or frozen)
+class. This can be done in C++11 by adding \verb!final! keyword to the class
+definition or the method. [In Java, it uses 'final'; while C\# or C++ extension
+in Windows it uses 'sealed']. 
+
+
+Before C++11, there is some options: 
+\begin{enumerate}
+  \item  defining the class as \verb!public virtual!.  Here, we need a
+  ClassSealer that help creating an uninheratable class.
+\end{enumerate}
+
+Example 1: 
+\begin{Verbatim}
+class ClassSealer {
+private:
+   friend class Sealed;
+   ClassSealer() {}
+};
+
+class Sealed : private virtual ClassSealer
+{ 
+   // ...
+};
+
+
+class FailsToDerive : public Sealed
+{
+   // Cannot be instantiated
+};
+\end{Verbatim}
+
+
+
+WHEN TO USE ? when we want an {\it immutable } class stays immutable
+(Sect.\ref{sec:OO_immutable-mutable}).
+
+RECOMMENDATION ? Generally, it's not recommended to use \verb!final! unless we
+need to. If we use, we need to document the code for others to know why it's
+uninheratable.
+
+Example: uninheratable method
+\begin{Verbatim}
+class Base
+{
+    virtual void A() final; // final identifier marks this function as non-overrideable
+};
+ 
+class Derived: public Base
+{
+    virtual void A(); // trying to override final function Base::A() will cause a compiler error
+};
+\end{Verbatim}
+
+
+Example: uninheratable class (put the \verb!final! specifier before the opening
+\verb!{! if the class inherit from nothing, or before \verb!: base1, base2!)
+\begin{Verbatim}
+class Base final // final identifier marks this class as non-inheritable
+{
+};
+ 
+class Derived: public Base // trying to override final class Base will cause a compiler error
+{
+};
+\end{Verbatim}
+or
+\begin{Verbatim}
+class Base1 
+{
+};
+class Base2
+{
+};
+ 
+class Derived final: public Base1, Base2  
+{   // the final class
+};
+
+
+\end{Verbatim}
+\section{Function object (functors)}
+\label{sec:functor}
+\label{sec:function-object}
+
+In old time, a C function when being passed as an argument to other function in
+the form of {\it function pointer} (Sect.\ref{sec:function_pointer}) and is
+called a {\bf callback}.
+It means that the callee is expected to {\it call back} (execute) the (function) argument at some
+convenient time. However, there are some restriction using callback, e.g.
+passing state into or returning out of the callback function sometime difficult.
+
+\begin{verbatim}
+/* Callback function */
+int compareInts(void* a, void* b) {
+  return *((int *)(a)) < *((int *)(b));
+}
+...
+/* Declaration of C sorting function */
+void sort(void* firstItem, size_t itemSize, void* lastItem, int (*cmpfunc)(void *, void *));
+...
+int main(void) {
+    int items[] = {4, 3, 1, 2};
+    sort((void *)(items), sizeof(int), (void *)(items + 3), compareInts);
+    return 0;
+}
+\end{verbatim}
+
+To resolve the issues, C++ offers a solution call a {\bf function object} (aka
+functors, or functional) is used. A functor is an ordinary class/struct, with an
+overload of \verb!()! operator. So, syntactically they behave like ordinary
+function, under the hood they are  real objects, i.e. they are {\bf object +
+()}; and as such it causes an overhead of object creation
+
+Functors are any objects that can be used with {\bf ()} operator in the manner
+of a function. In C++, we need to use the header file \verb!<functional>! to
+write a functor. As a functor, you're allowed to
+overload the ``function call'' operator (i.e. the operator ()). Here, the
+function call operator can take any number of arguments of any types and return
+anything it wishes to.
+
+
+So, a normal function, a function pointer, or a class object can be a functor
+for which the {\bf ()} operator is overloaded in the class implementation, i.e.
+we need to define the function \verb!operator()()!.
+\begin{verbatim}
+struct IntComparator {
+  bool operator()(int a, int b) const {
+    return a < b;
+  }
+};
+\end{verbatim}
+
+
+
+C++11 provides a class template \verb!std::function!. Instances of this class,
+or derivatives from this class can store, copy, and invoke any callable
+target-functions, lambda expressions (expressions defining anonymous functions),
+bind expressions (instances of function adapters that transform functions to
+other functions of smaller arity by providing values for some of the arguments),
+or other function objects. 
+\footnote{\url{http://en.wikipedia.org/wiki/Functional_(C++)}}
+
+\section{Mutable vs. Immutable objects}
+\label{sec:OO_immutable-mutable}
+
+In object-oriented (OO) and functional programming, an {\bf immutable object} is
+an object from of an immutable class, i.e. the object's state CANNOT be modified
+after it is created. This is in contrast to {\bf mutable objects}. To create an
+immutable class, we need also to use \verb!final! keyword (from C++11 -
+Sect.\ref{sec:OO_uninheritable-class}) to avoid the derived-class of it which
+add a new function that could cause the class to be come mutable.
+
+The reason of using {\bf immutable objects} is that they are thread-safe,
+simpler to understand, higher security than mutable objects. In C++, we need to
+provide 2 different ``get'' methods, e.g. getItems(). This concept in C/C++ is
+called {\it const-correctness}.
+\begin{verbatim}
+template<typename T>
+class Cart {
+  private:
+   std::vector<T> items;
+ 
+  public:
+   Cart(const std::vector<T>& v): items(v) { }
+ 
+   std::vector<T>& getItems() { return items; }
+   const std::vector<T>& getItems() const { return items; }
+   int total() const { /* return sum of the prices */ }
+ };
+\end{verbatim}
+
+\section{Template}
+\label{sec:templat-C++}
+
+A template enables the benefit of dynamic polymorphism, without the extra runtime costs of virtual functions.
+
+\subsection{Non-type template}
+
+\begin{verbatim}
+
+template<auto n> struct B {  };
+
+
+B<5>  b1;  // here we pass in the value '5', not a type name
+\end{verbatim}
+
+\subsection{Type template}
+
+We can use \verb!class! of \verb!typename! interchangably. However, using \verb!typename! is the choice since 
+C++17.
+
+\begin{verbatim}
+// NOTE: 'NAME' is optional
+template <typename NAME, ...>
+
+template <class NAME, ...>
+
+// since C++11, we can mix using 'typename' and 'class'
+template <typename|class NAME = default, ....>
+
+\end{verbatim}
+
+For type template, the argument at the time of use, must be a type-name (or
+class name).
+
+\subsection{Template template parametr}
+ 
+\begin{verbatim}
+template <typename T>
+class my_array
+{
+}
+
+// 2 type-template paramaters and 1 template-template parameter
+template <typename K, typename V, template<typename> typename C  = my_array>
+class Map
+{
+   C<K> key;
+   C<V> value;
+}
+\end{verbatim}
+
+
+\subsection{Where to put it}
+
+We can put the template as part of the class (Sect.\ref{sec:class-template} -
+which leads to creating multiple class), or inside the class for the function of
+that class only (Sect.\ref{sec:member-template} - which leads to creating
+multiple functions for one class).
+
+\subsection{Member template}
+\label{sec:member-template}
+\label{sec:template-member}
+
+\begin{verbatim}
+template <class T>
+class MyClass
+{
+  void MyFunc();
+  
+  // this is the member template
+  template <class T2>
+  static void MyFunc2(T2* data);
+}
+
+
+template <class T>
+void MyClass<T>::MyFunc()
+{
+}
+
+//ERROR: unable to match function definition to an 
+// existing declaration
+template <class T, class T2>
+void MyClass<T>::MyFunc2(T2* data)
+{
+}
+\end{verbatim}  
+
+A template can be declared within a class, and is thus called a member template.
+A member template can be defined within or outside its class definition or class
+template definition.
+
+\begin{enumerate}
+  \item A {\bf member template of a class template} that is defined outside of its class template definition
+  shall be specified with (1) the template-parameters of the class template, followed by (2) 
+  the template-parameters of the member template,
+  
+\begin{verbatim}
+// CORRECT code
+template <class T>
+template <class T2>
+void MyClass<T>::MyFunc2(T2* data)
+{
+}
+\end{verbatim}  
+
+\end{enumerate}
+
+\subsection{Class template}
+\label{sec:template-class}
+\label{sec:class-template}
+
+Class template is the class that has \verb!template<class T1, class T2, ..>! 
+
+\begin{verbatim}
+template <class T1, class T2>
+class ClassA{
+
+  void method();
+}
+
+
+template <class T1, class T2>
+void ClassA<T1, T2>::method()
+{
+
+}
+
+\end{verbatim}
+
+
+\textcolor{red}{template: typename vs. class}:
+\label{sec:typename-vs.-class}
+\label{sec:class-vs.-typename}
+
+
+Why we support both \verb!class! and \verb!typename! within C++ to indicate a type parameter
+since the keywords do not hold any platform significance? The reason for the two keywords is historical
+\begin{enumerate}
+  
+  \item (In the original template specification): Stroustrup reused the existing
+  class keyword to specify a type parameter rather than introduce a new keyword
+  that might of course break existing programs
+  
+  Until the ISO-C++ standard, this was the only way to declare a type parameter.
+
+  However, this causes problems
+\begin{verbatim}
+template <class T>
+
+class Demonstration {
+
+public:
+
+void method() {
+
+    T::A *aObj; // oops …
+
+     // …
+
+};
+\end{verbatim}
+
+aObj is intended by the programmer to be interpreted as the declaration of a
+pointer to a nested type A within the type parameter T. 
+
+BUT,  the language grammar interprets it as an arithmetic expression multiplying
+the static member A of type T with aObj and throwing away the result
+
+
+  \item To resolve the above issue, \verb!typename! specifier is added so that it knows that we're using nested type
+  of a template parameter.
+
+\begin{verbatim}
+typename T::A* a6; // declare pointer to T’s A
+\end{verbatim}
+\end{enumerate}
+\url{https://blogs.msdn.microsoft.com/slippman/2004/08/11/why-c-supports-both-class-and-typename-for-type-parameters/}
+
+
+Based on the above explaination, \verb!typename! and \verb!class! are
+interchangeable in the basic case of specifying a template: the two ways below
+are equivalent.
+\begin{lstlisting}
+template < typename T >
+class A {..}
+
+
+template < class T >
+class A {..}
+\end{lstlisting}
+
+However, there are scenarios that they are different:
+\begin{enumerate}
+  
+ % \item if you use \verb!typename!, then \verb!T! can be anything, including built-ins (such as an array )
+  
+  
+  
+  \item  when you're refering to a nested type that depends on another template parameter, then you MUST use \verb!typename!
+  
+\begin{verbatim}
+template<typename param_t>
+class Foo
+{
+    typedef typename param_t::baz sub_t;
+};
+\end{verbatim}
+  
+  
+  \item (until C++14) when you have a template is a class which itself is also a template
+  class, then \verb!class! is used for a different purpose (referring to a
+  template class)
+  
+\begin{lstlisting}
+
+template < template < typename, typename > class Container, typename Type >
+class Example
+{
+     Container< Type, std::allocator < Type > > baz;
+};
+\end{lstlisting}
+
+(note: since C++17 both keywords are allowed in this case).
+
+   \item use \verb!class! when instantiating a template
+   
+\begin{verbatim}
+template class Foo<int>;
+\end{verbatim}
+\end{enumerate}
+
+
+\section{Template vs. Abstract base class}
+\label{sec:template-vs-abstract-base-class}
+
+To make a class flexible (adaptable), we can use abstract base class
+(Sect.\ref{sec:abstract_class_C++}). No object can be created from this class.
+Instead, it defines common methods, that its derived class can choose a specific
+implementation. Typically, with abstract class, we also have virtual member
+function (Sect.\ref{sec:virtual_member-function}). The purpose of using abstract
+class and virtual function is for late-binding (Sect.\ref{sec:late-binding}) and
+is considered as dynamic polymorphism. For virtual function, a virtual table is
+used to know what method to use for that object at run-time, which comes at
+certain cost of vtable lookup.
+
+
+\textcolor{red}{Example 01:}
+{\small \begin{verbatim} 
+class Brake {
+public: virtual void stopCar() = 0;  
+};
+
+class BrakeWithABS : public Brake {
+public: void stopCar() { ... }
+};
+
+class Car {
+  Brake* _brake;
+public:
+  Car(Brake* brake) : _brake(brake) { brake->stopCar(); }
+};
+\end{verbatim}
+}
+
+\textcolor{red}{Example 02:}
+\begin{verbatim}
+class Logger
+{
+  void warning() { write()};
+  virtual void write() = 0;
+}
+class File_Logger: public Logger
+{
+   virtual  /* optional to have this keyword - we use if there is a chance that File_Logger is also derived */
+   void write() { /* write for File logger */};
+}
+
+class Network_Logger: public Logger
+{
+   virtual  /* optional to have this keyword - we use if there is a chance that File_Logger is also derived */
+   void write() { /* write for Network logger */};
+}
+\end{verbatim}
+
+% \textcolor{red}{The using of method 1 when we decide to select different
+% 'brake' class at {\bf runtime}, i.e. runtime polymorphism or the choice is
+% made at runtime}.
+
+Another option is using Template (Sect.\ref{sec:template-C++98}) which is considered as 
+static polymorphism.
+
+\begin{verbatim}
+template<class Brake>
+class Car {
+  Brake brake;
+public:
+  Car(){ brake.stopCar(); }
+};
+\end{verbatim}
+\textcolor{red}{Using template is recommended. It's safer (compile-time error
+rather than runtime error), and probably can give better optimization}. 
+
+There is a strategy for converting from using virtual method to template class.
+NOTICE: The Logger class is now a template class, and it accepts another class 
+as template and this class is supposed to implement the \verb!write! function
+\begin{lstlisting}
+template <class T>
+class Logger: public T
+{
+  void warning() { this->write()};
+}
+
+class File_Writer
+{
+   void write() { /* write for File logger */};
+}
+
+class Network_Writer
+{
+   void write() { /* write for Network logger */};
+}
+
+#typedef Logger<File_Writer>   File_Logger;
+#typedef Logger<Network_Writer> Network_Logger;
+
+
+\end{lstlisting}
+
+The third option is using Template with private inheritance
+(Sect.\ref{sec:inheritance_private})
+\begin{verbatim}
+template<class Brake>
+class Car : private Brake {
+  using Brake::stopCar;
+public:
+  Car(){ stopCar(); }
+};
+\end{verbatim}
+\textcolor{red}{Private inheritance should be avoided in
+general}\footnote{\url{http://www.gotw.ca/publications/mill06.htm}}.
+
+\section{Method override}
+\label{sec:method_overriding}
+
+In OO programming, {\bf method overriding} is about overriding
+(Sect.\ref{sec:override}) for a class's method.
+
+This feature allow a subclass (child class) to provide a specific implementation
+of a method that is already provided in one of its superclasses (parent
+classes). One of the methods is in the parent class and the
+other is in the child class.
+
+When a method is overrided, by default, at runtime, the method is used by the
+class pointer at declaration, not the exact object it points to.
+
+To enable that which method to be invoked depends on the object, we declare it
+using \verb!virtual! keyword.
+
+\begin{lstlisting}
+class animal
+{
+    void /*nonvirtual*/ move() { cout << "This animal moves in some way" << endl; }
+    virtual void eat() {}
+};
+
+// The class "animal" may possess a deceleration for eat() if desired.
+class fish : public animal
+{
+    // The non virtual function move() is inherited but cannot be overloaded
+    void eat() { cout << "Fish ingest food through the mouth and break it down in the esophagus." << endl; }
+    
+    // we can use 'virtual' again
+    //virtual void eat() { cout << "Fish ingest food through ..." << endl; } 
+};
+\end{lstlisting}
+
+This is a more complicated case when a subclass has more than one parent.
+\begin{lstlisting}
+class marine {
+   virtual void eat() { //eat something different };
+}
+
+// The class "animal" may possess a deceleration for eat() if desired.
+class fish : public animal,
+             public marine
+{
+    virtual void eat() { cout << "Fish ingest food through ..." << endl; } 
+};
+\end{lstlisting}
+
+
+The parent class can be 
+
+
+\section{Make the class printable with $cout \ll$}
+
+
+Suppose that you have a class, and you want an object of that class to be used
+in \verb!cout <<! statement
+\begin{verbatim}
+myClass inst;
+cout << inst;
+\end{verbatim}
+
+How does the operator \verb!<<! know what to with \verb!inst! object?
+In the class definition, we need to define a \verb!friend! method
+\begin{verbatim}
+namesapce SomeNamespace{
+
+class myClass  //struct myClass
+{
+public:
+  friend std::ostream &operator<<(std::ostream &, myClass const &)
+  
+private:
+ char array[SOME_FIXED_SIZE];
+}
+
+std::ostream & operator<<(std::ostream & out, const MyClass &inst)
+{ //we can decide what to print out here
+   out << write(inst.array, SOME_FIXED_SIZE);
+   return out;
+}
+
+} //end SomeNamespace
+\end{verbatim} 
+IMPORTANT: The operator \verb!<<! need to be defined in the same namespace as
+the object as well.
+
+
+\section{ref class/struct (C++/CLI)}
+\label{sec:ref_class}
+
+a \verb!ref! is required if we want to create a managed class, i.e. a class that
+can be used with other .NET applications (e.g. C\#) and C++/CLI. A \verb!ref!
+class/struct that should be allocated on the managed heap. In other words, it
+creates a reference type managed by the C++/CLR. 
+
+NOTE: In Managed C++, it uses \verb!__gc! keyword, and in C++/CLI, it uses
+\verb!ref! keyword.
+\begin{verbatim}
+// Managed C++
+__gc  class Block  {};
+
+// C++/CLI
+ref class Block {}; 
+\end{verbatim}
+
+\begin{framed}
+CLR use a separate heap (managed heap) on which it implements a precise,
+asynchronous, compacting garbage collection scheme. To work correctly, it must track all storage
+locations that can point into this heap at runtime. \verb!^! provides a handle
+(similar to the concept of a pointer) through which the garbage collector can
+track a reference to an object on the managed heap, thereby being able to update
+it whenever that object is moved. 
+\end{framed}
+
+\begin{verbatim}
+ref class platformDependent
+{
+public:
+	platformDependent(void);
+	static void downloadLotsOfLocation ();
+	static LocationList loc;
+};
+\end{verbatim}
+
+
+\begin{framed}
+\verb!out! is limited to C\# only. The out concepts is achieved via a mod opt I
+believe and most languages ignore it. 
+\end{framed}
+\section{Run-time class-type comparison (std::is\_same)}
+\label{sec:is_same}
+
+
+\section{Assignment operator: operator=()}
+\label{sec:operator=()}
+
+Assignment, or operator=, is a function that requires careful consideration
+before you make it virtual.
+
+\begin{mdframed}
+
+\textcolor{red}{Slicing issue}:
+"Slicing" is where you assign an object of a derived class to an instance of a
+base class, thereby losing part of the information - some of it is "sliced"
+away. For example, class A { int foo; }; class B : public A { int bar; }; So an
+object of type B has two data members, foo and bar .
+
+\end{mdframed}
+
+If you have a base TBase and its derived class TDerived, and TBase has virtual
+operator=, then TDerived might need to override TBase::operator=, in addition to
+defining its own operator=.
+\begin{enumerate}
+
+  \item If TDerived defines virtual operator=, its subclasses must override
+  TBase::operator= and TDerived::operator=, in addition to defining their own
+  operator=. And so on.
+  
+  Clearly this gets out of hand quickly. It only makes sense to make assignment
+  virtual when there are additional restrictions that keep this geometric
+  progression from occurring.
+  
+  \item If special case handling is not necessary, the derived version can just call the base class version:
+
+\begin{verbatim}
+TDerived& TDerived::operator=(const TDerived &d)
+  {
+      TBase::operator=(d);
+  }
+\end{verbatim}
+\end{enumerate}

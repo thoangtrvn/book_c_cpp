@@ -1,0 +1,715 @@
+\chapter{C/C++ APIs in Windows}
+\label{chap:CCpp_Windows}
+
+Here, we do not discuss the API for graphics, audio, video.
+This is covered in another book - {\bf GUI development}.
+
+To provide interface working with the Windows O/S, Windows API was developed
+(Sect.\ref{sec:WinAPI}) which is in C language.
+To provide object-oriented APIs via C++ language, MFC that wraps WinAPI was
+developed (Sect.\ref{sec:MFC}).
+
+To provide interface with .NET languages via C++ language, different
+technologies have been developed: Managed C++ (Sect.\ref{sec:managed_C++}),
+C++/CLI (Sect.\ref{sec:C++/CLI}).
+
+Windows RT is the version of Windows running on ARM processors.
+To support ARM processors in Windows 8.x, only a subset of current Windows APIs
+is available (Sect.\ref{sec:WindowsAPI_Windows-RT})
+
+To support the new WinRT APIs, C++/CX (Sect.\ref{sec:C++/CX}) was developed.
+
+\section{C Runtime (CRT) Library}
+\label{sec:CRT}
+\label{sec:Standard-C-library-Windows}
+
+Microsoft implemented the C standard library (Sect.\ref{sec:C-standard-library})
+in the set of library files and call it {\bf C Runtime (CRT) library}. The
+library files are built without \verb!iostream! or standard C++ library.
+
+The library files are provided in 
+\begin{itemize}
+  
+  \item single-threaded: compiled with /ML or /MLd option (\textcolor{red}{it is
+  no longer available since VS 2005})
+
+\begin{verbatim}
+libc.lib
+libcd.lib           (debug version)
+\end{verbatim}  
+  
+  \item multi-threaded: compiled with /MD or \verb!/MDd! option.
+  
+First column: library you can use. Second column: the compiling option used to
+compile that library, and it is the compiling option you need to use for able to
+use the library in the first column. Third column: the macros that are defined
+once the compiling option in the second column is used
+  
+\begin{verbatim}
+            compile your code with      preprocessor directives
+libcmt.lib       /MT                    _MT
+        //This one is statistically linked
+        
+msvcrt.lib       /MD               _MT, _DLL
+       /*This one serves as import library (dynamically linked)
+       for msvcr71.dll or msvcr80.dll or msvcr90.dll
+       depending on Visual C++ version
+       */ 
+
+libcmtd.lib      /MTd
+msvcrtd.lib      /MDd
+       /*This one serves as import library (dynamically linked)
+       for msvcr71d.dll or msvcr80.dll or msvcr90.dll
+       depending on Visual C++ version
+       */
+\end{verbatim}
+The concept of {\it import library} is given in Sect.\ref{sec:import_library}
+
+Since VS 2005, library files for managed code (C++/CLI) is added
+\begin{verbatim}
+msvcmrt.lib            /clr
+             (import library for
+             msvcm80.dll)
+             
+msvcurt.lib           /clr:pure
+             (import library for
+             msvcm80.dll)             
+\end{verbatim}
+\end{itemize}
+\url{https://msdn.microsoft.com/en-us/library/vstudio/abx4dbyh(v=vs.71).aspx}
+
+When you build a release version of your project, one of the basic C run-time
+libraries (LIBC.LIB, LIBCMT.LIB, and MSVCRT.LIB) is linked by default, depending
+on the compiler option you choose (single-threaded, multithreaded, or DLL).
+
+\subsection{msvcrt.dll vs. msvcr**.dll}
+
+\textcolor{red}{msvcrt.dll vs. msvcr**.dll}: Applications built with older
+versions of Visual C++ (4.2 to 6.0) are linked to mscvrt.dll. This is not
+recommended in newer versions of Visual C++ (8.0, 9.0, \ldots) It should use
+static version of CRT library or DLL version of CRT library with a version
+number as part of dll names(msvcr80.dll,msvcr90.dll,etc.).
+
+\begin{mdframed}
+
+\verb!msvcrt.dll! is a C Runtime Library but is supposed to be a system
+component owned and built by Windows, and should not be used directly in an
+application. Windows can continuously updates this library via service packs or
+hot fixes.
+
+
+Once you develop a C/C++ application in Windows, you should use
+\verb!msvcr71.dll! (or another \verb!msvcr**.dll! file) and keep a copy of this
+DLL in the application's folder. In Visual C++ 7.0, any application built with
+Visual C++ .NET using the /MD switch will necessarily use msvcr71.dll.
+\end{mdframed}
+
+%If you have more than one DLL or EXE in the project, there is a chance that
+
+NOTE: you link to the import library \verb!msvcrt.lib! and it will dynamically
+link to the right DLL library depending on which Visual Studio version you use
+
+\begin{enumerate}
+  \item VS 2002: \verb!msvcr70.dll!
+  \item VS 2003: \verb!msvcr71.dll!
+  \item VS 2005: \verb!msvcr80.dll!
+  \item VS 2008:  \verb!msvcr90.dll!
+\end{enumerate} 
+\url{http://support.microsoft.com/kb/KbView/154753}
+
+
+
+\section{C++ Runtime Library}
+\label{sec:C++_RT}
+
+Since VS2003,  Visual C++ will no longer ship the old iostream libraries
+(Sect.\ref{sec:iostream_library}).
+\url{https://msdn.microsoft.com/en-us/library/vstudio/ct1as7hw(v=vs.71).aspx}
+
+The library files are 
+\begin{itemize}
+  
+  \item single-threaded: compiled with /ML or /MLd option (\textcolor{red}{it is
+  no longer available since VS 2005})
+
+\begin{verbatim}
+libcp.lib
+libcpd.lib           (debug version)
+
+\end{verbatim}  
+  
+  
+  \item multi-threaded: compiled with /MD or \verb!/MDd! option.
+\begin{verbatim}
+                compiled with      preprocessor directives
+libcpmt.lib       /MT               _MT
+        //This one is statistically linked
+        
+msvcprt.lib       /MD               _MT, _DLL
+       /*This one serves as import library (dynamically linked)
+       for msvcpr71.dll or mscvpr80.dll or msvcpr90.dll
+       */ 
+
+libcpmtd.lib      /MTd
+msvcprtd.lib      /MDd
+       /*This one serves as import library (dynamically linked)
+       for msvcpr71d.dll or mscvpr80d.dll or msvcpr90d.dll
+       */
+\end{verbatim}
+The concept of {\it import library} is given in Sect.\ref{sec:import_library}
+
+\end{itemize}
+
+\subsection{msvcpp.dll vs. msvcpr**.dl}
+\label{sec:msvcpp.dll}
+
+\textcolor{red}{msvcpp.dll vs. msvcpr**.dll}: Applications built with older
+versions of Visual C++ (4.2 to 6.0) are linked to mscvpp.dll. This is not
+recommended in newer versions of Visual C++ (8.0, 9.0, \ldots) It should use
+static version of CRT library or DLL version of CRT library with a version
+number as part of dll names(msvcpr80.dll, msvcpr90.dll,etc.).
+
+%\section{Linking with static or dyna}
+\subsection{iostream library (new vs. old)}
+\label{sec:iostream_library}
+
+Old iostream headers
+\begin{verbatim}
+fstream.h
+iomanip.h
+ios.h
+iostream.h
+istream.h
+ostream.h
+streamb.h
+strstrea.h
+\end{verbatim}
+
+Since Visual Studio 2003, the new implementation of the iostream library do not have \verb!.h! suffix.
+\begin{verbatim}
+<fstream>
+<iomanip>
+<ios>
+<iosfwd>
+<iostream>
+<istream>
+<ostream>
+<sstream>
+<streambuf>
+<strstream>
+\end{verbatim}
+\url{https://msdn.microsoft.com/en-us/library/aa984818(v=vs.71).aspx}
+
+
+\url{http://support.microsoft.com/kb/KbView/154753}
+
+
+NOTE: Replace (Sect.\ref{sec:iostream})
+\begin{verbatim}
+#include <iostream.h>
+\end{verbatim}
+
+with
+\begin{verbatim}
+using namespace std;
+
+#include <iostream>
+\end{verbatim}
+\url{http://stackoverflow.com/questions/8506857/how-can-i-use-the-old-iostream-h-in-c-visual-studio-2010}
+
+
+\section{Extension to C in Windows}
+\label{sec:C_Windows}
+
+\subsection{Windows API (WinAPI, Win32)}
+\label{sec:WinAPI}
+
+To provide interface working with the Windows O/S, Windows API is the
+Microsoft's core set of API (WinAPI, Win32) written in C programming language.
+Even though C has no object-oriented support, the WinAPI has sometimes been
+described as object-oriented. Wrapper classes and extensions have been
+developed that use WinAPI, e.g. MSFC (Sect.\ref{sec:MFC}), VCL, GDI+
+(Sect.\ref{sec:GDI+}).
+
+WinAPI is Unicode-friendly, i.e. it provides a macro for switching back and
+forth between ANSI and Unicode (Sect.\ref{sec:string_Windows}). The
+narrow-character version end with 'A', and the wide-character version end with
+'W', and the generic version which is just a macro that call to either version
+of the function by accepting \verb!TCHAR*! type.
+
+\begin{verbatim}
+DeleteFile   <-  Takes a TCHAR string (LPCTSTR)
+DeleteFileA  <-  Takes a char string (LPCSTR)
+DeleteFileW  <-  Takes a wchar_t string (LPCWSTR)
+\end{verbatim}
+
+
+
+\subsection{MSFC (MFC)}
+\label{sec:MFC}
+
+Microsoft Foundation Class Library (MSFC, MFC) wraps the WinAPI
+(Sect.\ref{sec:WinAPI}) in C++ classes.
+Thus, it's important to know WinAPI first.
+MFC was first introduced in 1992 (Microsoft C/C++ 7.0 compiler for 16-bit
+applications). Direct call to WinAPI is rarely used. Instead, programmers
+create an object from one of MFC classes. To use MFC, all codes need to include
+the pre-compiled \verb!stdafx.h! header file, and the functions/macros have
+prefix \verb!Afx!.
+
+\url{http://en.wikipedia.org/wiki/Microsoft_Foundation_Class_Library}
+
+MFC is not included with the free version Visual C++ Express, but in the
+commercial version Visual C++ 2010.
+\begin{itemize}
+  \item MFC 8.0 was released with Visual Studio 2005.
+
+  \item MFC 9.0  was released with Visual Studio 2008. 
+\end{itemize}
+A light-weight alternative to MFC is Windows Template Library (WTL). Visual C++
+Express use WTL, if Active Template Library is installed.
+
+MFC is no longer widely used, as people changed to .NET framework.
+ 
+\section{Extension to C++ in Windows}
+\label{sec:VC++_Windows}
+
+Microsoft Visual C++ IDE allows you to program code in different
+languages: C, C++ and C++/CLI. Managed C++ is a deprecated feature
+(Sect.\ref{sec:managed_C++}), and the current Windows version is C++/CLI
+(Sect.\ref{sec:C++/CLI})
+
+\subsection{Managed C++	 (deprecated)}
+\label{sec:managed_C++}
+
+Managed C++ (Managed Extension for C++) is a deprecated Microsoft set of
+extension (grammar, keyword, attributes) that allows you to write both native
+code and managed code in the same program.  In other words, you can take
+advantage of the powerful C++ code, and can write managed code to run on .NET
+CLR to take advantage of the garbage collection which relieves the programmer
+from memory management.
+
+Managed C++ is used in Visual Studio 2002 and 2003. Managed C++ is replaced by
+C++/CLI since VS 2005 (Sect.\ref{sec:C++/CLI}). However, Managed C++ code can
+also be compiled in the newer version of Visual Studio using
+\verb!/clr:oldSyntax! option (Sect.\ref{sec:VC++_2005}).
+
+
+
+\textcolor{red}{New using directive and new namespace so that .NET data type can
+be used}: A Managed C++ code file needs to tell which .NET library to use and
+which namespace of the file to use, i.e. having a new using directive and a new
+using namespace directive
+\begin{verbatim}
+//hello.cpp
+// compile with: /clr /LD
+
+// this is required
+#using <mscorlib.dll>
+
+using namespace System;
+
+
+// We can use .NET classes in Managed C++ code 
+int main()  {
+  Console::WriteLine("Hello, world!");
+  return 0;
+}
+\end{verbatim}
+
+The intrinsic managed type from .NET can be used in Managed C++. 
+Example: we can use either \verb!UInt32! or \verb!unsigned int! in Managed C++
+\begin{verbatim}
+   C#         .NET type        Managed C++
+   uint       System.UInt32     unsigned int
+\end{verbatim}
+\url{http://msdn.microsoft.com/en-us/library/0wf2yk2k.aspx}
+
+NOTE: We can also import more Base Class Library (check C\# book)
+\begin{verbatim}
+#using <System.Windows.Forms.dll>
+
+using namespace System::Windows::Forms;
+\end{verbatim} 
+
+\textcolor{red}{New compiling option}: \verb!/clr! enables any code referencing the .NET Framework to be compiled as CIL. {\bf To compile into DLL, we need to add /LD option. This is the known limitation.}
+
+\begin{Verbatim}
+cl.exe hello.cpp /clr
+
+cl.exe hello.cpp /clr /LD
+\end{Verbatim}
+
+
+
+\textcolor{red}{New keywords}:  To further extend data types, i.e. to define
+class, enums, pointers and references, under the control of CLR garbage
+collector, Managed C++ defines some non-standard keywords.
+% The managed code is under the garbage collection of the CLR (Common Language
+% Runtime).
+% Managed C++ uses non-standard keywords like \verb!__gc! or \verb!__value!.
+\begin{itemize}
+  \item \verb!__gc class! : to indicate a class is reference managed class
+  
+\begin{verbatim}
+__gc class Block {};
+\end{verbatim}
+An object of this class is allocated on the CLR heap (managed heap) and is garbage collected.
+  
+  \item \verb!__value class! : to indicate a class is value managed class
+  
+An object of this class is considered as small, short-lived data items so there is no need for full garbage collection.
+  
+  \item \verb!__gc __interface! : to indicate a managed interface class
+  
+Any \verb!__gc! interface can be implemented by a \verb!__gc class!
+\begin{verbatim}
+// __gc_interfaces.cpp
+// compile with: /clr /LD
+#using <mscorlib.dll>
+__gc __interface Ibase { 
+   void f(); 
+};
+\end{verbatim}
+\url{https://msdn.microsoft.com/en-us/library/aa712846(v=vs.71).aspx}  
+
+NOTE: An interface is a class with no body code of its declared function prototypes.
+
+  \item \verb!__value enum! : 
+  
+\begin{verbatim}
+__value enum Color {red, green, blue}; 
+\end{verbatim}
+
+  \item \verb!__gc * ! : a pointer pointing to a managed object
+  
+\begin{verbatim}
+__value struct V { int i;};
+__gc struct G { V v; };
+
+G __gc* pG = new G;  // pG point into CLR heap
+V __gc* pV = &pG->v; 
+
+\end{verbatim}  
+
+
+  \item \verb!__nogc*! : a pointer cannot point to CLR heap (managed heap). By
+  using this in a pointer definition, it helps the compiler to know explicitly
+  whether the pointer is C++ pointer or CLR pointer.
+  
+\begin{verbatim}
+V __nogc* pV2 = & v;   // pV2 cannot point into runtime heap 
+\end{verbatim}
+
+There are two types of pointers: \verb!__gc! pointers work on
+.NET framework, \verb!__nogc! are normal C++ pointers. This helps programmers
+to know which objects are under automatic garbage-collection by .NET and which
+one need to be manually managed by the programmer.
+  
+
+  \item \verb!__gc __abstract! : to indicate a class is an abstract managed class
+  
+  \item \verb!__gc __sealed! : to indicate a derived class is sealed managed class
+  
+  \item \verb!__identifier! : to treat a C++ keyword as an identifier. This is
+   required when working with class written in another language, and
+  the name of this class is the C++ keyword.
+  
+Example: a class named \verb!operator!.
+\begin{verbatim}
+#using <mscorlib.dll>
+#using "operator.dll"   // contains "operator" class
+
+void () {
+   __identifier(operator) *pO = new __identifier(operator);
+}
+\end{verbatim}
+\url{https://msdn.microsoft.com/en-us/library/aa712812(v=vs.71).aspx}
+
+  \item \verb!__delegate! : a delegate is a method pointer (the usage is similar to that in C++/CLI - Sect.\ref{sec:delegates})
+  
+First define a delegate type
+\begin{verbatim}
+__delegate int MyDelagate(String * str);
+\end{verbatim}
+
+then we define (1) the explicit method of the same interface of the delegate type, (2) and an object as the delegate pointing to the defined method
+\begin{verbatim}
+__gc class MyClass 
+{
+public:
+	int MethodA(String *str) 
+	{
+		Console::WriteLine(S"MyClass::MethodA - The value of str is: {0}", str);
+		return str->Length;
+	}
+}
+MyDelegate *pDelegate = new MyDelegate(pMC, &MyClass::MethodA);
+
+
+// to invoke the object's method via delegate
+pDelegate->Invoke("Invoking MethodA");
+
+
+\end{verbatim}
+\url{http://www.codeproject.com/Articles/1077/Delegates-in-managed-C}
+
+
+  \item \verb!__property! : to combine the get and set method into a single property block
+  
+  \item \verb!__event! : can be applied to method declaration, interface
+  declaration, or data member declaration. The usage is similar to that in
+  C++/CLI - Sect.\ref{sec:event_handler_C++/CLI}
+  \url{https://msdn.microsoft.com/en-us/library/cb1dzt8t.aspx}
+  
+  \item \verb!__pin! : when a managed object is {\it pinned}, the CLR will not
+  move the object location during garbage collection. This allows passing a
+  pointer to a managed object as an actual parameter to an unmanaged function
+  call.
+\begin{verbatim}
+G __pin * pG = new G;   // pG is a pinning pointer
+   H * h = new H;
+   h->incr(& pG -> i);   // pointer to managed data passed as actual
+                         // parameter of unmanaged function call
+\end{verbatim}  
+
+Example:
+\begin{verbatim}
+Type __pin* name = dynamic_cast<Type *>(difName);
+\end{verbatim}
+NOTE: A pinning pointer can be implicitly converted to a \verb!__nogc! pointer.
+
+\end{itemize}
+
+Example:
+\begin{verbatim}
+__gc class Block {};                           // reference class
+__value class Vector {};                       // value class
+__gc __interface I {};                        // interface class
+__gc __abstract class Shape {};                // abstract class
+__gc __sealed class Shape2D : public Shape {}; // derived class
+
+
+char WinName __gc[];  // declare an array
+int object_location __gc[,];
+\end{verbatim}
+
+\begin{mdframed}
+
+a \verb!__gc class! can 
+\begin{itemize}
+  \item have a constructor
+  \item have a destructor
+  \item implement any number of \verb!__gc! interface
+\end{itemize}
+
+
+Limitations: a \verb!__gc class! cannot
+\begin{enumerate}
+  \item  have multiple inheritance in managed code: due to the limitation of .NET CLR, i.e. a class managed under CLR's garbage collector cannot inherit more than one class.
+  \item inherit a class that is not \verb!__gc! declared
+  \item implement an interface that is not \verb!__gc! declared  
+  \item no support ASP.NET web application in managed code
+  \item no support for generic programming (aka templates)
+  
+  \item by default, be visible outside of its own assembly    
+  
+NOTE: To make a \verb!__gc! class visible outside, use \verb!public! keyword as well
+\begin{verbatim}
+public __gc class hey  { };
+\end{verbatim}
+%   \item    
+% However, it had race
+% conditions and other serious bugs. 
+\end{enumerate}
+\end{mdframed}
+% Both have the same goal, i.e. creating .NET assemblies using C++ language. Typically if a
+% company is developing .NET apps they don't lean toward C++/CLI, unless critical
+% performance is necessary. 
+\url{http://en.wikipedia.org/wiki/Managed_Extensions_for_C++\#Additional_or_amended_functionality_provided_in_Managed_C.2B.2B}
+
+\subsection{C++/CLI}
+\label{sec:C++/CLI}
+
+Similar to Managed C++, C++/CLI allows you to write .NET code (managed code) and
+C++ code (native code) in the same program. C++/CLI (Common Language
+Infrastructure) is the replacement for Managed C++ since 2004
+(Sect.\ref{sec:managed_C++}). C++/CLI is better in many ways
+\begin{itemize}
+  \item separate set keywords to use for managed codes, i.e. without sharing the same keyword with C++ code, e.g. to create a managed object we use \verb!gcnew! keyword.  
+  
+NOTE: C++/CLI was standardized as an extended version of C++ and ECMA defined
+355 standards called CLR programs or C++/CLI programs.
+
+  \item introduced the concept of generic (conceptually similar to C++ templates, but different in the implementation)
+  
+  \item finalizer syntax is introduced \verb.!ClassName(). - a special type of
+  non-deterministic destructor that is only called as part of the garbage
+  collection.
+  
+NOTE: the normal destructor is implemented through the IDisposable() interface;
+while the finalizer is implemented to override the \verb!Finalize()! method of
+the root \verb!Object! class. (Read C\# book to understand finalizable pattern
+vs. disposable pattern).
+  
+  \item  \verb!typeid()! is added to help checking the class type name.
+  
+NOTE: typeid() does not support reference types. 
+
+\end{itemize}
+
+
+To use intrinsic .NET data type, we can use .NET types in C++/CLI code. If we
+want to know the equivalent C\# data type, a good idea is to map the data type
+between C\# and C++, we match with .NET data type from the two following links
+\begin{itemize}
+  \item C++/CLI and .NET:
+  \url{http://msdn.microsoft.com/en-us/library/0wf2yk2k.aspx}
+  
+  \item C\# and .NET:
+  \url{http://msdn.microsoft.com/en-us/library/ya5y69ds.aspx}
+\end{itemize}
+
+Example:
+\begin{verbatim}
+   C#         .NET type        C++/CLI
+   uint       System.UInt32     unsigned int
+\end{verbatim}
+
+
+Support for C++/CLI is included in Microsoft Visual Studio 2005, 2008, 2010,
+2012 (including Express edition).
+A more detailed discusion is given in Sect.\ref{sec:VC++_C++/CLI}.
+    
+\url{https://msdn.microsoft.com/en-us/library/b23b94s7.aspx}
+
+
+\subsection{stdafx.h}
+\label{sec:stdafx.h}
+
+Pre-compiled header file can greatly speed up the code compilation.
+\textcolor{red}{This is only useful for large projects}.
+The pre-compiled header file \verb!stdafx.h!  does \verb!#includes! all of the
+.h files that you want to be precompiled. The file does not necessary name
+\verb!stdafx.h! but the VS project template only picks that name. 
+
+IMPORTANT:
+\begin{itemize}
+  \item use \verb!#include ``stdafx.h''!, instead of \verb!#include <stdafx.h>!
+
+EXPLAIN: The file is supposed to locate in the current folder of the project, not in the include path.
+
+  \item  using \verb!#include ``stdafx.h''! must be the first line in the .cpp files
+  
+  \item a file \verb!stdafx.cpp! must also be created, and the content is
+\begin{verbatim}
+#include "stdafx.h"
+\end{verbatim}
+The compilation of this file generate a \verb!*.pch! file. 
+The name of the \verb!.cpp! file is \verb!stdafx.cpp!. The setting for this file is
+different from other files, as it is built with \verb!/Yc! (i.e. create
+pre-compiled header file option)
+\footnote{\url{http://msdn.microsoft.com/en-us/library/7zc28563.aspx}}
+\begin{verbatim}
+/Yc[filename]
+\end{verbatim}
+
+Once that done, the compiler just use the \verb!.pch! file that is the result of
+the first compilation.
+
+% But before that can work, there must be one \verb!.cpp! file that
+% \verb!#include! stdafx.h and get compiled first. 
+
+  \item your project's setting must enable 
+\begin{verbatim}
+Project's properties
+   Configuration: All Configurations
+   
+Configuration Properties
+   C/C++
+     Precompiled headers
+
+  - Precompiled headers: choose /Yc or /Yu
+  - Precompiled header file: "stdafx.h"
+  - Precompiled header output file: "$(IntDir)\$(TargetName).pch" 
+  (resulting in the compiler switch /Yu:stdafx.h).
+ 
+\end{verbatim}
+
+The corresponding settings for stdafx.cpp should be differentiated 
+by the setting "Create precompiled header" (resulting in the compiler switch /Yc:stdafx.h).
+
+\end{itemize}
+
+
+\subsection{Windows Runtime Library files}
+
+
+\begin{enumerate}
+  \item C Runtime Library: Sect.\ref{sec:CRT}
+  \item C++ Runtime Library: : Sect.\ref{sec:C++_RT}
+  \item ATL: atl*.dll
+  \item MFC: mfc*.dll
+  \item VB 6.0 Run Time: MSVBVM60.DLL
+  \item .NET: many libraries (mscorlib.dll, Systems.Windows.Forms.dll, \ldots)
+\end{enumerate}
+
+\url{http://en.wikipedia.org/wiki/Microsoft_Windows_library_files}
+
+
+\section{APIs on Windows RT}
+\label{sec:WindowsAPI_Windows-RT}
+\subsection{WinRT (Windows 8)}
+\label{sec:WinRT}
+
+Windows 8, while also provide WinAPI (Sect.\ref{sec:WinAPI}), introduced the
+new set of APIs called Windows Runtime (WinRT). WinRT is developed based on
+C++, with object-oriented.
+WinRT natively support ARM and x86 CPUs.
+
+WinRT is based on Component Object Model (COM), and thus can interface with
+different programming languages. WinRT supports development on C++/CX
+(Sect.\ref{sec:C++/CX}), managed language C\#, VB.NET, JavaScript and
+TypeScript. So, applications written in these language can run on Windows Phone
+8 or Windows 8 easily.
+
+WinRT applications run within a sandbox, and require user's approval to access
+critical O/S resources and underlying hardware. File access is restricted to
+some pre-determined places, e.g. Documents or Pictures.
+\subsection{C++/CX}
+\label{sec:C++/CX}
+
+C++/CX (Component Extension) language is different from C++, also borrows some
+syntaxs from C++/CLI  (Sect.\ref{sec:C++/CLI}), such as the hat character
+\verb!^!. While C++/CX is syntactically similar to C++/CLI and thus looks almost
+the same in many ways, it is semantically quite different, i.e. C++/CX is native code, no
+CLR required. Other differences:
+\begin{itemize}
+  \item   For example, in C++/CX, the default interface on a class is specified
+  through an attribute in the interface list while in C++/CLI it is an attribute
+  on the class itself. 
+  
+  \item In C++/CLI, managed objects can move around in memory as the result of
+  GC runs. There are several restrictions with managed class, e.g. we cannot
+  put anything except primitive types (e.g. int) in the class, we cannot get
+  the real address of a member (without pinning). In C++/CX, objects do not move
+  around in memory and thus all of these restrictions are gone.
+\end{itemize}
+
+C++/CX has been designed to support the new API model in Windows 8 (WinRT -
+Sect.\ref{sec:WinRT}). Initially, a new C++ library for Windows 8 called WRL
+(Windows Runtime Library) was designed to support Windows 8. However, there were
+so many difficulties to resolve.
+
+\url{http://blogs.msdn.com/b/vcblog/archive/2011/10/20/10228473.aspx}
+
+It enables the creation of Windows Store apps
+(Sect.\ref{sec:Windows-store-apps}) and Windows Runtime component
+(Sect.\ref{sec:Windows-Runtime-ABI}) that can easily interact with Visual C\#, Visual Basic and Javascript, and other languages that support
+Windows Runtime. 
+
+Programming in C++/CLI can be very challenging, as one must deftly juggle two
+very different object models at the same time: the C++ object model with its
+deterministic object lifetimes, and the garbage-collected CLI object model.
+
+

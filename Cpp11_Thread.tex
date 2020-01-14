@@ -1,0 +1,472 @@
+\chapter{C++11 multithreading (std::thread)}
+\label{chap:multithreading_C++11}
+
+\url{https://solarianprogrammer.com/2011/12/16/cpp-11-thread-tutorial/}
+
+Before C++11 and C11, there was no support for concurrency in the language; the
+standard libraries and the compilers are free to give some guarantees, and the
+programmers need to use explicit tools to handle this
+(Chap.\ref{chap:PThreads}, Chap.\ref{chap:OpenMP}, Chap.\ref{chap:OOMPH-Lib}
+and other libraries from the Parallel Programming book).
+
+What news in C++11 and C11?
+\begin{enumerate}  
+  \item New keyword \verb!thread_local! for defining variables with
+  thread-specific values.
+  
+  \item New memory models (Sect.\ref{sec:memory_model}): update on two different
+  data objects by two different threads are indepenedent of each other, i.e. 2
+  different variables are guarantees to reside at two different physical  memory
+  addresses.
+   
+  \item Support start multiple threads, including passing arguments, return
+  values, and exception across thread boundaries, synchronize multiple threads
+  (synchronize both control flow and data access).
+\end{enumerate}
+that can provides concurrency at 2 levels: high-level programming, low-level
+programming
+
+\section{high-level programming}
+
+C++11 STL has \verb!std::async()! and class \verb!std::future<ReturnType>:! to
+create a future-callable object.
+
+\begin{enumerate}
+  \item \verb!std::async()!	accept a {\it callable object} (e.g. a function,
+  member function, function object, or lambda (Sect.\ref{sec:C++11_lambda})) and
+  create a new thread to run it in the background, if possible. 
+  \begin{verbatim}
+    std::future<long> result1 = std::async(func1)
+  \end{verbatim}
+  By default, the system itself define when to start the background task. 
+  \begin{itemize}
+    \item  To create a thread and force it run immediately (if not possible,
+    throw \verb!std::system_error!), we pass \verb!std::launch::async! policy
+  \begin{verbatim}
+  std::future<long> result1 = std::async(std::launch::async, func1)
+  \end{verbatim}
+  The error code, if occurs, is \verb!resource_unavailable_try_again!
+  (equivalent to POSIX errno EAGAIN).
+  
+%   There are different launch policy:
+% \begin{itemize}
+%   \item \verb!std::async(std::launch::async,...)!
+  \item \verb!std::async(std::launch::deferred, ...)! (postpone the execution
+  of the callable object until \verb!get()! method is called)
+  \begin{lstlisting}
+  auto f1 = std::async( std::launch::deferred, task1);
+  auto f2 = std::async( std::launch::deferred, task2);
+  ...
+  auto val = thisOrThatIsTheCase() ? f1.get() : f2.get();
+  \end{lstlisting}
+% \end{itemize}
+  
+    \item Later on, if not start, trigger it, and wait and get the result
+    back using \verb!get()! metod
+    \item Later on, if not start, trigger it, and wait until it completes (no
+    need to use the result) using \verb!wait()! method
+    \item Later on, wait a certain limited time using \verb!wait_for()! method
+    (don't force the thread to start)
+    \item Later on, wait until a specific time point is reached using
+    \verb!wait_until()! method (don't force the thread to start)
+  \end{itemize}
+  The two later methods return either (1) \verb!std::future_status::deferred!
+  (the background task has not started yet), (2)
+  \verb!std::future_status::timeout! (the task started but hasn't finished
+  yet), (3) \verb!std::future_status::ready! (the task completed).
+  
+\begin{mdframed}
+Using \verb!auto! keyword, we can reduce the amount of code to write
+(Sect.\ref{sec:C++11_auto})
+\begin{verbatim}
+auto result1(std::async(func1))
+\end{verbatim}
+\textcolor{red}{A function can accept arguments either by copy or by reference}.
+We also have example for this, but it's RECOMMENDED to pass by value; unless
+copying it TOO expensive. If we have to pass by reference, it's RECOMMENDED to
+pass by constant reference and \verb!mutable! is not used.
+
+NOTE: If we expect the background task to return nothing, we use
+\verb!std::future<void>!.
+\end{mdframed}
+  
+  NOTE: EAGAIN is raised when performing non-blocking I/O but resources is
+  temporarily unavailable, try again later. 
+  
+  \item \verb!std::future<>! class allows you to wait for the thread to be
+  finished and provides access to its outcome (a returned value or an
+  exception), if any. \verb!get()! method can be used ONLY once for a
+  \verb!std::<future>! instance. After the call to get() method, the object is
+  in an invalid state (which can be checked using \verb!valid()! method for the
+  instance) [Compilers are encouraged to throw \verb!std::future_error!].
+  \textcolor{red}{Result can be used only once}.
+  
+  \item \verb!std::shared_future<>! allows using \verb!get()! method multiple
+  times. The results from all shared futures are put into a memory region called
+  {\it share state} so that can be reused later.
+  \begin{lstlisting}
+  std::shared_future<int> f = async(func1);
+  
+  //or using 'auto'
+  auto f = async(func1).share();
+  \end{lstlisting}
+  then we define a function that accept a pointer to \verb!shared_future!
+  object, so that it can call \verb!get()! method as many time as we want (see
+  Example below)
+\end{enumerate}
+
+The using of \verb!get()! method in \verb!shared_future<>! is different
+from \verb!future<>! in the following situations
+
+\begin{minipage}[t]{0.5\textwidth}
+\begin{verbatim}
+//return a copy of the result
+T future<T>::get()    
+
+
+//specialization for references
+T& future<T&>::get() 
+//specialization for void
+void future<void>::get()
+\end{verbatim}
+\end{minipage}
+\begin{minipage}[t]{0.5\textwidth}
+\begin{verbatim}
+//return a reference to the result
+//stored in the 'share state' memory region
+const T& shared_future<T>::get()   
+
+
+T& shared_future<T&>::get()
+    
+void shared_future<void>::get()  
+\end{verbatim}
+\end{minipage}
+
+\begin{mdframed}
+Without using \verb!get()! method and no \verb!async! launch policy, the program
+can exit without running the background thread.
+
+Without using \verb!get()! method, but \verb!async! launch policy is used, at
+the end of the code, the program don't exit but waits for the background
+task to end. However, it's suggested to use \verb!get()! method before a program
+ends. 
+\end{mdframed}
+
+Example: to find the sume of the returned value of two functions
+\begin{verbatim}
+a = func1() + func2()
+\end{verbatim}
+If func1() and func2() are data-independent; then they can be executed
+concurrently. This can be done in C++11, in a multi-processor system
+
+Example: func1() run in the background and func2() is the foreground task
+\begin{lstlisting}
+#include <future>
+#include <thread>
+#include <iostream>
+#include <exception>
+using namespace std; // so that we don't have to repeat std:: everytime
+
+int func1() {
+  ..
+  return a;
+}
+int func2() {
+  ...
+  return b;
+}
+
+int main() {
+  std:cout << "..." << std::endl;
+  
+  // start a function asynchronously (now or later or never)
+  std::future<int> result1(std::async(func1));
+  
+  // call func2() synchronously (here and now)
+  int result 2 = func2(); 
+
+  // wait for func1() to finish and add it to the result of func2()
+  int result = result1.get() + result2;
+    
+  std::cout << "Result is: " << result
+            << std:endl;
+\end{lstlisting}
+EXPLANATION: using \verb!std::async()! to start func1() in a new thread
+(without blocking the execution of the current process), and put the result to
+an object of class \verb!std::future<>!. The using of \verb!std::future<>! is
+IMPORTANT for 2 reasons: (1) when C++ code see object of this class, it
+understand that it should wait until the result is available (which is a
+'future' outcome of some function); (2) force the background task to start (if
+it has not started yet, when we really need the result of it). The method
+\verb!get()! does a few things: check if func1() has been started and completed
+(easy, just get the result); if func1() started but not completed (it blocks
+and wait for the result); if func1() not started (it forces to start, and
+blocks the foreground, wait to get the result).
+
+HACKER'S TIPS: The order is important to achieve a better performance. If we put
+func2() to the same line (as given below), there's a chance that your code
+runs as sequential again
+\begin{verbatim}
+  int result = func2() + result1.get() ;
+\end{verbatim} 
+\textcolor{red}{The evaluation on the right-hand side of the assignment
+statement is unspecified; so when result1.get() is called before  func2(); the
+code is sequential.} TIPS: Maximize the distance between calling async() and
+calling get(), i.e. call early and return late.
+
+Example:
+\begin{lstlisting}
+auto f(std::async(func1))
+
+...
+f.wait();    // trigger func1 if it has not been start; and 
+             // wait until it completes
+             
+f.wait_for(std::chrono::seconds(10)); //wait at most 10 seconds
+
+f.wait_until(std::system_clock::now()+std::chrono::minutes(1));
+\end{lstlisting}
+
+Example: We use \verb!wait_for()! or \verb!wait_until()! under the situation
+that we have an certain amount of time, and we need some result with as much
+accurate as possible. So, we have two threads, one do a task that
+gives high-accuracy and the other one give lower accuracy. After the waiting
+time, i.e. we can't wait longer, we check if thread A completed or not, if yes,
+get the high-accuracy result; otherwise, it's okay, get the less accuracy result
+\begin{lstlisting}
+int quickComputation();
+int accurateComputation();
+
+std::future<int> f;  
+
+int bestResultInTime() {
+  auto tp = std::chrono::system_clock::now() + std::chrono::minutes(1);
+  
+  f = std::async (std::launch::async, accurateComputation);
+  int guess = quickComputation();
+  
+  auto s = f.wait_until(tp);
+  
+  if (s = std::future_status::ready) {
+     return f.get();
+   }else{
+     return guess;
+   }
+}
+\end{lstlisting}
+NOTE: If we declare 'f' inside the function, at the end of the function, the
+destructor of 'f' will have to wait until \verb!accurateComputation()! to
+complete. This is not what we expect.
+
+Example: When we have a parallel code that we don't know when it completes; we
+can design the program to to do something, while waiting for it to complete.
+Bad code: the following code can be endless if the background task has not
+started yet
+\begin{lstlisting}
+while (f.wait_for(chrono::seconds(0) != future_status::ready)) {
+   //do something
+   ...
+}
+\end{lstlisting}
+Solution: using \verb!std::launch::async! policy or reschedule so that other
+threads to run (call \verb!std::this_thread::yield()! inside the loop) or check
+for \verb!future_status::deferred! (see below)
+\begin{lstlisting}
+std::future<int> f(async(func1)) ; 
+
+//check if it has started
+if (f.wait_for(std::chrono::seconds(0)) != future_status::deferred) {
+  // do something else while waiting for it
+  while (f.wait_for(std::chrono::seconds(0) != future_status::ready) {
+    ...
+  }
+}
+
+auto result = f.get();
+\end{lstlisting}
+
+
+Example: Using \verb!async()! with lambda, i.e. we have a block of code to run,
+or the function need to receive arguments. 
+\begin{enumerate}
+  \item  The argument can be literal
+\begin{lstlisting}
+void doSomething(char c) {
+   ...
+}
+
+
+auto f1 = std::async( [] { doSomething('.'); });
+auto f2 = std::async( [] { doSomething('+'); });
+\end{lstlisting}
+
+   \item Pass by value 
+   \begin{lstlisting}
+   char c = '+';
+   auto f = std::async( [=] { doSomething(c); });
+   \end{lstlisting}
+   The use of capture as [=] means a {\it copy} of c and all other visible
+   objects to the lambda.
+   
+   \item Pass by reference, even a function pointer using \verb!std::future<>!
+   \begin{lstlisting}
+void doSomething(const char& c) {
+    ...
+}
+   
+char c = '.';
+auto f = std::async(doSomething, c);
+   //pass by reference
+auto f = std::async([&] {doSomething(c); }); //risky
+auto f = std::async(doSomething, std::ref(c); //risky
+
+f.get() ; //variable 'c' must be existing after this point
+\end{lstlisting}
+   It's risky as we need to make sure the lifetime of the arguments passed
+   longer the time the execution of the background task completed.
+   
+   \item Pass by reference an instance of \verb!std::shared_future<>! 
+   \begin{lstlisting}
+   using namespace std;
+   void doSomething(char c, shared_future<int> f) {
+     //wait for number
+     int num = f.get(); 
+     ...
+   }
+   
+   
+   int queryNumber();
+   void doSomething(char c, const shared_future<int>& f);
+   
+   auto f = async(queryNumber).share();
+   
+   auto f1 = async(launch::async, doSomething, '.', std::ref(f))
+   auto f2 = async(launch::async, doSomething, '+', std::ref(f))
+   
+   f1.get();
+   f2.get();
+   \end{lstlisting}
+   The above using multiple shared-future objects (all sharing the same {\it
+   share state}), we can use a single shared-future object, and perform
+   \verb!get()! multiple times.
+   \begin{lstlisting}
+   f1.get();
+   f1.get();
+   \end{lstlisting}
+   In any way, passing by reference is risky (as we need to make sure the
+   lifetime of 'f' is longer than 'f1'); but copying a shared future is
+   expensive. So be careful to use !
+   
+   \item A pointer to a class member function
+   \begin{lstlisting}
+class X {
+   public: 
+      void mem (int num);
+      ...
+};
+
+X x;
+auto a = std::async(&X::mem, x, 32);
+\end{lstlisting}
+First is the pointer to member function; Second is the instance object, and from
+Third are arguments.
+\end{enumerate}
+
+
+
+
+
+
+
+
+
+\section{low-level programming (std::thread, mutex, atomic)}
+
+We declare an object of class \verb!std::thread! and pass the desired task an
+initial argument, which automatically start the background task at the time the
+object is created (otherwise, it throws \verb!std::system_error! with error
+code \verb!resource_unavailable_try_again!). To be able to pass data, we need to
+use \verb!std::promise<>! 
+\begin{verbatim}
+#include <thread>
+
+void doSomething();
+
+std::thread t(doSomething); // start the background task
+
+...
+
+t.join();
+\end{verbatim}
+To synchronize the code, i.e. wait until the thread complete, we use
+\verb!join()! method. Compare with \verb!async()!, we
+\begin{enumerate}
+  \item DON't have the control to data; but know the thread ID
+  using \verb!get_id()! method
+  \begin{lstlisting}
+  std::thread::id id = t.get_id();
+  \end{lstlisting}
+  The class constructor \verb!std::thread::id()! yields a unique ID representing
+  'no thread' [NOTE: No guarantee that the main thread has id 1, or 'no
+  thread' has id 0].
+  
+  \item NEED to make sure before the end of the foreground thread, either (1)
+  join() is called; or (2) \verb!detach()! is called on the background task.
+  Otherwise, the program aborts (\verb!std::terminate()!). When  \verb!detach()!
+  is called, the background task is free to run without any  control.
+  \item When there are 'detached' background tasks, and the program run to the
+  end of \verb!main()!, then these background tasks continue to run. If they
+  access global or static objects that are already destroyed or under
+  destruction (as it's the end of the program), the result is undefined
+  behavior. If detached threads need to use global or static objects, a solution
+  (to make sure these data are not destroyed before datached objects finish) is
+  \begin{enumerate}
+    \item Use a condition variable, that detached threads use to signal that
+    they have finished; and before calling exit() or end of main() code, signal
+    these condition variables
+    \item Call \verb!quick_exit()! at the end of the program (end the program
+    without calling the destruction for global or static objects)
+    \item Force the main thread to wait until detached threads complete using
+    \verb!..at_thread_exit()!.
+  \end{enumerate}
+\end{enumerate}
+
+\begin{mdframed}
+HACKER'S TIP: Detached threads can be come a problem if they use non-local
+resources. Thus, passing data to a thread by reference is always a risk. It's
+strongly recommended passing by value.
+\end{mdframed}
+
+Example: function with arguments
+\begin{lstlisting}
+void doSomething(int num, char c);
+
+std::thread t(doSomething, 5, '.');
+\end{lstlisting}
+
+
+
+To protect concurrent access to a shared data, mutexes or atomic functions need
+to be used.
+
+\section{std::thread() vs. boost::thread()}
+
+
+One of the biggest change to the C++ language is the addition of multithreading
+support since C++11.
+
+To compile code, make sure use 
+\begin{verbatim}
+# Linux
+g++ -std=c++11 -pthread file_name.cpp
+
+# Mac XCode
+clang++ -std=c++11 -stdlib=libc++ file_name.cpp
+
+# Windows, use commercial library just::thread
+\end{verbatim}
+
+
+
+

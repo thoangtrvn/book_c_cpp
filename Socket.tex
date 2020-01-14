@@ -1,0 +1,122 @@
+\chapter{BSD Socket}
+\label{chap:Socket}
+
+The basic abstraction of a construct for inter-process communication is a {\bf
+socket}. A socket object represents a single (bidirectional) connection between
+two processes. NOTE: The processes can be on the same machines, or on different
+machines. Depending on the implementation, the support can be one or both.
+
+\begin{enumerate}
+
+  \item  {\bf Unix domain sockets} do not use the network. 
+  \label{sec:socket-Unix-domain}
+  
+  Their api makes it appear to be (mostly) the same to the developer as a
+  network socket but all the communication is done through the kernel and the
+  sockets are limited to talking to processes on the machine upon which they are
+  running.
+  
+  \item {\bf BSD socket (Berkeley socket)}:  are what we know as network sockets
+  on POSIX platforms today.
+  
+  In the past there were different lines of Unix development (e.g. Berkeley or
+  BSD, System V or sysV, etc.) Berkeley sockets essentially won in the
+  marketplace and are effectively synonymous with Unix sockets today.
+
+  Sockets uses the BSD interface that was developed by BBN for the TCP/IP
+  protocol suite under DARPA contract on 4.1aBSD and released in 4.2BSD. BSD
+  Sockets provides a set of primary API functions that are typically
+   implemented as system calls. The BSD Sockets interface is non-standard,
+   operated differently from the POSIX interface in subtle ways, and is now
+   deprecated in favour of the POSIX/SUS standard Sockets interface.
+  
+  \item  {\bf POSIX socket}: POSIX Sockets. Sockets were standardized by X/Open,
+   later the OpenGroup, and IEEE in the POSIX standardization process. They appear in
+  XNS 5.2 [XNS99], SUSv1 [SUS95], SUSv2 [SUS98] and SUSv3 [SUS03]. POSIX/SUS
+  Sockets is now the common application environment for accessing networking,
+  deprecating the XTI for TCP/IP networking applications.
+
+  Strictly speaking there isn't a TCP socket. There are network sockets that can
+  communicate using the TCP protocol. It's just a linguist shorthand to refer to
+  them as a tcp socket to distinguish them from a socket using another protocol
+  e.g. UDP, a routing protocol or whatnot  
+  
+  An "internet" socket is a mostly a meaningless distinction. It's a socket
+  using a network protocol. That eliminates unix domain sockets,but most network
+  protocols can be used to communicate on a LAN or the internet, which is just
+  collection of networks. (Though do note there are protocols specific to local
+  networks as well as those that manage collections of networks.)   
+  
+  \item {\bf winsock}: 
+  
+  \url{http://tangentsoft.net/wskfaq/articles/bsd-compatibility.html}
+  
+  winsocks supports overlapped I/O (with callbacks etc.) through functions like
+   WSARecv (and other similar), which can make porting to bsd-sockets harder
+   
+\end{enumerate}
+\url{https://stackoverflow.com/questions/22897972/unix-vs-bsd-vs-tcp-vs-internet-sockets}
+
+In BSD socket, i.e. a socket implementation that support processes on different
+machines, there are 3 types of sockets: stream socket, datagram socket, and raw
+socket. Each type of socket uses a given communication protocol, e.g. TCP or
+UDP.
+
+
+%Different libraries that implement sockets have been developed: \ldots
+
+\section{Introduction}
+
+\subsection{TCP}
+
+\subsection{UDP}
+
+\subsection{SCTP}
+
+Stream Control Transmission Protocol (SCTP) [RFC2960] is an end-to-end transport
+protocol. SCTP supports
+\begin{enumerate}
+  \item multistream: multiple, independent logical streams of messages within an
+  SCTP association. Data within a single stream is delivered in order. Data
+  between different streams have no order constraint. 
+\end{enumerate}
+
+\section{Ethernet vs. Infiniband}
+
+Gigabit Ethernet can deliver 10 Gbps.
+
+Infiniband can deliver 40 Gbps, with RDMA feature to enable direct memory access
+from one machine to another. The protocol to transfer data can be IPoIB. 
+
+At booting up, if a host channel adapter (HCA) is detected, Ubuntu loads these
+modules \verb!ib_mthca! and \verb!mlx4_*!. 
+\begin{itemize}
+  \item \verb!ib_mthca! : supports older Mellanox InfiniHost III HCAs
+  \item \verb!mlx4_*! (\verb!mlx4_core, mlx4_ib!) : provide support ConnectX and
+  newer Mellanox HCAs. In Ubuntu, the later module \verb!mlx4_core! is not
+  loaded by default. 
+  
+  \item \verb!ib_ipoib! : the last module required for an IPoIB node.
+  
+  \item \verb!ib_umad! : not required to use IPoIB (but is required to use
+  OpenSM), but is useful to load, which enables us to use scripts like
+  \verb!ibstat, ibhosts! from infiniband-diags package.
+  
+  \item a subnet manager: which is required for any Infiniband fabric. An option
+  is to use OpenSM (cross-platform open-source subnet manager) which requires
+  \verb!ib_umad!. 
+\end{itemize}
+\url{http://www.servethehome.com/configure-ipoib-mellanox-hcas-ubuntu-12041-lts/}
+
+
+
+\section{stream socket (uses TCP)}
+
+
+\section{datagram socket (uses UDP)}
+
+
+\section{raw socket}
+
+
+

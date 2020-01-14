@@ -1,0 +1,43 @@
+\chapter{Vala programming language}
+\label{chap:vala-language}
+
+
+\section{vala programming language: valac compiler}
+\label{sec:valac}
+\label{sec:vala-language}
+
+Vala is a new object-oriented programming language, that translate vala source
+code into C source and header files. It uses GObject type system to create classes and
+interfaces (Sect.\ref{sec:GObject}).
+
+Vala aims to bring modern programming language features to GNOME developers
+without imposing any additional runtime requirements and without using a
+different ABI compared to applications and libraries written in C.
+
+Ubuntu 14.04 only has valac 0.22; if you needs newer version, follow the steps
+\begin{verbatim}
+sudo add-apt-repository ppa:ricotz/testing 
+sudo apt-get update
+sudo apt-get install valac
+\end{verbatim}
+\url{https://askubuntu.com/questions/612342/how-to-install-the-vala-environemt}
+
+Vala is syntactically similar to \verb!C#! and includes several features such
+as:
+anonymous functions, signals, properties, Ggenerics, assisted memory management,
+exception handling, type inference, and foreach statements 
+
+
+\section{GObject}
+\label{sec:GObject}
+
+GObject is used by vala language (Sect.\ref{sec:vala-language})
+
+If we need GObject introspection, we need to install
+\begin{verbatim}
+sudo apt-get install gobject-introspection  -y
+  // the below package also include
+  // gobject-introspection1.0-dev 
+  //  handling GObject introspection data (development files)
+sudo apt-get install libgirepository1.0-dev -y 
+\end{verbatim}

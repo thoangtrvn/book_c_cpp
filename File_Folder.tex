@@ -1,0 +1,454 @@
+\chapter{Files/Folders}
+
+\url{http://www.gnu.org/software/libc/manual/html_node/File-System-Interface.html}
+
+\section{Check file/folder existence and create/delete}
+
+\subsection{struct stat (C) and mkdir() - Linux}
+
+\verb!struct stat! is a system struct that is defined to store information about
+files. The struct has different fields
+\begin{verbatim}
+#include <sys/stat.h>
+
+struct stat buf;
+it error_code = stat("filename.txt", &buf); //buf contains information
+
+if (rc >= 0) 
+{ //file exist
+  
+}
+\end{verbatim}
+
+NOTE:  The "sysstat.h" header deals with broken versions of <sys/stat.h> and can
+be replaced by <sys/stat.h> on modern Unix systems (but there were many issues
+back in 1990).
+
+Example 2:
+\begin{verbatim}
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+struct stat st = {0};
+
+if (stat("/some/directory", &st) == -1) {
+    mkdir("/some/directory", 0700);
+}
+\end{verbatim}
+
+
+
+\subsection{SHCreateDirectoryEX  (Win32/C++, Windows XP, 2003)}
+
+In pure Win32/C++ and for Windows XP and 2003 only
+\begin{verbatim}
+inline void EnsureDirExists(const std::wstring& fullDirPath)
+{
+    HWND hwnd = NULL;
+    const SECURITY_ATTRIBUTES *psa = NULL;
+    int retval = SHCreateDirectoryEx(hwnd, fullDirPath.c_str(), psa);
+    if (retval == ERROR_SUCCESS || retval == ERROR_FILE_EXISTS || retval == ERROR_ALREADY_EXISTS)
+        return; //success
+
+    throw boost::str(boost::wformat(L"Error accessing directory path: %1%; win32 error code: %2%") 
+        % fullDirPath
+        % boost::lexical_cast<std::wstring>(retval));
+
+    //TODO *djg* must do error handling here, this can fail for permissions and that sort of thing
+}
+\end{verbatim}
+\url{http://stackoverflow.com/questions/1680836/create-directory-sub-directories}
+
+\subsection{<filesystem> header: VS C++ 2012}
+
+The <filesystem> header is not part of C++11; it is a proposal for C++ TR2 based
+on the Boost.Filesystem library. Visual C++ 2012 includes an implementation of
+the proposed library.
+
+
+\subsection{Boost.Filesystem V2 (cross-platform)}
+\label{sec:boost_filesystem_V2}
+
+This is outdated, use V3 instead (Sect.\ref{sec:boost_filesystem_V3}).
+\verb!Boost.Filesystem! provides a convenient and cross-platform interface for
+file and directory traversing and manipulation. The intent is not to compete
+with Python/Perl/ or shell script, but to provide C++ the feature to do when
+it's needed. We need to install this as a separately compiled library
+\begin{verbatim}
+#include "boost/filesystem.hpp"
+using boost::filesystem; //or
+
+namespace fs=boost::filesystem;
+\end{verbatim}
+and compile with
+\begin{verbatim}
+-I$BOOST_INCLUDE_DIR -L$BOOST_LIB_DIR -lboost_system lboost_filesystem
+\end{verbatim}
+
+A class \verb!path! object
+\begin{verbatim}
+// use either regular or wide-character
+// Input : const char* 
+//         const std::string &
+path my_path("some_dir/file.txt");  
+wpath my_path("some_dir/file.txt"); 
+   //both returns a path object 
+  //that works for API of any operating system that accepts either
+  // some_dir::file.txt
+  // [some_dir]file.txt
+  // some_dir/file.txt
+  // etc.
+\end{verbatim}
+We can also use \verb!operator/! to append paths
+\begin{verbatim}
+ifstream file1( arg_path / "foo" / "bar");
+ifstream file1( arg_path / "foo/bar");
+\end{verbatim}
+
+\begin{enumerate}
+  \item if file/folder exists
+\begin{verbatim}
+if (fs::exists(fs::status(data_dir)))       // true - directory exists
+if (fs::exists( data_dir ))     
+\end{verbatim}  
+which nees an argument of type boost::filesystem::path or something that is
+implicitly convertible to it, e.g. std::string
+
+Check subfolder
+\begin{verbatim}
+
+boost::filesystem::path config_folder(Config::CONFIG_FOLDER_NAME);
+
+//use / operator
+if(!(boost::filesystem::exists(
+    config_folder / Config::fmap[Config::current_hash_function]));
+
+//or 
+if( !(boost::filesystem::exists(
+   std::string(boost::format("%s/%s") 
+   % config_folder 
+   % Config::fmap[Config::current_hash_function])));
+{
+\end{verbatim}
+
+  \item create directory
+\begin{verbatim}
+create_directory("my_directory");
+\end{verbatim}  
+  \item remove
+\begin{verbatim}
+remove_all ("something");
+\end{verbatim}
+
+  \item copy file/folder
+\begin{verbatim}
+//NOTE: We should provide destination filename, 
+//      not just the folder
+path user_path( "C:\\My Folder" );
+path dest_file( "C:\\My Folder\\file.txt" );
+
+boost::filesystem::create_directory( user_path );
+path file(  "C:\\Another\\file.txt" );
+
+//WRONG
+boost::filesystem::copy_file( file, user_path );
+//CORRECT
+boost::filesystem::copy_file( file, dest_file );
+\end{verbatim}  
+
+However, an exception is thrown if the file existed in the destination folder.
+To copy with overwrite
+\begin{verbatim}
+fs::copy_file(sourcefile, destfile, fs::copy_option::overwrite_if_exists);
+\end{verbatim}
+NOTE: In older version of Boost 1.46 (before rev.67067), the problem is that 
+if the dest file exists and is smaller than the source, then the function only
+overwrite the first \verb!size(filesource)! bytes in the target file.
+
+Another choice
+\begin{verbatim}
+if (exists (destfile))
+	remove(destfile);
+copy_file(sourcefile, destfile);	
+\end{verbatim}
+However, this raises the problem if the two files are the same??? If we delete
+the target file then we also delete the source file.
+
+Or to use try..catch
+\begin{verbatim}
+try
+{
+	fs::copy_file(sourcefile, destfile);
+}catch (const fs::filesystem_error& e)
+{
+	std::cerr << "Error: " << e.what() << std::endl;
+}
+\end{verbatim}
+
+   \item iterate through files
+   
+   \item find files
+\begin{verbatim}
+find_files
+\end{verbatim}
+\end{enumerate}
+
+
+Even though it's not part of C++11; yet it's a proposal for C++11/TR2
+\footnote{\url{www.open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3335.html}}.
+Visual C++2012 contains the implementation for this proposed library.
+
+References:
+\begin{enumerate}
+  \item \url{www.boost.org/doc/libs/1_41_0/libs/filesystem/doc/index.htm}
+\end{enumerate}
+
+\subsection{Boost.Filesystem V3 (cross-platform, C++11)}
+\label{sec:boost_filesystem_V3}
+
+This is the major revision of Boost.Filesystem V2
+(Sect.\ref{sec:boost_filesystem_V2}) to work better with C++11 new data type
+\verb!char16_t! and \verb!char32_t!
+\footnote{\url{www.boost.org/doc/libs/1_49_0/libs/filesystem/v3/doc/v3_design.html}}.
+Boost.Filesystem V3 is the default in Boost 1.60.0+.
+
+In this version, there's no need to use \verb!path! and \verb!wpath!, we only
+need a single class \verb!path! that supports different character type
+(\verb!char!, \verb!wchar_t! \verb!char16_t!, \verb!char32_t!).
+The class \verb!path! also have new members
+\begin{verbatim}
+has_stem()
+
+has_extension()
+
+is_absolute()
+
+is_relative()
+
+make_preferred()
+\end{verbatim}
+New or improved functions
+\begin{verbatim}
+absolute()
+
+create_symlink()
+
+read_symlink()
+
+resize_file()
+
+unique_path()
+\end{verbatim}
+
+To create folder:
+\begin{verbatim}
+#include <boost/filesystem.hpp>
+//...
+boost::filesystem::create_directories("/tmp/a/b/c");
+\end{verbatim}
+which returns \verb!true! is creating folder successfully; and \verb!false!
+otherwise.
+
+
+\begin{enumerate}
+  \item
+  \url{http://www.boost.org/doc/libs/1_49_0/libs/filesystem/v3/doc/v3.html}
+  
+  \item
+  \url{http://www.boost.org/doc/libs/1_46_1/libs/filesystem/v3/doc/reference.html}
+\end{enumerate}
+
+\section{Temporary filename: tmpnam(), mkstemp()}
+\label{sec:tmpnam}
+\label{sec:mkstemp}
+\label{sec:tmpfile}
+
+\verb!std::tmpnam()! is defined in \verb!<cstdio>!:
+\begin{verbatim}
+char* tmpnam(char* filename);
+\end{verbatim}
+create a unique filename that is different from any currently existing file, and
+the name is stored in the argument. \textcolor{red}{CONS: not thread-safe; it is possible (though with low chance) that 
+during the time it starts, to it returns, another process also uses that name}. 
+
+\textcolor{red}{BETTER CHOICE (i.e. thread-safe)}: std::tmpfile or (POSIX) mkstemp. 
+
+
+On POSIX systems, we can use \verb!mkstemp()!
+
+
+For portable, we can use
+\begin{verbatim}
+namespace fs=boost::filesystem;
+
+
+//return folder
+fs::path tmppath = temp_directory_path();
+
+//return file
+filesystem::unique_path()? 
+
+\end{verbatim}
+
+
+
+\section{Count number of files}
+
+There are different options, some are not platform portable.
+Don't use \verb!system()! as it only returns the exit status of the UNIX shell
+(Sect.\ref{sec:system()}).
+
+\begin{enumerate}
+  \item If it's all the files, then use \verb!opendir! and \verb!readdir!
+  \item Try \verb!execv!
+  \item Try \verb!glob!, if we use file pattern to search
+  \verb!http://linux.die.net/man/3/glob!
+  \item Try \verb!popen/pclose! (Linux) and
+  \verb!_popen/_pclose! (Windows) \url{http://linux.die.net/man/3/popen} which
+  gives us a FILE* of the \verb!stdout!. 
+  \begin{verbatim}
+#include "stdio.h"
+
+int main(){
+    FILE* fp;
+    char result [1000];
+    fp = popen("ls -al .","r");
+    fread(result,1,sizeof(result),fp);
+    fclose (fp);
+    printf("%s",result);
+    pclose(fp);
+    return 0;
+}    
+  \end{verbatim}
+  
+  \begin{verbatim}
+#include <string>
+#include <iostream>
+#include <stdio.h>
+
+std::string exec(char* cmd) {
+    FILE* pipe = popen(cmd, "r");
+    if (!pipe) return "ERROR";
+    char buffer[128];
+    std::string result = "";
+    while(!feof(pipe)) {
+    	if(fgets(buffer, 128, pipe) != NULL)
+    		result += buffer;
+    }
+    pclose(pipe);
+    return result;
+}
+  \end{verbatim}
+  
+  \item Try \verb!dirent.h! (Linux and Windows)
+\begin{verbatim}
+     #include <stdio.h>
+     #include <sys/types.h>
+     #include <dirent.h>
+     
+     int
+     main (void)
+     {
+       DIR *dp;
+       struct dirent *ep;
+     
+       dp = opendir ("./");
+       if (dp != NULL)
+         {
+           while (ep = readdir (dp))
+             puts (ep->d_name);
+           (void) closedir (dp);
+         }
+       else
+         perror ("Couldn't open the directory");
+     
+       return 0;
+     }
+\end{verbatim}
+with the order of files appear in the directory are fairly random.
+
+or
+  \begin{verbatim}
+DIR *dir;
+struct dirent *ent;
+if ((dir = opendir ("c:\\src\\")) != NULL) {
+  /* print all the files and directories within directory */
+  while ((ent = readdir (dir)) != NULL) {
+    printf ("%s\n", ent->d_name);
+  }
+  closedir (dir);
+} else {
+  /* could not open directory */
+  perror ("");
+  return EXIT_FAILURE;
+}
+\url{http://www.softagalleria.net/download/dirent/}  
+  \end{verbatim}
+  
+  \item Try \verb!Boost::Filesystems! with \verb!directory_iterator! and
+  \verb!std::count_if!)
+\end{enumerate}
+
+\url{http://stackoverflow.com/questions/6318077/read-perl-script-from-c}
+
+\url{http://stackoverflow.com/questions/478898/how-to-execute-a-command-and-get-output-of-command-within-c}
+
+\subsection{system()}
+\label{sec:system()}
+
+\verb!system()! enables execution of a Linux shell command. However, it only
+returns the error status code.
+Also, \verb!system()! is a non-reentrant function (i.e. not safe for
+multi-threaded application).
+
+
+\subsection{execl()}
+\label{sec:execl()}
+
+Using \verb!execl()! is not recommended in a multi-threaded application; as it
+is non-reentrant.
+
+The \verb!execl()! functions are variadic: they take a variable number of
+parameters so that you can pass a variable number of arguments to the command.
+The functions need to use a null pointer as a marker to mark the end of the
+argument list. 
+The safe thing to do especially if you have a 64-bit architecture is to
+explicitly use (void *)0 which is defined to be compatible with any pointer and
+not rely on any dodgy \verb!#defines! that might happen to be in the standard
+library. NOTE: We also can use \verb!(char*)0!.
+
+NULL isn't a null pointer, it's a null pointer constant. And a null pointer
+constant is required by the C++ standard to have an integral type.
+When NULL (or 0) is used in a context which requires a pointer type, it is
+implicitly converted to a null pointer.
+
+The first argument is the path of the executable. The following arguments appear
+in argv of the executed program. The list of these arguments is terminated by a
+(char*)0; that's how the called function knows that the last argument has been
+reached. Posix standard says: the last argument must be (char*)0, or you have
+undefined behavior.
+More generally, the C standard says that it is undefined behavior if a varargs
+function tries to extract a type other than the type which was passed. execl is
+documented to require a char*.
+
+
+\begin{verbatim}
+execl( "/bin/ls", "ls", "-l", (char*)0 );
+
+execl( "/bin/ls", "ls", "-l", (void*)0 );
+
+ // not recommended
+execl( "/bin/ls", "ls", "-l", NULL);
+
+\end{verbatim}
+In the above example, for example, the executable at "/bin/ls" will
+replace your code; in its main, it will have argc equal 2, with argv[0] equal
+"ls", and argv[1] equal "-l".
+
+
+
+Immediately after this function, you should have the error handling code.
+\verb!excl()! always returns -1; so no need to test it.  And it only returns if
+there was some sort of error.
+\url{http://stackoverflow.com/questions/12677120/execl-arguments-in-ubuntu}
